@@ -1,11 +1,6 @@
-// --- CONFIGURATION ---
-const isLocal = window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1';
-const isFile = window.location.protocol === 'file:';
 
-const BASE_URL = (isFile || (isLocal && window.location.port !== '3000')) 
-    ? 'http://localhost:3000' 
-    : '';
+// User Configured Backend URL
+const BASE_URL = 'https://asg-ahmad.vercel.app';
 
 // --- SHOP CONFIGURATION (MUST MATCH server.js SHOP_NAMES array exactly) ---
 const SHOP_PREFIXES = [

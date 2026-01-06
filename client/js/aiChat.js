@@ -39,9 +39,8 @@ async function handleChatSubmit(event) {
         const context = getChatContext();
 
         // Send to API
-        // NOTE: Using localhost for AI because the feature isn't deployed to Vercel yet.
-        // The rest of the app continues to fetch data from the live Vercel backend.
-        const response = await fetch(`http://localhost:3000/api/ai/chat`, {
+        // NOTE: Using BASE_URL for AI
+        const response = await fetch(`${BASE_URL}/api/ai/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt: message, context })

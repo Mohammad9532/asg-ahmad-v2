@@ -94,16 +94,8 @@
     </div>
 
     <script>
-        const isLocal = window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1';
-        const isFile = window.location.protocol === 'file:';
 
-        // Point to API server if:
-        // 1. Running from file system
-        // 2. Running locally but NOT on port 3000 (e.g., Live Server on 5500)
-        const BASE_URL = (isFile || (isLocal && window.location.port !== '3000'))
-            ? 'http://localhost:3000'
-            : '';
+        const BASE_URL = 'https://asg-ahmad.vercel.app';
 
         const loginForm = document.getElementById('loginForm');
         const usernameInput = document.getElementById('username');
