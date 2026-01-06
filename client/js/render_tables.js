@@ -1,0 +1,257 @@
+// --- REUSABLE TABLE RENDERERS ---
+
+/**
+ * Renders a standard table for any data type (Bookings, Delivery, Expenses).
+ */
+function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) {
+    if (data.filteredData.length === 0) {
+        return '<p class="text-center text-gray-500 mt-4">No data found in the selected date range.</p>';
+    }
+
+    const tableId = `${shopPrefix}_${dataType}_detailed`;
+    let filteredData = [...data.filteredData];
+
+    // Apply sorting
+    const currentSort = sortState[tableId];
+    if (currentSort) {
+        filteredData = sortArray(filteredData, currentSort.key, currentSort.dir);
+    } else {
+        filteredData = sortArray(filteredData, 'date', 'desc'); // Default sort
+    }
+
+    // Apply Search Filtering
+    const searchQuery = searchState[tableId] || '';
+    if (searchQuery) {
+        const lowerQ = searchQuery.toLowerCase();
+        filteredData = filteredData.filter(doc => {
+            return Object.values(doc).some(val =>
+                val && val.toString().toLowerCase().includes(lowerQ)
+            );
+        });
+    }
+
+    const headerMap = {
+        'billNo': 'Bill No',
+        'name': 'Customer/Ref',
+        'date': 'Date',
+        'amountType': 'Type',
+        'status': 'Status',
+        'amount': 'Amount',
+        'cat': 'Category',
+        'dept': 'Department',
+    };
+
+    // Get all unique keys for headers, prioritize the map keys
+    let allKeys = new Set(Object.keys(headerMap));
+    filteredData.forEach(doc => Object.keys(doc).forEach(key => allKeys.add(key)));
+
+    // Filter out internal MongoDB keys
+    const relevantKeys = Array.from(allKeys).filter(key =>
+        !['_id', '__v', 'createdAt', 'updatedAt', 'countryCode', 'phone', 'qty', 'modelName'].includes(key)
+    );
+
+    // Generate header row with sort handlers
+    const headerRow = relevantKeys.map(key => {
+        const headerText = headerMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
+        return `<th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('${key}', '${tableId}', renderContent)">
+            ${headerText} ${getSortIcon(key, tableId)}
+        </th>`;
+    }).join('');
+
+    // Generate data rows
+    const rows = filteredData.map(doc => {
+        const isCanceled = showCanceledIndicator && isCanceledStatus(doc.status);
+        const displayAmount = isCanceled ? -(doc.amount || 0) : (doc.amount || 0);
+        const colorClass = isCanceled ? 'text-red-700-bold' : 'text-green-700-bold';
+
+        const cellData = relevantKeys.map(key => {
+            let value = doc[key];
+
+            if (key === 'date' && value) {
+                value = new Date(value).toLocaleDateString();
+            } else if (key === 'amount') {
+                return `<td class="px-6 py-4 ${colorClass}">${formatCurrency(displayAmount)}</td>`;
+            } else if (key === 'status') {
+                const statusColor = isCanceled ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800';
+                value = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">${value || 'N/A'}</span>`;
+            }
+
+            return `<td class="px-6 py-4">${value || '-'}</td>`;
+        }).join('');
+
+        return `<tr class="bg-white border-b hover:bg-gray-50 ${isCanceled ? 'bg-red-50' : ''}">${cellData}</tr>`;
+    }).join('');
+
+
+    // Add Search Bar
+    const searchHtml = `
+        <div class="mb-3 relative max-w-md">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <input 
+                type="text" 
+                placeholder="Search bill number, name, amount..." 
+                class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
+                value="${searchQuery.replace(/"/g, '&quot;')}"
+                oninput="handleTableSearch('${tableId}', this.value)"
+            />
+        </div>
+    `;
+
+    // Construct the final HTML table
+    return `
+        ${searchHtml}
+        <div id="${tableId}" class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner">
+            <table class="w-full text-sm text-left text-gray-500 data-table">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                    <tr>
+                        ${headerRow}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+/**
+ * Renders the day-wise table for Net Bookings.
+ */
+function renderDailyNetBookingTable(dailyData, dataTypeLabel, tableId) {
+    if (dailyData.length === 0) {
+        return `<p class="text-center text-gray-500 mt-4">No daily ${dataTypeLabel.toLowerCase()} trend data found in the selected date range.</p>`;
+    }
+
+    let headerCells = `
+        <th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('dateStr', '${tableId}', renderContent)">Date ${getSortIcon('dateStr', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('gross', '${tableId}', renderContent)">Gross Bookings ${getSortIcon('gross', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right text-red-700-bold sortable-header" onclick="handleSort('canceled', '${tableId}', renderContent)">Canceled/Deducted ${getSortIcon('canceled', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right bg-green-100/50 text-green-700-bold sortable-header" onclick="handleSort('net', '${tableId}', renderContent)">Net Booking Total ${getSortIcon('net', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('count', '${tableId}', renderContent)">Count ${getSortIcon('count', tableId)}</th>
+    `;
+    let rowCells = '';
+
+    dailyData.forEach(item => {
+        let grossAmount = item.gross || 0;
+        let canceledAmount = item.canceled || 0;
+        let netAmount = item.net || 0;
+
+        let netColorClass = netAmount >= 0 ? 'text-green-700-bold' : 'text-red-700-bold';
+        let grossColorClass = grossAmount >= 0 ? 'text-teal-700' : 'text-red-700-bold';
+
+        rowCells += `<tr class="bg-white border-b hover:bg-gray-50">
+            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">${item.dateStr}</td>
+            <td class="px-6 py-3 text-right ${grossColorClass}">${formatCurrency(grossAmount)}</td>
+            <td class="px-6 py-3 text-right text-red-700-bold">${formatCurrency(canceledAmount)}</td>
+            <td class="px-6 py-3 text-right ${netColorClass} bg-green-100/50">${formatCurrency(netAmount)}</td>
+            <td class="px-6 py-3 text-right text-gray-700">${item.count}</td>
+        </tr>`;
+    });
+
+    return `
+        <div class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner">
+            <table class="w-full text-sm text-left text-gray-500 data-table">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                    <tr>
+                        ${headerCells}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowCells}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+/**
+ * Renders the day-wise multi-category table for Deliveries and Expenses.
+ */
+function renderDailyCategoryTrendTable(dailyAggregates, allCategories, dataTypeLabel, tableId) {
+    if (dailyAggregates.length === 0) {
+        return `<p class="text-center text-gray-500 mt-4">No daily ${dataTypeLabel.toLowerCase()} trend data found in the selected date range.</p>`;
+    }
+
+    const isExpense = dataTypeLabel === 'Expenses';
+
+    // --- 1. Build Headers ---
+    let headerCells = `<th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('dateStr', '${tableId}', renderContent)">Date ${getSortIcon('dateStr', tableId)}</th>`;
+
+    const totalLabel = isExpense ? 'Total Expense' : 'Grand Total';
+    const totalBgClass = isExpense ? 'bg-red-100/50' : 'bg-teal-100/50';
+    const totalSortKey = 'total';
+
+    // 1a. Expense: Total column first
+    if (isExpense) {
+        headerCells += `<th scope="col" class="px-6 py-3 text-right font-bold ${totalBgClass} sortable-header" onclick="handleSort('${totalSortKey}', '${tableId}', renderContent)">${totalLabel} ${getSortIcon(totalSortKey, tableId)}</th>`;
+    }
+
+    // 1b. Category columns
+    allCategories.forEach(cat => {
+        headerCells += `<th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('breakdown.${cat}', '${tableId}', renderContent)">${cat.charAt(0).toUpperCase() + cat.slice(1)} ${getSortIcon(`breakdown.${cat}`, tableId)}</th>`;
+    });
+
+    // 1c. Deliveries: Total column last
+    if (!isExpense) {
+        headerCells += `<th scope="col" class="px-6 py-3 text-right font-bold ${totalBgClass} sortable-header" onclick="handleSort('${totalSortKey}', '${tableId}', renderContent)">${totalLabel} ${getSortIcon(totalSortKey, tableId)}</th>`;
+    }
+
+    headerCells += `<th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('count', '${tableId}', renderContent)">Count ${getSortIcon('count', tableId)}</th>`;
+
+    // --- 2. Build Rows ---
+    let rowCells = '';
+    dailyAggregates.forEach(item => {
+        const daily = item;
+        let row = `<tr class="bg-white border-b hover:bg-gray-50">
+            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">${daily.dateStr}</td>`;
+
+        // Calculate Total for row
+        let totalAmount = daily.total || 0;
+        if (isExpense) totalAmount = -totalAmount; // Total is negative for visual expense report
+        const totalColorClass = totalAmount >= 0 ? 'text-green-700-bold' : 'text-red-700-bold';
+
+        // 2a. Expense: Total cell first
+        if (isExpense) {
+            row += `<td class="px-6 py-3 text-right font-extrabold ${totalColorClass} ${totalBgClass}">${formatCurrency(totalAmount)}</td>`;
+        }
+
+        // 2b. Category Cells
+        allCategories.forEach(cat => {
+            let amount = daily.breakdown[cat] || 0;
+            const displayAmount = isExpense ? -amount : amount;
+
+            const colorClass = displayAmount >= 0 ? 'text-green-700-bold' : 'text-red-700-bold';
+            row += `<td class="px-6 py-3 text-right ${colorClass}">${formatCurrency(displayAmount)}</td>`;
+        });
+
+        // 2c. Deliveries: Total cell last
+        if (!isExpense) {
+            row += `<td class="px-6 py-3 text-right font-extrabold ${totalColorClass} ${totalBgClass}">${formatCurrency(totalAmount)}</td>`;
+        }
+
+        row += `<td class="px-6 py-3 text-right text-gray-700">${daily.count}</td></tr>`;
+
+        rowCells += row;
+    });
+
+    // --- 3. Construct Table ---
+    return `
+        <div id="${tableId}" class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner">
+            <table class="w-full text-sm text-left text-gray-500 data-table">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                    <tr>
+                        ${headerCells}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowCells}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
