@@ -351,36 +351,36 @@ const createAccrualSummaryRoute = (BookingModel, DeliveryModel, DeliveryCollecti
         const startDate = new Date(startDateStr + 'T00:00:00.000Z');
         const endDate = new Date(endDateStr + 'T23:59:59.999Z');
 
-        const pipeline = [
-            // 1. Filter Bookings by Date Range
+        // Optimization: Use 2-step query to avoid $lookup performance issues
+        // 1. Fetch relevant Bill Numbers from Bookings
+        const bookings = await BookingModel.find({
+            date: { $gte: startDate, $lte: endDate },
+            billNo: { $exists: true, $ne: null }
+        }).select('billNo').lean();
+
+        // Extract and clean bill numbers
+        const billNos = bookings
+            .map(b => b.billNo)
+            .filter(b => b && typeof b === 'string' && b.trim().length > 0);
+
+        if (billNos.length === 0) {
+            return res.status(200).json({ totalAccrualAmount: 0 });
+        }
+
+        // 2. Sum amounts of Deliveries that match these Bill Numbers
+        const result = await DeliveryModel.aggregate([
             {
                 "$match": {
-                    "date": { "$gte": startDate, "$lte": endDate }
+                    "billNo": { "$in": billNos }
                 }
             },
-            // 2. Lookup Deliveries matching the billNo
-            // Optimization: Match only deliveries that match our bookings
-            {
-                "$lookup": {
-                    "from": DeliveryCollectionName, // Must be the raw MongoDB collection name
-                    "localField": "billNo",
-                    "foreignField": "billNo",
-                    "as": "matchedDeliveries"
-                }
-            },
-            // 3. Unwind to process individual delivery records
-            { "$unwind": { "path": "$matchedDeliveries", "preserveNullAndEmptyArrays": false } },
-            // 4. Group to calculate total
             {
                 "$group": {
                     "_id": null,
-                    "totalAccrualAmount": { "$sum": "$matchedDeliveries.amount" }
+                    "totalAccrualAmount": { "$sum": "$amount" }
                 }
             }
-        ];
-
-        console.log(`--- ACCRUAL QUERY: ${BookingModel.modelName} ---`);
-        const result = await BookingModel.aggregate(pipeline);
+        ]);
 
         const summary = result.length > 0 ? result[0] : { totalAccrualAmount: 0 };
         res.status(200).json(summary);
@@ -464,7 +464,7 @@ const createLifetimeSummaryRoute = (BookingModel, DeliveryModel) => async (req, 
 
 // --- Mongoose Schema and Model Definition ---
 const DataSchema = new mongoose.Schema({
-    billNo: String,
+    billNo: { type: String, index: true }, // Indexed for Accrual Lookup performance
     name: String,
     date: { type: Date, required: true },
     countryCode: String,
