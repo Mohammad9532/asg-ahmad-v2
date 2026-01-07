@@ -260,6 +260,15 @@ const createEntryRoute = (Model) => async (req, res) => {
             return res.status(400).json({ error: "Date and Amount are required." });
         }
 
+        // Duplicate Bill No Check (Excluding 'other-amounts' for deliveries)
+        if (entryData.billNo && entryData.billNo !== 'other-amounts') {
+            const billNoTrimmed = entryData.billNo.trim();
+            const existingEntry = await Model.findOne({ billNo: billNoTrimmed });
+            if (existingEntry) {
+                return res.status(400).json({ error: `Duplicate Bill No: ${billNoTrimmed} already exists for this shop.` });
+            }
+        }
+
         // Ensure date is a proper Date object
         const newEntry = new Model({
             ...entryData,
