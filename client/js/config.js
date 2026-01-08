@@ -1,6 +1,8 @@
 
 // User Configured Backend URL
-const BASE_URL = 'https://asg-ahmad.vercel.app';
+const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000'
+    : 'https://asg-ahmad.vercel.app';
 
 // --- SHOP CONFIGURATION (MUST MATCH server.js SHOP_NAMES array exactly) ---
 const SHOP_PREFIXES = [

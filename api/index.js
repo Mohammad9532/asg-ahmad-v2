@@ -251,7 +251,7 @@ function createAggregationPipeline(startDate, endDate, isMonthly) {
  * Creates the Create Entry Route (POST).
  * Handles manual addition of Bookings, Deliveries, and Expenses.
  */
-const createEntryRoute = (Model) => async (req, res) => {
+const createEntryRoute = (Model, type) => async (req, res) => {
     try {
         const entryData = req.body;
 
@@ -260,28 +260,39 @@ const createEntryRoute = (Model) => async (req, res) => {
             return res.status(400).json({ error: "Date and Amount are required." });
         }
 
-        // Duplicate Bill No Check (Excluding 'other-amounts' for deliveries)
-        if (entryData.billNo && entryData.billNo !== 'other-amounts') {
-            const billNoTrimmed = entryData.billNo.trim();
+        // Duplicate Bill No Check (STRICTLY for Bookings, excluding 'other-amounts')
+        // IF THE TYPE IS 'delivery' OR 'expense', WE SKIP THIS ENTIRE BLOCK.
+        if (type === 'bookings' && entryData.billNo && entryData.billNo !== 'other-amounts') {
+            const billNoTrimmed = String(entryData.billNo).trim();
             const existingEntry = await Model.findOne({ billNo: billNoTrimmed });
             if (existingEntry) {
                 return res.status(400).json({ error: `Duplicate Bill No: ${billNoTrimmed} already exists for this shop.` });
             }
         }
 
-        // Ensure date is a proper Date object
-        const newEntry = new Model({
-            ...entryData,
-            date: new Date(entryData.date),
-            // Ensure strings are trimmed if they exist
-            billNo: entryData.billNo ? entryData.billNo.trim() : undefined,
-            name: entryData.name ? entryData.name.trim() : undefined,
-            remarks: entryData.remarks ? entryData.remarks.trim() : undefined
+        // Guarantee exact legacy field order: billNo -> amount -> date -> amountType
+        const { billNo, amount, date, amountType, ...rest } = entryData;
+        const sanitisedObject = {
+            billNo: billNo ? String(billNo).trim() : undefined,
+            amount: amount !== undefined ? Number(amount) : undefined,
+            date: new Date(date),
+            amountType: amountType ? String(amountType).toLowerCase() : undefined,
+            ...rest
+        };
+
+        // CLEANUP: Remove fields that are undefined or empty strings (like 'remarks')
+        // This ensures they don't appear in the database at all if not used.
+        Object.keys(sanitisedObject).forEach(key => {
+            const val = sanitisedObject[key];
+            if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+                delete sanitisedObject[key];
+            }
         });
+
+        const newEntry = new Model(sanitisedObject);
 
         const savedEntry = await newEntry.save();
 
-        console.log(`[${Model.modelName}] New Entry Created:`, savedEntry._id);
         res.status(201).json(savedEntry);
 
     } catch (error) {
@@ -474,14 +485,14 @@ const createLifetimeSummaryRoute = (BookingModel, DeliveryModel) => async (req, 
 // --- Mongoose Schema and Model Definition ---
 const DataSchema = new mongoose.Schema({
     billNo: { type: String, index: true }, // Indexed for Accrual Lookup performance
-    name: String,
+    amount: { type: Number, required: true },
     date: { type: Date, required: true },
+    amountType: String,     // Used in Deliveries and Bookings
+    name: String,
     countryCode: String,
     phone: String,
     qty: Number,
-    amount: { type: Number, required: true },
     advance: Number,
-    amountType: String,     // Used in Deliveries and Bookings
     noOfUpdates: { type: Number, default: 0 },
     status: String,
     cat: String,            // Used in Expenses
@@ -643,7 +654,7 @@ SHOP_NAMES.forEach(shopPrefix => {
 
         // NEW: Create POST route for manual entry
         const createPath = `/${shopPrefix}/${config.path}/create`;
-        apiRouter.post(createPath, createEntryRoute(Model));
+        apiRouter.post(createPath, createEntryRoute(Model, config.path));
     });
 
     // 2. Create Monthly Summary Route

@@ -162,7 +162,13 @@ function switchEntryType(type) {
     } else if (type === 'delivery') {
         container.innerHTML = `
             <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Bill No <span class="text-red-500" id="delBillNoReq">*</span></label>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-sm font-medium text-slate-700">Bill No <span class="text-red-500">*</span></label>
+                    <label class="inline-flex items-center text-xs font-normal text-slate-500 cursor-pointer">
+                        <input type="checkbox" name="otherAmountsCheck" id="otherAmountsCheck" onchange="toggleOtherAmounts()" class="form-checkbox h-3 w-3 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 mr-1">
+                        Other Amount
+                    </label>
+                </div>
                 <input type="text" name="billNo" id="delBillNoInput" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
@@ -186,17 +192,9 @@ function switchEntryType(type) {
                 </select>
             </div>
 
-            <div class="mt-2">
-                 <label class="inline-flex items-center">
-                    <input type="checkbox" id="otherAmountsCheck" onchange="toggleOtherAmounts()" class="form-checkbox h-4 w-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
-                    <span class="ml-2 text-sm text-slate-700">Other Amounts (No Bill No)</span>
-                </label>
-            </div>
-
-            <!-- Hidden Remarks field for Other Amounts -->
-             <div id="remarksField" class="hidden">
-                <label class="block text-sm font-medium text-slate-700 mb-1">Remarks / Name <span class="text-red-500">*</span></label>
-                <input type="text" name="remarks" id="remarksInput" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+            <div class="col-span-1">
+                <label class="block text-sm font-medium text-slate-700 mb-1">Remarks</label>
+                <input type="text" name="remarks" id="remarksInput" placeholder="Optional notes" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
             </div>
         `;
     } else if (type === 'expense') {
@@ -267,32 +265,23 @@ function toggleAdvance() {
 function toggleOtherAmounts() {
     const isChecked = document.getElementById('otherAmountsCheck').checked;
     const billInput = document.getElementById('delBillNoInput');
-    const billReq = document.getElementById('delBillNoReq');
-    const remarksDiv = document.getElementById('remarksField');
-    const remarksInput = document.getElementById('remarksInput');
 
     if (isChecked) {
-        // Disable Bill No, make it optional
+        billInput.value = 'other-amounts';
         billInput.disabled = true;
-        billInput.value = 'other-amounts'; // Auto-fill for backend logic
         billInput.classList.add('bg-slate-100', 'text-slate-500');
-        billReq.classList.add('hidden');
-
-        // Show Remarks, make required
-        remarksDiv.classList.remove('hidden');
-        remarksInput.required = true;
+        // Focus amount if bill no is skipped
+        const form = document.getElementById('addEntryForm');
+        const amountInput = form.querySelector('[name="amount"]');
+        if (amountInput) amountInput.focus();
     } else {
-        // Enable Bill No, make required
-        billInput.disabled = false;
         billInput.value = '';
+        billInput.disabled = false;
         billInput.classList.remove('bg-slate-100', 'text-slate-500');
-        billReq.classList.remove('hidden');
-
-        // Hide Remarks, make optional
-        remarksDiv.classList.add('hidden');
-        remarksInput.required = false;
+        billInput.focus();
     }
 }
+
 
 // --- Form Submission ---
 
@@ -305,7 +294,7 @@ async function handleAddEntrySubmit(event) {
     const payload = {};
     formData.forEach((value, key) => {
         // Handle logic separately
-        if (key === 'advanceCheck' || key === 'readyMade') return;
+        if (key === 'advanceCheck' || key === 'readyMade' || key === 'otherAmountsCheck') return;
         payload[key] = value;
     });
 
@@ -338,13 +327,13 @@ async function handleAddEntrySubmit(event) {
         payload.status = statusVal; // Re-add to ensure it comes after noOfUpdates
     }
 
-    // Fix for Delivery "Other Amounts" - ensure remarks are sent if checked
     if (currentEntryType === 'delivery') {
-        const otherChecked = document.getElementById('otherAmountsCheck').checked;
-        if (otherChecked) {
-            payload.billNo = 'other-amounts'; // Explicitly set if disabled
+        const isOtherAmount = form.querySelector('[name="otherAmountsCheck"]').checked;
+        if (isOtherAmount) {
+            payload.billNo = 'other-amounts';
         }
     }
+
 
     try {
         // Map 'booking' (UI) to 'bookings' (API) to match server routes
@@ -367,8 +356,7 @@ async function handleAddEntrySubmit(event) {
             if (currentEntryType === 'booking') {
                 summary = `<b>Booking Saved:</b> Bill #${payload.billNo} - ${payload.name} (${amountFormatted})`;
             } else if (currentEntryType === 'delivery') {
-                const ref = payload.billNo === 'other-amounts' ? payload.remarks : `Bill #${payload.billNo}`;
-                summary = `<b>Delivery Saved:</b> ${ref} - ${amountFormatted}`;
+                summary = `<b>Delivery Saved:</b> Bill #${payload.billNo} - ${amountFormatted}`;
             } else if (currentEntryType === 'expense') {
                 summary = `<b>Expense Saved:</b> ${payload.cat} - ${payload.name} (${amountFormatted})`;
             }
@@ -429,8 +417,7 @@ async function handleAddEntrySubmit(event) {
             if (remarksInput) remarksInput.value = '';
 
             // Focus appropriate field
-            if (!billInput.disabled) billInput.focus();
-            else if (remarksInput) remarksInput.focus();
+            billInput.focus();
 
         } else if (currentEntryType === 'expense') {
             // Clear: Amount, Name, Message
