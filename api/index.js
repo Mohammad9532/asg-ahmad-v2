@@ -270,18 +270,49 @@ const createEntryRoute = (Model, type) => async (req, res) => {
             }
         }
 
-        // Guarantee exact legacy field order: billNo -> amount -> date -> amountType
-        const { billNo, amount, date, amountType, ...rest } = entryData;
-        const sanitisedObject = {
-            billNo: billNo ? String(billNo).trim() : undefined,
-            amount: amount !== undefined ? Number(amount) : undefined,
-            date: new Date(date),
-            amountType: amountType ? String(amountType).toLowerCase() : undefined,
-            ...rest
-        };
+        // Guarantee exact legacy field order:
+        let sanitisedObject = {};
+        const { billNo, amount, date, amountType, dept, cat, name, noOfUpdates, ...rest } = entryData;
 
-        // CLEANUP: Remove fields that are undefined or empty strings (like 'remarks')
-        // This ensures they don't appear in the database at all if not used.
+        if (type === 'expense') {
+            // ORDER: amount -> date -> dept -> cat -> name -> noOfUpdates
+            sanitisedObject = {
+                amount: amount !== undefined ? Number(amount) : undefined,
+                date: new Date(date),
+                dept: dept ? String(dept).toLowerCase() : undefined,
+                cat: cat ? String(cat).toLowerCase() : undefined,
+                name: name ? String(name).toLowerCase() : undefined,
+                noOfUpdates: noOfUpdates !== undefined ? Number(noOfUpdates) : 0,
+                ...rest
+            };
+        } else if (type === 'bookings') {
+            // ORDER: billNo -> name -> date -> countryCode -> phone -> qty -> amount -> noOfUpdates -> status
+            const { countryCode, phone, qty, status } = entryData;
+            sanitisedObject = {
+                billNo: billNo ? String(billNo).trim() : undefined,
+                name: name ? String(name) : undefined,
+                date: new Date(date),
+                countryCode: countryCode ? String(countryCode) : undefined,
+                phone: phone ? String(phone) : undefined,
+                qty: qty !== undefined ? Number(qty) : undefined,
+                amount: amount !== undefined ? Number(amount) : undefined,
+                noOfUpdates: noOfUpdates !== undefined ? Number(noOfUpdates) : 0,
+                status: status ? String(status).toLowerCase() : undefined,
+                ...rest
+            };
+        } else {
+            // Default/Delivery ORDER: billNo -> amount -> date -> amountType -> ...rest
+            sanitisedObject = {
+                billNo: billNo ? String(billNo).trim() : undefined,
+                amount: amount !== undefined ? Number(amount) : undefined,
+                date: new Date(date),
+                amountType: amountType ? String(amountType).toLowerCase() : undefined,
+                noOfUpdates: noOfUpdates !== undefined ? Number(noOfUpdates) : 0,
+                ...rest
+            };
+        }
+
+        // CLEANUP: Remove fields that are undefined or empty strings
         Object.keys(sanitisedObject).forEach(key => {
             const val = sanitisedObject[key];
             if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
@@ -483,24 +514,34 @@ const createLifetimeSummaryRoute = (BookingModel, DeliveryModel) => async (req, 
 };
 
 // --- Mongoose Schema and Model Definition ---
-const DataSchema = new mongoose.Schema({
-    billNo: { type: String, index: true }, // Indexed for Accrual Lookup performance
-    amount: { type: Number, required: true },
-    date: { type: Date, required: true },
-    amountType: String,     // Used in Deliveries and Bookings
+const BookingSchema = new mongoose.Schema({
+    billNo: { type: String, index: true },
     name: String,
+    date: { type: Date, required: true },
     countryCode: String,
     phone: String,
     qty: Number,
-    advance: Number,
+    amount: { type: Number, required: true },
     noOfUpdates: { type: Number, default: 0 },
-    status: String,
-    cat: String,            // Used in Expenses
-    dept: String            // Used in Expenses
-}, {
-    timestamps: true,
-    strict: false // Allow extra fields like amountType, cat, dept
-});
+    status: String
+}, { timestamps: true, strict: false });
+
+const DeliverySchema = new mongoose.Schema({
+    billNo: { type: String, index: true },
+    amount: { type: Number, required: true },
+    date: { type: Date, required: true },
+    amountType: String,
+    noOfUpdates: { type: Number, default: 0 }
+}, { timestamps: true, strict: false });
+
+const ExpenseSchema = new mongoose.Schema({
+    amount: { type: Number, required: true },
+    date: { type: Date, required: true },
+    dept: String,
+    cat: String,
+    name: String,
+    noOfUpdates: { type: Number, default: 0 }
+}, { timestamps: true, strict: false });
 
 const TargetSchema = new mongoose.Schema({
     shop: String,
@@ -646,7 +687,12 @@ SHOP_NAMES.forEach(shopPrefix => {
         const modelName = shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1) + config.path.charAt(0).toUpperCase() + config.path.slice(1) + 'Model';
 
         // Create the Mongoose Model, linking it to the specific plural collection
-        const Model = mongoose.model(modelName, DataSchema, collectionName);
+        let currentSchema;
+        if (config.path === 'bookings') currentSchema = BookingSchema;
+        else if (config.path === 'delivery') currentSchema = DeliverySchema;
+        else if (config.path === 'expense') currentSchema = ExpenseSchema;
+
+        const Model = mongoose.model(modelName, currentSchema, collectionName);
 
         // Create the API route using the singular path relative to apiRouter
         const apiPath = `/${shopPrefix}/${config.path}/summary`;
@@ -661,7 +707,7 @@ SHOP_NAMES.forEach(shopPrefix => {
     const monthlyCollectionName = `${collectionPrefix}bookings`; // Monthly summary based on bookings data
 
     const MonthlyModelName = shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1) + 'MonthlySummaryModel';
-    const MonthlyModel = mongoose.model(MonthlyModelName, DataSchema, monthlyCollectionName);
+    const MonthlyModel = mongoose.model(MonthlyModelName, BookingSchema, monthlyCollectionName);
 
     // CRITICAL FIX: Ensure the route path matches the client's request
     const monthlyRoutePath = `/${shopPrefix}/monthly_summary/summary`;

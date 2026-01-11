@@ -2,6 +2,21 @@
 let currentEntryType = 'booking';
 let hasNewEntries = false; // Track if updates occurred
 
+const EXPENSE_MAPPING = {
+    "Profit": {
+        value: "profit",
+        categories: ["donation", "salman", "family", "customer service"]
+    },
+    "Shop Expenses": {
+        value: "shop-expense",
+        categories: ["recharge", "salary", "stationary", "shop", "electric", "room", "loss", "cancel", "transport", "visa"]
+    },
+    "Piece Expense": {
+        value: "piece-expense",
+        categories: ["stitching", "folak", "fusoos", "fusoos-purchase", "khauwar", "tola", "khaka", "computer", "magribi", "qureshi", "talli", "altor", "out-statching", "sample", "material", "jheek", "delivery", "punching"]
+    }
+};
+
 // --- Modal Control ---
 
 function openAddEntryModal() {
@@ -213,9 +228,8 @@ function switchEntryType(type) {
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Department</label>
                 <div class="relative">
-                    <select name="dept" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white">
-                        <option value="PROFIT">PROFIT</option>
-                        <option value="EXPENSE">EXPENSE</option>
+                    <select name="dept" onchange="updateExpenseCategories(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white">
+                        ${Object.entries(EXPENSE_MAPPING).map(([label, data]) => `<option value="${data.value}">${label}</option>`).join('')}
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700">
                         <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
@@ -226,7 +240,9 @@ function switchEntryType(type) {
              <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Category <span class="text-red-500">*</span></label>
-                    <input type="text" name="cat" required placeholder="Search..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <select name="cat" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                        <!-- Populated dynamically -->
+                    </select>
                 </div>
                  <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Name <span class="text-red-500">*</span></label>
@@ -239,7 +255,29 @@ function switchEntryType(type) {
                  <textarea name="message" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"></textarea>
             </div>
         `;
+        // Trigger initial category population
+        const deptSelect = container.querySelector('[name="dept"]');
+        if (deptSelect) updateExpenseCategories(deptSelect);
     }
+}
+
+function updateExpenseCategories(deptSelect) {
+    const deptValue = deptSelect.value;
+    const catSelect = deptSelect.closest('form').querySelector('[name="cat"]');
+    if (!catSelect) return;
+
+    catSelect.innerHTML = '';
+
+    // Find categories by matching the value in mapping
+    const mappingEntry = Object.values(EXPENSE_MAPPING).find(m => m.value === deptValue);
+    const categories = mappingEntry ? mappingEntry.categories : [];
+
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        catSelect.appendChild(option);
+    });
 }
 
 function toggleAdvance() {
@@ -338,6 +376,10 @@ async function handleAddEntrySubmit(event) {
     try {
         // Map 'booking' (UI) to 'bookings' (API) to match server routes
         const apiType = currentEntryType === 'booking' ? 'bookings' : currentEntryType;
+
+        if (currentEntryType === 'expense' && payload.name) {
+            payload.name = payload.name.toLowerCase();
+        }
 
         await createEntry(shop, apiType, payload);
 
