@@ -552,6 +552,13 @@ const TargetSchema = new mongoose.Schema({
 
 const Target = mongoose.model('Target', TargetSchema);
 
+const AuditSchema = new mongoose.Schema({
+    billNo: { type: String, index: true }, // Store as String to match other schemas
+    remark: String,
+    checkedAt: { type: Date, default: Date.now },
+    status: { type: String, default: 'Checked' } // 'Checked'
+}, { timestamps: true, strict: false });
+
 // --- Database Connection ---
 mongoose.connect(MONGO_URI)
     .then(() => {
@@ -562,6 +569,154 @@ mongoose.connect(MONGO_URI)
         console.error('❌ MongoDB connection error. Check your .env file.', err.message);
         process.exit(1);
     });
+
+// ... (Existing Analytics Routes) ...
+
+/**
+ * Creates the Stock Audit Route.
+ * GET /api/:shop/stock_audit?status=pending|verified
+ * 
+ * If status=pending (default):
+ *   Returns Bill Numbers where (Booking - Delivery) > 0 AND BillNo is NOT in Audit Collection.
+ * 
+ * If status=verified:
+ *   Returns items from Audit Collection.
+ */
+
+
+/**
+ * Creates the Stock Audit Route.
+ * GET /api/:shop/stock_audit?status=pending|verified
+ * 
+ * If status=pending (default):
+ *   Returns Bill Numbers where (Booking - Delivery) > 0 AND BillNo is NOT in Audit Collection.
+ * 
+ * If status=verified:
+ *   Returns items from Audit Collection.
+ */
+const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async (req, res) => {
+    try {
+        const { status } = req.query;
+        const isVerifiedView = status === 'verified';
+
+        if (isVerifiedView) {
+            // Return verified history
+            const verifiedItems = await AuditModel.find().sort({ checkedAt: -1 }).lean();
+            return res.json(verifiedItems);
+        }
+
+        // --- PENDING VIEW LOGIC ---
+
+        // 1. Fetch already verified Bill Numbers to exclude
+        const verifiedDocs = await AuditModel.find().select('billNo').lean();
+        const verifiedBillNos = new Set(verifiedDocs.map(d => String(d.billNo).trim()));
+
+        // 2. Fetch all valid bookings
+        const bookings = await BookingModel.find({
+            billNo: { $exists: true, $ne: 'other-amounts' }
+        }).lean();
+
+        // 3. Fetch all deliveries
+        const deliveries = await DeliveryModel.find({
+            billNo: { $exists: true }
+        }).select('billNo amount').lean();
+
+        // 4. Aggregate deliveries
+        const deliveryMap = {};
+        deliveries.forEach(d => {
+            const b = String(d.billNo).trim();
+            if (!deliveryMap[b]) deliveryMap[b] = 0;
+            deliveryMap[b] += (d.amount || 0);
+        });
+
+        // 5. Calculate Pending Stock
+        const pendingStock = [];
+        const CANCEL_STATUSES = ["cancel", "canceled", "cancelled", "deducted"];
+
+        bookings.forEach(b => {
+            // Skip if no billNo
+            if (!b.billNo) return;
+            const billNo = String(b.billNo).trim();
+            if (!billNo) return;
+
+            // SKIP IF ALREADY VERIFIED
+            if (verifiedBillNos.has(billNo)) return;
+
+            // Check status
+            if (b.status && CANCEL_STATUSES.includes(b.status.toLowerCase())) {
+                return;
+            }
+
+            const bookedAmount = b.amount || 0;
+            const deliveredAmount = deliveryMap[billNo] || 0;
+            const balance = bookedAmount - deliveredAmount;
+
+            // If balance is positive, item is in stock (pending delivery)
+            if (balance > 0) {
+                pendingStock.push({
+                    billNo: billNo,
+                    name: b.name || 'Unknown',
+                    date: b.date,
+                    phone: b.phone,
+                    qty: b.qty || 0, // Include Qty (Pcs)
+                    bookedAmount: bookedAmount,
+                    deliveredAmount: deliveredAmount,
+                    balance: balance
+                });
+            }
+        });
+
+        // Sort numerically
+        pendingStock.sort((a, b) => {
+            const nA = parseInt(a.billNo);
+            const nB = parseInt(b.billNo);
+            if (!isNaN(nA) && !isNaN(nB)) return nA - nB;
+            return a.billNo.localeCompare(b.billNo);
+        });
+
+        res.json(pendingStock);
+
+    } catch (err) {
+        console.error("Stock Audit Error:", err);
+        res.status(500).json({ error: "Failed to fetch stock audit." });
+    }
+};
+
+/**
+ * Creates the Audit Verification Route.
+ * POST /api/:shop/stock_audit/verify
+ * Body: { billNo, remark, qty, missingPcs }
+ * Saves the item to the Audit Collection.
+ */
+/**
+ * Creates the Audit Verification Route.
+ * POST /api/:shop/stock_audit/verify
+ * Body: { billNo, remark, qty, missingPcs, amount }
+ * Saves the item to the Audit Collection.
+ */
+const createAuditVerifyRoute = (AuditModel) => async (req, res) => {
+    try {
+        const { billNo, remark, qty, missingPcs, amount } = req.body;
+        if (!billNo) return res.status(400).json({ error: "Bill No is required." });
+
+        const newAudit = new AuditModel({
+            billNo: String(billNo).trim(),
+            remark: remark || '',
+            qty: qty ? Number(qty) : 0,
+            missingPcs: missingPcs ? Number(missingPcs) : 0,
+            amount: amount ? Number(amount) : 0,
+            status: 'Checked',
+            checkedAt: new Date()
+        });
+
+        await newAudit.save();
+        res.status(201).json(newAudit);
+
+    } catch (err) {
+        console.error("Audit Verify Error:", err);
+        res.status(500).json({ error: "Failed to verify item." });
+    }
+};
 
 // --- ANALYTICS ROUTES ---
 
@@ -726,7 +881,18 @@ SHOP_NAMES.forEach(shopPrefix => {
     const BookingsModel = mongoose.model(bookingsModelName);
     const DeliveryModel = mongoose.model(deliveryModelName);
 
+    // NEW: Create/Retrieve Audit Model
+    const auditCollectionName = `${collectionPrefix}audit`;
+    const auditModelName = shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1) + 'AuditModel';
+    const AuditModel = mongoose.models[auditModelName] || mongoose.model(auditModelName, AuditSchema, auditCollectionName);
+
     apiRouter.get(`/${shopPrefix}/accrual_delivery/summary`, createAccrualSummaryRoute(BookingsModel, DeliveryModel, deliveryCollectionName));
+
+    // Stock Audit Route (Pending & Verified)
+    apiRouter.get(`/${shopPrefix}/stock_audit`, createStockAuditRoute(BookingsModel, DeliveryModel, AuditModel));
+
+    // Verify Audit Item
+    apiRouter.post(`/${shopPrefix}/stock_audit/verify`, createAuditVerifyRoute(AuditModel));
 
     apiRouter.get(`/${shopPrefix}/lifetime/summary`, createLifetimeSummaryRoute(BookingsModel, DeliveryModel));
 

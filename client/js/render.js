@@ -90,6 +90,9 @@ function renderContent(shopPrefix, dataType) {
     } else if (isMonthlySummaryTab) {
         // Defined in render_monthly.js
         renderMonthlySummary(shopPrefix);
+    } else if (dataType === 'stock_audit') {
+        // Defined in stock_audit.js
+        renderStockAuditView(shopPrefix);
     } else {
         // Fallback for other potential types, renders standard table
         renderStandardTable(shopPrefix, data, dataType);
@@ -97,7 +100,7 @@ function renderContent(shopPrefix, dataType) {
 }
 
 function isValidDataTypeForShop(dt) {
-    return ['dashboard', 'bookings', 'delivery', 'expense', 'monthly_summary'].includes(dt);
+    return ['dashboard', 'bookings', 'delivery', 'expense', 'monthly_summary', 'stock_audit'].includes(dt);
 }
 
 // --- DASHBOARD RENDERERS ---

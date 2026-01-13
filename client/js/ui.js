@@ -81,6 +81,7 @@ function renderDataTypeTabs(shopPrefix) {
         { type: 'delivery', label: 'Deliveries (Categorized)' },
         { type: 'expense', label: 'Expenses (Categorized)' },
         { type: 'monthly_summary', label: 'Monthly Summary' },
+        { type: 'stock_audit', label: '✅ Stock Audit' },
     ];
 
     container.innerHTML = `<div class="flex flex-nowrap overflow-x-auto tabs-scroll-container p-4 font-sans">${tabDefinitions.map(tab => `
