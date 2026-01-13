@@ -555,8 +555,12 @@ const Target = mongoose.model('Target', TargetSchema);
 const AuditSchema = new mongoose.Schema({
     billNo: { type: String, index: true }, // Store as String to match other schemas
     remark: String,
+    qty: Number,
+    missingPcs: Number,
+    amount: Number, // Balance Amount at time of audit
+    batchLabel: String, // Name of the audit batch (e.g. "Year End 2024")
     checkedAt: { type: Date, default: Date.now },
-    status: { type: String, default: 'Checked' } // 'Checked'
+    status: { type: String, default: 'Checked' } // 'Checked' or 'Archived'
 }, { timestamps: true, strict: false });
 
 // --- Database Connection ---
@@ -594,34 +598,49 @@ mongoose.connect(MONGO_URI)
  * If status=verified:
  *   Returns items from Audit Collection.
  */
+/**
+ * Creates the Stock Audit Route.
+ * GET /api/:shop/stock_audit?status=pending|verified|archived
+ * 
+ * If status=pending (default):
+ *   Returns Bill Numbers where (Booking - Delivery) > 0 
+ *   AND BillNo is NOT in Audit Collection (Checked or Archived).
+ *   (Unless Archived items are supposed to reappear? Logic: "Reset Pending Stock... they will reappear".
+ *    So we only exclude 'Checked' items. 'Archived' items reappear if they have balance.)
+ * 
+ * If status=verified:
+ *   Returns items from Audit Collection where status='Checked'.
+ * 
+ * If status=archived:
+ *   Returns items from Audit Collection where status='Archived'.
+ */
 const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async (req, res) => {
     try {
         const { status } = req.query;
-        const isVerifiedView = status === 'verified';
 
-        if (isVerifiedView) {
-            // Return verified history
-            const verifiedItems = await AuditModel.find().sort({ checkedAt: -1 }).lean();
+        if (status === 'verified') {
+            const verifiedItems = await AuditModel.find({ status: 'Checked' }).sort({ checkedAt: -1 }).lean();
             return res.json(verifiedItems);
         }
 
+        if (status === 'archived') {
+            const archivedItems = await AuditModel.find({ status: 'Archived' }).sort({ checkedAt: -1 }).lean();
+            return res.json(archivedItems);
+        }
+
         // --- PENDING VIEW LOGIC ---
+        // Exclude 'Checked' items. 'Archived' items reappear in pending if they have balance.
+        const checkedDocs = await AuditModel.find({ status: 'Checked' }).select('billNo').lean();
+        const checkedBillNos = new Set(checkedDocs.map(d => String(d.billNo).trim()));
 
-        // 1. Fetch already verified Bill Numbers to exclude
-        const verifiedDocs = await AuditModel.find().select('billNo').lean();
-        const verifiedBillNos = new Set(verifiedDocs.map(d => String(d.billNo).trim()));
-
-        // 2. Fetch all valid bookings
         const bookings = await BookingModel.find({
             billNo: { $exists: true, $ne: 'other-amounts' }
         }).lean();
 
-        // 3. Fetch all deliveries
         const deliveries = await DeliveryModel.find({
             billNo: { $exists: true }
         }).select('billNo amount').lean();
 
-        // 4. Aggregate deliveries
         const deliveryMap = {};
         deliveries.forEach(d => {
             const b = String(d.billNo).trim();
@@ -629,20 +648,16 @@ const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async
             deliveryMap[b] += (d.amount || 0);
         });
 
-        // 5. Calculate Pending Stock
         const pendingStock = [];
         const CANCEL_STATUSES = ["cancel", "canceled", "cancelled", "deducted"];
 
         bookings.forEach(b => {
-            // Skip if no billNo
             if (!b.billNo) return;
             const billNo = String(b.billNo).trim();
             if (!billNo) return;
 
-            // SKIP IF ALREADY VERIFIED
-            if (verifiedBillNos.has(billNo)) return;
+            if (checkedBillNos.has(billNo)) return;
 
-            // Check status
             if (b.status && CANCEL_STATUSES.includes(b.status.toLowerCase())) {
                 return;
             }
@@ -651,14 +666,13 @@ const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async
             const deliveredAmount = deliveryMap[billNo] || 0;
             const balance = bookedAmount - deliveredAmount;
 
-            // If balance is positive, item is in stock (pending delivery)
             if (balance > 0) {
                 pendingStock.push({
                     billNo: billNo,
                     name: b.name || 'Unknown',
                     date: b.date,
                     phone: b.phone,
-                    qty: b.qty || 0, // Include Qty (Pcs)
+                    qty: b.qty || 0,
                     bookedAmount: bookedAmount,
                     deliveredAmount: deliveredAmount,
                     balance: balance
@@ -666,7 +680,6 @@ const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async
             }
         });
 
-        // Sort numerically
         pendingStock.sort((a, b) => {
             const nA = parseInt(a.billNo);
             const nB = parseInt(b.billNo);
@@ -685,9 +698,38 @@ const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async
 /**
  * Creates the Audit Verification Route.
  * POST /api/:shop/stock_audit/verify
- * Body: { billNo, remark, qty, missingPcs }
+ * Body: { billNo, remark, qty, missingPcs, amount }
  * Saves the item to the Audit Collection.
  */
+/**
+ * Creates the Bill Details Route.
+ * GET /api/:shop/bill_details?billNo=...
+ * Returns { booking, deliveries }
+ */
+const createBillDetailsRoute = (BookingModel, DeliveryModel) => async (req, res) => {
+    try {
+        const { billNo } = req.query;
+        if (!billNo) return res.status(400).json({ error: "Bill No is required." });
+
+        const trimmedBillNo = String(billNo).trim();
+
+        // Fetch Booking
+        const booking = await BookingModel.findOne({ billNo: trimmedBillNo }).lean();
+
+        // Fetch Deliveries
+        const deliveries = await DeliveryModel.find({ billNo: trimmedBillNo }).sort({ date: 1 }).lean();
+
+        res.json({
+            booking: booking || null,
+            deliveries: deliveries || []
+        });
+
+    } catch (err) {
+        console.error("Bill Details Error:", err);
+        res.status(500).json({ error: "Failed to fetch details." });
+    }
+};
+
 /**
  * Creates the Audit Verification Route.
  * POST /api/:shop/stock_audit/verify
@@ -717,6 +759,37 @@ const createAuditVerifyRoute = (AuditModel) => async (req, res) => {
         res.status(500).json({ error: "Failed to verify item." });
     }
 };
+
+/**
+ * Creates the Audit Archive Route.
+ * POST /api/:shop/stock_audit/archive
+ * Body: { auditName }
+ * Moves all 'Checked' items to 'Archived' and sets batchLabel.
+ */
+const createAuditArchiveRoute = (AuditModel) => async (req, res) => {
+    try {
+        const { auditName } = req.body;
+        const label = auditName || `Audit ${new Date().toLocaleDateString()}`;
+
+        const result = await AuditModel.updateMany(
+            { status: 'Checked' },
+            {
+                $set: {
+                    status: 'Archived',
+                    batchLabel: label
+                }
+            }
+        );
+
+        res.json({ message: "Audit archived successfully.", modifiedCount: result.modifiedCount });
+
+    } catch (err) {
+        console.error("Audit Archive Error:", err);
+        res.status(500).json({ error: "Failed to archive audit." });
+    }
+};
+
+
 
 // --- ANALYTICS ROUTES ---
 
@@ -893,6 +966,12 @@ SHOP_NAMES.forEach(shopPrefix => {
 
     // Verify Audit Item
     apiRouter.post(`/${shopPrefix}/stock_audit/verify`, createAuditVerifyRoute(AuditModel));
+
+    // Archive Audit (Reset Cycle)
+    apiRouter.post(`/${shopPrefix}/stock_audit/archive`, createAuditArchiveRoute(AuditModel));
+
+    // Bill Details Route (Booking + Deliveries)
+    apiRouter.get(`/${shopPrefix}/bill_details`, createBillDetailsRoute(BookingsModel, DeliveryModel));
 
     apiRouter.get(`/${shopPrefix}/lifetime/summary`, createLifetimeSummaryRoute(BookingsModel, DeliveryModel));
 
