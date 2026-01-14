@@ -21,355 +21,410 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
-<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+<body
+    class="bg-slate-50 dark:bg-slate-900 min-h-screen font-sans text-slate-800 dark:text-slate-100 transition-colors duration-300">
     <!-- Global Loading Indicator -->
     <div id="loadingIndicator"
-        class="fixed inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        class="fixed inset-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm flex items-center justify-center z-50 hidden">
         <div class="flex flex-col items-center relative">
             <div class="loading-ring relative w-12 h-12 flex items-center justify-center">
-                <svg class="animate-spin h-8 w-8 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none"
-                    viewBox="0 0 24 24">
+                <svg class="animate-spin h-8 w-8 text-indigo-600 dark:text-indigo-400"
+                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor"
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                     </path>
                 </svg>
             </div>
-            <p class="mt-4 text-teal-700 font-medium text-lg animate-pulse">Fetching data...</p>
+            <p class="mt-4 text-indigo-700 dark:text-indigo-300 font-medium text-lg animate-pulse">Fetching data...</p>
         </div>
     </div>
 
-    <!-- Navigation Bar -->
-    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex-shrink-0 flex items-center">
-                    <h1 class="text-2xl font-bold text-slate-800">Shop Data</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span class="text-xs text-slate-500 hidden sm:inline-block">Last: <span id="lastUpdated"
-                            class="font-medium">Never</span></span>
+    <div class="flex h-screen overflow-hidden">
+        <!-- SIDEBAR -->
+        <!-- Mobile Overlay -->
+        <div id="sidebarOverlay" onclick="toggleSidebar()"
+            class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden lg:hidden transition-opacity"></div>
 
-                    <button onclick="downloadPDF()"
-                        class="text-sm font-medium text-teal-600 hover:text-teal-800 transition-colors flex items-center bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100 hover:bg-teal-100">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download PDF
-                    </button>
+        <aside id="sidebar"
+            class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 flex flex-col h-full shadow-2xl lg:shadow-none">
 
-                    <button onclick="logout()"
-                        class="text-sm font-medium text-red-600 hover:text-red-800 transition-colors flex items-center bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-100">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                        Logout
-                    </button>
+            <!-- Sidebar Header -->
+            <div class="flex items-center justify-between h-16 px-6 border-b border-slate-200 dark:border-slate-700">
+                <div class="flex items-center gap-2">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/30">
+                        M</div>
+                    <span
+                        class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-400 dark:text-white">MintMart</span>
                 </div>
-            </div>
-        </div>
-    </nav>
-
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Date Range and Fetch Controls -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
-            <!-- Business Year Selector -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Year Selector -->
-                <div>
-                    <label for="fiscalYearSelect" class="block text-sm font-medium text-slate-700 mb-1">1. Select
-                        Business Year</label>
-                    <select id="fiscalYearSelect" onchange="updatePeriodOptions()"
-                        class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-colors text-slate-700 font-medium">
-                        <!-- Populated by JS -->
-                    </select>
-                </div>
-                <!-- Period Selector -->
-                <div>
-                    <label for="fiscalPeriodSelect" class="block text-sm font-medium text-slate-700 mb-1">2. Select
-                        Period</label>
-                    <select id="fiscalPeriodSelect" onchange="applyFiscalPeriod()" disabled
-                        class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-colors text-slate-700 font-medium disabled:bg-slate-100 disabled:text-slate-400">
-                        <option value="">-- Select Year First --</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="space-y-2">
-                    <label for="startDate" class="block text-sm font-medium text-slate-700">Start Date</label>
-                    <input type="date" id="startDate"
-                        class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-colors"
-                        value="2022-01-01">
-                </div>
-                <div class="space-y-2">
-                    <label for="endDate" class="block text-sm font-medium text-slate-700">End Date</label>
-                    <input type="date" id="endDate"
-                        class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 shadow-sm transition-colors"
-                        value="2025-01-01">
-                </div>
-                <!-- Date Shortcuts -->
-                <div class="col-span-1 md:col-span-3 flex flex-wrap gap-2 mt-2">
-                    <button onclick="setDateRange('today')"
-                        class="px-3 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors">Today</button>
-                    <button onclick="setDateRange('yesterday')"
-                        class="px-3 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors">Yesterday</button>
-                    <button onclick="setDateRange('thisMonth')"
-                        class="px-3 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors">This
-                        Month</button>
-                    <button onclick="setDateRange('lastMonth')"
-                        class="px-3 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors">Last
-                        Month</button>
-                    <button onclick="setDateRange('thisYear')"
-                        class="px-3 py-1 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors">This
-                        Year</button>
-                </div>
-                <div class="flex items-end">
-                    <button id="fetchButton" onclick="fetchAllData()"
-                        class="w-full px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 active:bg-teal-800 transition-colors shadow-sm hover:shadow flex items-center justify-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span>Fetch Data</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Shop Tabs -->
-        <div id="shopTabsContainer" class="mb-6 bg-white rounded-xl shadow-sm border border-slate-200 p-1">
-            <div class="tabs-scroll-container flex">
-                <!-- Dynamic Shop Tabs rendered here -->
-            </div>
-        </div>
-
-        <!-- Data Display Container -->
-        <div id="dataDisplayContainer" class="bg-white rounded-xl shadow-sm border border-slate-200">
-            <!-- Status Message -->
-            <div id="statusMessage" class="p-8 text-center text-slate-500">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 text-slate-400" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <p class="text-lg">Select a date range and click 'Fetch Data' to begin.</p>
-            </div>
-
-            <!-- Data Type Tabs -->
-            <div id="dataTypeTabsContainer" class="hidden border-b border-slate-200">
-                <div class="tabs-scroll-container">
-                    <!-- Dynamic Data Type Tabs rendered here -->
-                </div>
-            </div>
-
-            <!-- Content Area -->
-            <div id="dataTypeContentContainer" class="p-6"></div>
-
-            <!-- Missing Bills Control -->
-            <div class="px-6 pb-6 flex gap-4">
-                <button onclick="openMissingBillsModal()"
-                    class="inline-flex items-center px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 active:bg-amber-700 transition-colors shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
-                        fill="currentColor">
-                        <path
-                            d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.518 11.59A1.75 1.75 0 0116.664 17H3.336a1.75 1.75 0 01-1.597-2.311L8.257 3.1zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-7a.75.75 0 00-.75.75v3.5c0 .414.336.75.75.75s.75-.336.75-.75v-3.5A.75.75 0 0010 6z" />
+                <!-- Close Button Mobile -->
+                <button onclick="toggleSidebar()"
+                    class="lg:hidden text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    Find Missing Bills
-                </button>
-
-                <button onclick="openAddEntryModal()"
-                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add Entry
                 </button>
             </div>
 
-            <!-- Add Entry Modal -->
-            <div id="addEntryModal"
-                class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
-                <div class="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-                    <div class="p-6 border-b border-slate-200 flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-slate-900" id="addEntryTitle">ADD ENTRY</h3>
-                        <button onclick="closeAddEntryModal()" class="text-slate-400 hover:text-slate-500">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div class="p-6">
-                        <!-- Type Selection Tabs -->
-                        <div class="flex space-x-2 border-b border-slate-200 mb-6">
-                            <button onclick="switchEntryType('booking')" id="tab-booking"
-                                class="px-4 py-2 text-sm font-medium text-indigo-600 border-b-2 border-indigo-600 focus:outline-none">Booking</button>
-                            <button onclick="switchEntryType('delivery')" id="tab-delivery"
-                                class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 focus:outline-none">Delivery</button>
-                            <button onclick="switchEntryType('expense')" id="tab-expense"
-                                class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 focus:outline-none">Expense</button>
-                        </div>
-
-                        <!-- Last Entry Preview (Hidden by default) -->
-                        <div id="lastEntryPreview"
-                            class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center justify-between">
-                            <!-- JS Injected Content -->
-                        </div>
-
-                        <form id="addEntryForm" onsubmit="handleAddEntrySubmit(event)">
-                            <div class="space-y-4">
-                                <!-- Common: Shop Selection -->
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-1">Shop</label>
-                                    <select id="entryShop" required
-                                        class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                                        <!-- Populated via JS -->
-                                    </select>
-                                </div>
-
-                                <!-- Dynamic Fields Container -->
-                                <div id="entryFields" class="space-y-4">
-                                    <!-- Fields injected by JS based on Type -->
-                                </div>
-                            </div>
-
-                            <div class="mt-8">
-                                <button type="submit"
-                                    class="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
-                                    Save Entry
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+            <!-- Shops List (Scrollable) -->
+            <div class="flex-1 overflow-y-auto custom-scroll py-4 px-3 space-y-1" id="sidebarShopList">
+                <!-- Dynamic Content -->
             </div>
 
-            <!-- Missing Bills Modal -->
-            <div id="missingBillsModal"
-                class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
-                <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                    <div class="p-6 border-b border-slate-200 flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-slate-900">Find Missing Bill Numbers</h3>
-                        <button onclick="closeMissingBillsModal()" class="text-slate-400 hover:text-slate-500">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <!-- Sidebar Footer (Tools) -->
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+
+                <!-- Dark Mode Toggle -->
+                <button onclick="toggleDarkMode()"
+                    class="w-full flex items-center px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-600">
+                    <span id="darkModeIcon" class="mr-3">🌙</span>
+                    <span id="darkModeText">Dark Mode</span>
+                </button>
+
+                <button onclick="triggerHealthAnalysis()"
+                    class="w-full flex items-center px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors">
+                    <svg class="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Analyze Health
+                </button>
+
+                <button onclick="logout()"
+                    class="w-full flex items-center px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
+                    <svg class="w-5 h-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT WRAPPER -->
+        <div class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 relative">
+            <!-- Mobile Header -->
+            <header
+                class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:hidden z-30 flex-shrink-0">
+                <button onclick="toggleSidebar()" class="text-slate-500 hover:text-indigo-600 dark:text-slate-300">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Shop Dashboard</h1>
+                <div class="w-6"></div> <!-- Spacer -->
+            </header>
+
+            <!-- Scrollable Content Area -->
+            <main class="flex-1 overflow-y-auto custom-scroll p-4 md:p-8">
+
+                <!-- Top Controls (Date & Fetch) -->
+                <div
+                    class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-8 transition-colors">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-800 dark:text-white">Dashboard Overview</h2>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">Manage analytics, bookings, and audit
+                                logs.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400 hidden sm:inline-block">Last: <span id="lastUpdated"
+                                    class="font-medium text-slate-600 dark:text-slate-300">Never</span></span>
+                            <button onclick="downloadPDF()"
+                                class="text-xs font-medium text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1.5 rounded-lg border border-teal-100 dark:border-teal-800 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors">
+                                Download Report
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Date Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                        <div>
+                            <label
+                                class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Business
+                                Year</label>
+                            <select id="fiscalYearSelect" onchange="updatePeriodOptions()"
+                                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm focus:ring-2 focus:ring-indigo-500">
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Period</label>
+                            <select id="fiscalPeriodSelect" onchange="applyFiscalPeriod()" disabled
+                                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm disabled:opacity-50">
+                                <option value="">-- Select Year --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Start
+                                Date</label>
+                            <input type="date" id="startDate"
+                                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm"
+                                value="2022-01-01">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">End
+                                Date</label>
+                            <input type="date" id="endDate"
+                                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm"
+                                value="2025-01-01">
+                        </div>
+                    </div>
+
+                    <!-- Actions Row -->
+                    <div
+                        class="flex flex-col md:flex-row justify-between items-center gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="setDateRange('today')"
+                                class="px-3 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full transition-colors">Today</button>
+                            <button onclick="setDateRange('yesterday')"
+                                class="px-3 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full transition-colors">Yesterday</button>
+                            <button onclick="setDateRange('thisMonth')"
+                                class="px-3 py-1 text-xs font-medium bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full transition-colors">This
+                                Month</button>
+                        </div>
+                        <button id="fetchButton" onclick="fetchAllData()"
+                            class="w-full md:w-auto px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M6 18L18 6M6 6l12 12" />
+                                    d="M4 4v5h.582m15.356 2A8.001 8 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
+                            Fetch Data
                         </button>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <p class="text-sm text-slate-600">Scans the currently fetched booking records for each shop and
-                            returns the missing bill numbers within the specified range. If you haven't fetched data
-                            yet, click "Fetch Data" first.</p>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700">Range Start</label>
-                                <input id="missingStart" type="number" min="1" value="1"
-                                    class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700">Range End</label>
-                                <input id="missingEnd" type="number" min="1" value="5000"
-                                    class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg">
-                            </div>
-                            <div class="pb-[1px]">
-                                <button onclick="autoSetRange()"
-                                    class="w-full px-3 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-300 transition-colors text-sm"
-                                    title="Set range based on fetched data">
-                                    Auto Range
-                                </button>
-                            </div>
-                            <div class="col-span-2 flex items-center space-x-4">
-                                <div class="flex items-center space-x-2">
-                                    <input id="onlyMissing" type="checkbox" class="h-4 w-4 text-amber-600" />
-                                    <label for="onlyMissing" class="text-xs sm:text-sm text-slate-700">Hide OK</label>
-                                </div>
-                                <div class="flex items-center space-x-2">
-                                    <input id="normalizeBill" type="checkbox" class="h-4 w-4 text-teal-600" checked />
-                                    <label for="normalizeBill" class="text-xs sm:text-sm text-slate-700">Normalize (1,
-                                        01 -> 1)</label>
-                                </div>
-                            </div>
-                            <div class="sm:col-span-5 flex justify-end space-x-3 mt-2 border-t pt-4">
-                                <button onclick="scanMissingBills(event)" id="scanMissingBtn"
-                                    class="px-6 py-2 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 shadow-sm flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                    Scan for Issues
-                                </button>
-                                <button onclick="downloadAllMissingCSV()" id="downloadAllBtn"
-                                    class="px-4 py-2 bg-slate-800 text-white rounded-lg font-semibold hover:bg-slate-900 shadow-sm">
-                                    Download Report
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Shop selection -->
-                        <div class="mt-4">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Select shops to include</label>
-                            <div id="shopSelectionContainer"
-                                class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded">
-                                <!-- Shop checkboxes will be rendered here by JS -->
-                            </div>
-                        </div>
-
-                        <div id="missingResults" class="mt-4"></div>
-                    </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Error Log -->
-        <div id="errorLog" class="mt-6 hidden">
-            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                            fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                clip-rule="evenodd" />
+                <!-- MAIN DISPLAY AREA -->
+                <div id="dataDisplayContainer"
+                    class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors min-h-[400px]">
+                    <!-- Placeholder -->
+                    <div id="statusMessage"
+                        class="p-12 text-center flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
+                        <svg class="h-16 w-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
+                        <p class="text-xl font-medium mb-2">Ready to Analyze</p>
+                        <p class="text-sm">Select a shop from the sidebar and fetch data to begin.</p>
                     </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-red-800">Error occurred while fetching data</h3>
-                        <div class="mt-2 text-sm text-red-700">
-                            <p class="font-mono"></p>
+
+                    <!-- Data Type Tabs (Internal Navigation) -->
+                    <div id="dataTypeTabsContainer"
+                        class="hidden border-b border-slate-200 dark:border-slate-700 px-6 pt-4">
+                        <div class="tabs-scroll-container flex space-x-6 overflow-x-auto pb-px">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Content -->
+                    <div id="dataTypeContentContainer" class="p-6"></div>
+
+                    <!-- Quick Actions Footer -->
+                    <div class="px-6 pb-6 pt-4 border-t border-slate-100 dark:border-slate-700 flex flex-wrap gap-3">
+                        <button onclick="openMissingBillsModal()"
+                            class="inline-flex items-center px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 active:bg-amber-700 transition-colors shadow-sm btn-secondary text-amber-600 border-amber-200 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path
+                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l6.518 11.59A1.75 1.75 0 0116.664 17H3.336a1.75 1.75 0 01-1.597-2.311L8.257 3.1zM11 13a1 1 0 10-2 0 1 1 0 002 0zm-1-7a.75.75 0 00-.75.75v3.5c0 .414.336.75.75.75s.75-.336.75-.75v-3.5A.75.75 0 0010 6z" />
+                            </svg>
+                            Find Missing Bills
+                        </button>
+                        <button onclick="openAddEntryModal()"
+                            class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-sm btn-primary bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add Entry
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error Log -->
+                <div id="errorLog" class="mt-6 hidden">
+                    <div
+                        class="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg dark:bg-red-900/20 dark:border-red-700">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800 dark:text-red-300">Error occurred while
+                                    fetching data</h3>
+                                <div class="mt-2 text-sm text-red-700 dark:text-red-200">
+                                    <p class="font-mono"></p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Entry Modal -->
+    <div id="addEntryModal"
+        class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <div
+            class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-700">
+            <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white" id="addEntryTitle">ADD ENTRY</h3>
+                <button onclick="closeAddEntryModal()"
+                    class="text-slate-400 hover:text-slate-500 dark:text-slate-300 dark:hover:text-white">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="p-6">
+                <!-- Type Selection Tabs -->
+                <div class="flex space-x-2 border-b border-slate-200 dark:border-slate-700 mb-6">
+                    <button onclick="switchEntryType('booking')" id="tab-booking"
+                        class="px-4 py-2 text-sm font-medium text-indigo-600 border-b-2 border-indigo-600 focus:outline-none dark:text-indigo-400 dark:border-indigo-400">Booking</button>
+                    <button onclick="switchEntryType('delivery')" id="tab-delivery"
+                        class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 focus:outline-none dark:text-slate-400 dark:hover:text-slate-200">Delivery</button>
+                    <button onclick="switchEntryType('expense')" id="tab-expense"
+                        class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 focus:outline-none dark:text-slate-400 dark:hover:text-slate-200">Expense</button>
+                </div>
+
+                <!-- Last Entry Preview (Hidden by default) -->
+                <div id="lastEntryPreview"
+                    class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex items-center justify-between dark:bg-green-900/20 dark:border-green-700 dark:text-green-300">
+                    <!-- JS Injected Content -->
+                </div>
+
+                <form id="addEntryForm" onsubmit="handleAddEntrySubmit(event)">
+                    <div class="space-y-4">
+                        <!-- Common: Shop Selection -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shop</label>
+                            <select id="entryShop" required
+                                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <!-- Populated via JS -->
+                            </select>
+                        </div>
+
+                        <!-- Dynamic Fields Container -->
+                        <div id="entryFields" class="space-y-4">
+                            <!-- Fields injected by JS based on Type -->
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <button type="submit"
+                            class="w-full px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+                            Save Entry
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-    </main>
+    </div>
 
-    <!-- FLOATING AI CHAT BUTTON -->
-    <button onclick="toggleAIChat()"
-        class="fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-lg transition-transform transform hover:scale-110 z-40 flex items-center gap-2 group">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-        </svg>
-        <span
-            class="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-in-out whitespace-nowrap">AI
-            Assistant</span>
-    </button>
+    <!-- Missing Bills Modal -->
+    <div id="missingBillsModal"
+        class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <div
+            class="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-700">
+            <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Find Missing Bill Numbers</h3>
+                <button onclick="closeMissingBillsModal()"
+                    class="text-slate-400 hover:text-slate-500 dark:text-slate-300 dark:hover:text-white">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <p class="text-sm text-slate-600 dark:text-slate-400">Scans the currently fetched booking records for
+                    each shop and
+                    returns the missing bill numbers within the specified range. If you haven't fetched data
+                    yet, click "Fetch Data" first.</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-5 gap-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Range Start</label>
+                        <input id="missingStart" type="number" min="1" value="1"
+                            class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Range End</label>
+                        <input id="missingEnd" type="number" min="1" value="5000"
+                            class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                    </div>
+                    <div class="pb-[1px]">
+                        <button onclick="autoSetRange()"
+                            class="w-full px-3 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-300 transition-colors text-sm dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                            title="Set range based on fetched data">
+                            Auto Range
+                        </button>
+                    </div>
+                    <div class="col-span-2 flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <input id="onlyMissing" type="checkbox"
+                                class="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            <label for="onlyMissing" class="text-xs sm:text-sm text-slate-700 dark:text-slate-300">Hide
+                                OK</label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input id="normalizeBill" type="checkbox" class="h-4 w-4 text-teal-600 dark:text-teal-400"
+                                checked />
+                            <label for="normalizeBill"
+                                class="text-xs sm:text-sm text-slate-700 dark:text-slate-300">Normalize (1,
+                                01 -> 1)</label>
+                        </div>
+                    </div>
+                    <div
+                        class="sm:col-span-5 flex justify-end space-x-3 mt-2 border-t pt-4 border-slate-100 dark:border-slate-700">
+                        <button onclick="scanMissingBills(event)" id="scanMissingBtn"
+                            class="px-6 py-2 bg-amber-500 text-white rounded-lg font-semibold hover:bg-amber-600 shadow-sm flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            Scan for Issues
+                        </button>
+                        <button onclick="downloadAllMissingCSV()" id="downloadAllBtn"
+                            class="px-4 py-2 bg-slate-800 text-white rounded-lg font-semibold hover:bg-slate-900 shadow-sm dark:bg-slate-700 dark:hover:bg-slate-600">
+                            Download Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Shop selection -->
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Select shops to
+                        include</label>
+                    <div id="shopSelectionContainer"
+                        class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded dark:border-slate-600">
+                        <!-- Shop checkboxes will be rendered here by JS -->
+                    </div>
+                </div>
+
+                <div id="missingResults" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- AI CHAT MODAL -->
     <div id="aiChatModal"
-        class="fixed bottom-24 right-8 w-96 bg-white rounded-2xl shadow-2xl border border-indigo-100 z-50 hidden flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0">
-        <!-- Header -->
+        class="fixed bottom-4 right-4 w-96 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-indigo-100 dark:border-slate-600 z-50 hidden flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right scale-95 opacity-0">
         <div class="bg-indigo-600 p-4 flex justify-between items-center text-white">
             <div class="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
@@ -379,45 +434,36 @@
                 </svg>
                 <h3 class="font-bold text-lg">AI Assistant</h3>
             </div>
-            <button onclick="toggleAIChat()" class="text-indigo-200 hover:text-white transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
+            <button onclick="toggleAIChat()" class="text-indigo-200 hover:text-white">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
-
-        <!-- Chat History -->
-        <div id="chatHistory" class="flex-1 p-4 overflow-y-auto h-96 bg-slate-50 space-y-4 custom-scroll">
+        <div id="chatHistory"
+            class="flex-1 p-4 overflow-y-auto h-96 bg-slate-50 dark:bg-slate-900/50 space-y-4 custom-scroll">
             <div class="flex items-start gap-2.5">
-                <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <span class="text-lg">🤖</span>
-                </div>
+                <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">🤖</div>
                 <div
-                    class="flex flex-col w-full max-w-[320px] leading-1.5 p-4 border-gray-200 bg-white rounded-r-xl rounded-bl-xl dark:bg-gray-700">
-                    <p class="text-sm font-normal text-gray-900 dark:text-white">Hello! I'm your data assistant. Ask me
-                        anything about the shop's performance, revenue, or trends.</p>
+                    class="p-3 bg-white dark:bg-slate-700 rounded-r-xl rounded-bl-xl shadow-sm border border-slate-100 dark:border-slate-600 text-sm text-slate-800 dark:text-slate-200">
+                    Hello! I'm your data assistant. Ask me anything about the shop's performance, revenue, or trends.
                 </div>
             </div>
         </div>
-
-        <!-- Input Area -->
-        <div class="p-4 border-t border-slate-100 bg-white">
-            <div class="relative">
-                <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
-                    <input type="text" id="chatInput"
-                        class="block w-full p-3 pl-4 text-sm text-slate-900 border border-slate-300 rounded-full bg-slate-50 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                        placeholder="Ask about revenue, expenses..." autocomplete="off">
-                    <button type="button" onclick="handleChatSubmit(event)"
-                        class="text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:outline-none focus:ring-indigo-300 font-medium rounded-full text-sm p-3 text-center inline-flex items-center">
-                        <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
-                            viewBox="0 0 14 10">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M1 5h12m0 0L9 1m4 4L9 9" />
-                        </svg>
-                    </button>
-                </form>
-            </div>
+        <div class="p-4 border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
+            <form onsubmit="handleChatSubmit(event)" class="flex gap-2">
+                <input type="text" id="chatInput"
+                    class="flex-1 p-2 px-4 rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="Ask about revenue, expenses..." autocomplete="off">
+                <button type="submit"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center transition-transform active:scale-90">
+                    <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 14 10">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M1 5h12m0 0L9 1m4 4L9 9" />
+                    </svg>
+                </button>
+            </form>
             <p class="text-xs text-slate-400 mt-2 text-center">AI can make mistakes. Check important info.</p>
         </div>
     </div>
@@ -434,9 +480,90 @@
     <script src="js/overview.js"></script>
     <script src="js/compare.js"></script>
     <script src="js/add_entry.js"></script>
+    <!-- CUSTOMER PROFILE MODAL -->
+    <div id="customerProfileModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm transition-opacity" onclick="closeCustomerModal()">
+        </div>
+
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div
+                    class="relative transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-slate-200 dark:border-slate-700">
+
+                    <!-- Modal Header -->
+                    <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-white" id="modalCustomerName">Customer Profile</h3>
+                        <button onclick="closeCustomerModal()"
+                            class="text-indigo-200 hover:text-white transition-colors">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="px-6 py-6 space-y-6">
+                        <!-- Key Stats Row -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div
+                                class="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                                <p class="text-xs text-indigo-600 dark:text-indigo-300 font-semibold uppercase">Total
+                                    Spent</p>
+                                <p class="text-2xl font-bold text-indigo-900 dark:text-white mt-1" id="modalTotalSpent">
+                                    AED 0.00</p>
+                            </div>
+                            <div
+                                class="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                                <p class="text-xs text-emerald-600 dark:text-emerald-300 font-semibold uppercase">Total
+                                    Visits</p>
+                                <p class="text-2xl font-bold text-emerald-900 dark:text-white mt-1"
+                                    id="modalTotalVisits">0</p>
+                            </div>
+                            <div
+                                class="bg-slate-50 dark:bg-slate-700/50 p-4 rounded-xl border border-slate-100 dark:border-slate-600">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase">Contact
+                                    Info</p>
+                                <p class="text-lg font-medium text-slate-800 dark:text-white mt-1" id="modalMobile">-
+                                </p>
+                                <div id="modalActions" class="mt-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Transaction History -->
+                        <div>
+                            <h4 class="text-lg font-bold text-slate-800 dark:text-gray-100 mb-3">Transaction History
+                            </h4>
+                            <div
+                                class="max-h-80 overflow-y-auto custom-scroll border border-slate-200 dark:border-slate-700 rounded-lg">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="bg-slate-50 dark:bg-slate-800 sticky top-0 md:static">
+                                        <tr
+                                            class="text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                                            <th class="p-3 font-semibold">Date</th>
+                                            <th class="p-3 font-semibold">Shop</th>
+                                            <th class="p-3 font-semibold">Details</th>
+                                            <th class="p-3 font-semibold text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="modalHistoryBody"
+                                        class="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
+                                        <!-- Populated via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/export.js"></script>
     <script src="js/audit.js"></script>
     <script src="js/stock_audit.js"></script>
+    <script src="js/customers.js"></script>
     <script src="js/aiChat.js"></script>
     <script src="js/print.js"></script>
     <script src="js/main.js"></script>

@@ -17,6 +17,14 @@
             background: #f1f5f9;
         }
 
+        /* Dark Mode Scrollbar */
+        .dark .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+        .dark .custom-scroll::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
         .text-red-700-bold {
             font-weight: 700;
             color: #b91c1c;

@@ -40,6 +40,14 @@ function renderContent(shopPrefix, dataType) {
         return;
     }
 
+    // Handle CUSTOMERS special case
+    if (shopPrefix === 'CUSTOMERS') {
+        if (dataTypeTabs) dataTypeTabs.classList.add('hidden');
+        aggregateCustomers(); // Defined in customers.js
+        renderCustomerDirectory(); // Defined in customers.js
+        return;
+    }
+
     // Standard Shop View
     if (dataTypeTabs) dataTypeTabs.classList.remove('hidden');
 

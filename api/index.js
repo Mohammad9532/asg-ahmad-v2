@@ -672,6 +672,7 @@ const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async
                     name: b.name || 'Unknown',
                     date: b.date,
                     phone: b.phone,
+                    countryCode: b.countryCode, // Added for international support
                     qty: b.qty || 0,
                     bookedAmount: bookedAmount,
                     deliveredAmount: deliveredAmount,

@@ -10,65 +10,116 @@ function showLoading(state) {
     if (statusMessage) statusMessage.classList.toggle('hidden', state);
 }
 
+// --- UI CORE & NAVIGATION ---
+
+function showLoading(state) {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const fetchButton = document.getElementById('fetchButton');
+    const statusMessage = document.getElementById('statusMessage');
+
+    if (loadingIndicator) loadingIndicator.classList.toggle('hidden', !state);
+    if (fetchButton) fetchButton.disabled = state;
+    if (statusMessage) statusMessage.classList.toggle('hidden', state);
+}
+
+// Side Bar Toggle (Mobile)
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    // Toggle Translate
+    const isClosed = sidebar.classList.contains('-translate-x-full');
+
+    if (isClosed) {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+    } else {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+    }
+}
+
+// Dark Mode Logic
+function initDarkMode() {
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    if (isDark) {
+        document.body.classList.add('dark');
+        updateDarkModeIcon(true);
+    }
+}
+
+function toggleDarkMode() {
+    const isDark = document.body.classList.toggle('dark');
+    localStorage.setItem('darkMode', isDark);
+    updateDarkModeIcon(isDark);
+}
+
+function updateDarkModeIcon(isDark) {
+    const icon = document.getElementById('darkModeIcon');
+    const text = document.getElementById('darkModeText');
+    if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+    if (text) text.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+}
+
 function renderShopTabs() {
-    const container = document.getElementById('shopTabsContainer');
+    // Note: We now target the Sidebar List
+    const container = document.getElementById('sidebarShopList');
     if (!container) return;
 
-    container.innerHTML = `<div class="flex flex-nowrap overflow-x-auto tabs-scroll-container">
-        <!-- Overview Tab -->
-        <button 
-            onclick="setActiveShop('OVERVIEW')"
-            class="px-6 py-3 text-sm font-bold transition-all duration-200 whitespace-nowrap ${activeShop === 'OVERVIEW'
-            ? 'text-teal-700 border-b-2 border-teal-600 bg-teal-50/50'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'} focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 rounded-t-lg"
-        >
-            🌍 Global Overview
-        </button>
-        <!-- Compare Tab -->
-        <button 
-            onclick="setActiveShop('COMPARE')"
-            class="px-6 py-3 text-sm font-bold transition-all duration-200 whitespace-nowrap ${activeShop === 'COMPARE'
-            ? 'text-teal-700 border-b-2 border-teal-600 bg-teal-50/50'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'} focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 rounded-t-lg"
-        >
-            🎯 Targets & Compare
-        </button>
-        ${SHOP_PREFIXES.map(shop => `
-        <button 
-            onclick="setActiveShop('${shop}')"
-            class="px-6 py-3 text-sm font-medium transition-all duration-200 whitespace-nowrap ${shop === activeShop
-                    ? 'text-teal-600 border-b-2 border-teal-600 bg-teal-50/50'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'} focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 rounded-t-lg"
-        >
-            ${shop}
-        </button>
-    `).join('')}</div>`;
+    // Helper for active class
+    const getItemClass = (isActive) => isActive
+        ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-r-4 border-indigo-600 dark:border-indigo-400'
+        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 border-r-4 border-transparent';
+
+    container.innerHTML = `
+        <div class="space-y-1">
+            <button onclick="setActiveShop('OVERVIEW')"
+                class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(activeShop === 'OVERVIEW')}">
+                🌍 Global Overview
+            </button>
+            <button onclick="setActiveShop('COMPARE')"
+                class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(activeShop === 'COMPARE')}">
+                🎯 Targets & Compare
+            </button>
+            <button onclick="setActiveShop('CUSTOMERS')"
+                class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(activeShop === 'CUSTOMERS')}">
+                👥 Customers
+            </button>
+            
+            <div class="my-2 border-t border-slate-100 dark:border-slate-700"></div>
+            
+            ${SHOP_PREFIXES.map(shop => `
+                <button onclick="setActiveShop('${shop}')"
+                    class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(shop === activeShop)}">
+                    🏪 ${shop}
+                </button>
+            `).join('')}
+        </div>
+    `;
 }
 
 function setActiveShop(shop) {
     activeShop = shop;
+
+    // On mobile, close sidebar after selection
+    if (window.innerWidth < 1024) { // lg breakpoint
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar.classList.contains('-translate-x-full')) {
+            toggleSidebar();
+        }
+    }
+
     renderDataTypeTabs(shop);
     renderContent(shop, activeDataType); // Defined in render.js
-
-    // Update visual state of tabs
-    const container = document.getElementById('shopTabsContainer');
-    if (container) {
-        container.querySelectorAll('button').forEach(btn => {
-            // Reset styles
-            // Note: This manual class toggling is a bit brittle, re-rendering might be safer but this is faster.
-            // Actually, simply calling renderShopTabs() again is cleaner and less error prone.
-            // But let's stick to the existing logic or re-render. Re-render is easiest.
-        });
-        renderShopTabs(); // Re-render to update active state classes
-    }
+    renderShopTabs(); // Re-render sidebar to highlight active
 }
 
 function renderDataTypeTabs(shopPrefix) {
     const container = document.getElementById('dataTypeTabsContainer');
     if (!container) return;
 
-    // Handle OVERVIEW & COMPARE special cases
-    if (shopPrefix === 'OVERVIEW' || shopPrefix === 'COMPARE') {
+    // Handle OVERVIEW, COMPARE & CUSTOMERS special cases
+    if (shopPrefix === 'OVERVIEW' || shopPrefix === 'COMPARE' || shopPrefix === 'CUSTOMERS') {
         container.classList.add('hidden');
         return;
     }
@@ -78,18 +129,18 @@ function renderDataTypeTabs(shopPrefix) {
     const tabDefinitions = [
         { type: 'dashboard', label: '📊 Dashboard' },
         { type: 'bookings', label: 'Net Bookings' },
-        { type: 'delivery', label: 'Deliveries (Categorized)' },
-        { type: 'expense', label: 'Expenses (Categorized)' },
-        { type: 'monthly_summary', label: 'Monthly Summary' },
+        { type: 'delivery', label: 'Deliveries' },
+        { type: 'expense', label: 'Expenses' },
+        { type: 'monthly_summary', label: 'Monthly' },
         { type: 'stock_audit', label: '✅ Stock Audit' },
     ];
 
-    container.innerHTML = `<div class="flex flex-nowrap overflow-x-auto tabs-scroll-container p-4 font-sans">${tabDefinitions.map(tab => `
+    container.innerHTML = `<div class="flex flex-nowrap overflow-x-auto tabs-scroll-container pb-4 font-sans">${tabDefinitions.map(tab => `
         <button 
             onclick="setActiveDataType('${tab.type}')"
-            class="px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${tab.type === activeDataType
-            ? 'text-white bg-teal-600 shadow-md transform scale-105'
-            : 'text-slate-700 bg-slate-100 hover:bg-slate-200'} focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 mr-2"
+            class="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap border ${tab.type === activeDataType
+            ? 'text-indigo-600 bg-indigo-50 border-indigo-200 shadow-sm dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700'
+            : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'} focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mr-2"
         >
             ${tab.label}
         </button>

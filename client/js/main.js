@@ -10,6 +10,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // 2. Initialize UI Components
+    initDarkMode();
     initFiscalYearDropdown();
 
     // 3. Set Default Date Range (This Month) if not already set by Fiscal Year logic

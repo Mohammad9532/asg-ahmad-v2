@@ -22,28 +22,43 @@ function toggleAIChat() {
 }
 
 async function handleChatSubmit(event) {
-    event.preventDefault();
+    if (event) event.preventDefault();
     const input = document.getElementById('chatInput');
     const message = input.value.trim();
     if (!message) return;
 
-    // Add User Message
-    appendMessage('user', message);
     input.value = '';
+    await sendAIMessage(message);
+}
+
+async function sendAIMessage(message, hiddenSystemPrompt = null) {
+    // Add User Message (if not a system trigger)
+    if (!hiddenSystemPrompt) {
+        appendMessage('user', message);
+    } else {
+        // For system triggers, maybe show a different kind of message or just the user equivalent
+        appendMessage('user', message);
+    }
 
     // Show Loading State
-    const loadingId = appendMessage('ai', 'Thinking...', true);
+    const loadingId = appendMessage('ai', 'Analyzing data...', true);
 
     try {
         // Gather Context
         const context = getChatContext();
 
+        // Final Prompt: Use hidden prompt if provided (for specialized tasks), else user message
+        const finalPrompt = hiddenSystemPrompt || message;
+
         // Send to API
-        // NOTE: Using BASE_URL for AI
+        const token = localStorage.getItem('authToken');
         const response = await fetch(`${BASE_URL}/api/ai/chat`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: message, context })
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ prompt: finalPrompt, context })
         });
 
         const data = await response.json();
@@ -63,6 +78,34 @@ async function handleChatSubmit(event) {
         if (loadingElement) loadingElement.remove();
         appendMessage('ai', `**System Error:** ${error.message}`);
     }
+}
+
+function triggerHealthAnalysis() {
+    // 1. Open Chat
+    const modal = document.getElementById('aiChatModal');
+    if (modal.classList.contains('hidden')) {
+        toggleAIChat();
+    }
+
+    // 2. Send Analysis Request
+    // We display "Analyze Shop Health" to the user, but enforce a structured prompt to the AI
+    const displayMsg = "Analyze Shop Health 🏥";
+    const systemPrompt = `
+        Please perform a comprehensive health check on this shop based on the provided data context.
+        1. Analyze the Profitability (Net Booking vs Expenses).
+        2. Evaluate Operational Efficiency (Cancellation Rates).
+        3. Check Stock Health (Uncollected booking balance).
+        
+        Output format:
+        **🏥 Shop Health Report**
+        - **Status**: [Healthy / Caution / Critical]
+        - **Key Metrics**: [Bullet points]
+        - **Recommendations**: [Actionable tips]
+        
+        Keep it concise and professional.
+    `;
+
+    sendAIMessage(displayMsg, systemPrompt);
 }
 
 function appendMessage(sender, text, isLoading = false) {
