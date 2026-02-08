@@ -131,6 +131,8 @@ function renderDataTypeTabs(shopPrefix) {
         { type: 'bookings', label: 'Net Bookings' },
         { type: 'delivery', label: 'Deliveries' },
         { type: 'expense', label: 'Expenses' },
+        { type: 'employees', label: '👥 Employees' },
+        { type: 'daily_ledger', label: 'Daily Ledger' },
         { type: 'monthly_summary', label: 'Monthly' },
         { type: 'stock_audit', label: '✅ Stock Audit' },
     ];
@@ -362,4 +364,13 @@ function renderLegendHTML(methods, total) {
     }
     html += '</div>';
     return html;
+}
+
+function filterEmployeeGrid(query) {
+    const cards = document.querySelectorAll('.employee-card');
+    const q = (query || '').toLowerCase().trim();
+    cards.forEach(card => {
+        const name = card.getAttribute('data-name') || '';
+        card.classList.toggle('hidden', !name.includes(q));
+    });
 }

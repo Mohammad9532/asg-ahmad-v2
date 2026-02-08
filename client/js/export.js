@@ -33,29 +33,17 @@ function downloadMonthlyExcel(shop, monthYearStr) {
         del.filteredData.forEach(doc => {
             const date = new Date(doc.date);
             if (date.getMonth() === targetMonth && date.getFullYear() === targetYear) {
-                let type;
                 const bNo = (doc.billNo || '').toLowerCase().trim();
-                if (bNo && bNo !== 'other-amounts') {
-                    type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'OTHER';
-                } else {
-                    type = (doc.remarks || doc.name || 'MISC').toUpperCase().trim();
-                }
+                let type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
 
                 if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
+                if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
                 categoriesSet.add(type);
             }
         });
     }
 
-    const primaryCats = ['CASH', 'ADIB', 'ATM', 'OTHER'];
-    const deliveryCategories = Array.from(categoriesSet).sort((a, b) => {
-        const aIdx = primaryCats.indexOf(a);
-        const bIdx = primaryCats.indexOf(b);
-        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        if (aIdx !== -1) return -1;
-        if (bIdx !== -1) return 1;
-        return a.localeCompare(b);
-    });
+    const deliveryCategories = ['CASH', 'ADIB', 'ATM'];
 
     const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
     const monthDataMap = new Map();
@@ -93,15 +81,11 @@ function downloadMonthlyExcel(shop, monthYearStr) {
             } else if (type === 'expense') {
                 dayObj.expense += amt;
             } else if (type === 'delivery') {
-                let pType;
                 const bNo = (doc.billNo || '').toLowerCase().trim();
-                if (bNo && bNo !== 'other-amounts') {
-                    pType = doc.amountType ? doc.amountType.toUpperCase().trim() : 'OTHER';
-                } else {
-                    pType = (doc.remarks || doc.name || 'MISC').toUpperCase().trim();
-                }
+                let pType = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
 
                 if (pType.includes('CARD') || pType.includes('VISA') || pType.includes('MASTER')) pType = 'ADIB';
+                if (pType !== 'ADIB' && pType !== 'ATM') pType = 'CASH';
 
                 if (dayObj.deliveryBreakdown.hasOwnProperty(pType)) {
                     dayObj.deliveryBreakdown[pType] += amt;

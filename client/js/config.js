@@ -17,7 +17,7 @@ const SHOP_PREFIXES = [
     'Staralgawani',
 ];
 
-const DATA_TYPES = ['bookings', 'delivery', 'expense'];
+const DATA_TYPES = ['bookings', 'delivery', 'expense', 'employee'];
 
 // --- DATE CONFIGURATION (Bakra Eid Logic) ---
 

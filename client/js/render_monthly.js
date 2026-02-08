@@ -42,19 +42,15 @@ function aggregateMonthlyData(shopPrefix) {
         // REFINED CATEGORIZATION LOGIC:
         // Use amountType if billNo exists and is not 'other-amounts', 
         // otherwise use remarks/name for miscellaneous items
-        let type;
         const bNo = (doc.billNo || '').toLowerCase().trim();
-        if (bNo && bNo !== 'other-amounts') {
-            type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'OTHER';
-        } else {
-            // No Bill No or 'other-amounts': prioritize remarks, then name, then 'MISC'
-            type = (doc.remarks || doc.name || 'MISC').toUpperCase().trim();
-        }
+        let type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
 
         // Standardize card payment labels
         if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) {
             type = 'ADIB';
         }
+
+        if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
 
         if (!monthlyData[monthKey]) {
             monthlyData[monthKey] = {
@@ -237,15 +233,7 @@ function renderMonthlyDeliveriesTable(monthlyData, shopPrefix) {
     });
 
     // Sort categories: prioritize CASH, ADIB, ATM, then alphabetize others
-    const primaryCats = ['CASH', 'ADIB', 'ATM', 'OTHER'];
-    const categories = Array.from(allCategoriesSet).sort((a, b) => {
-        const aIdx = primaryCats.indexOf(a);
-        const bIdx = primaryCats.indexOf(b);
-        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        if (aIdx !== -1) return -1;
-        if (bIdx !== -1) return 1;
-        return a.localeCompare(b);
-    });
+    const categories = ['CASH', 'ADIB', 'ATM'];
 
     const currentSort = sortState[tableId];
     if (currentSort) {

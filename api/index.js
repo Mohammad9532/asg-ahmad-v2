@@ -107,6 +107,31 @@ const DATA_TYPES_CONFIG = [
     { path: 'expense', collectionSuffix: 'expenses' },
 ];
 
+/**
+ * Ledger Settings Model
+ * Stores initial balance and start date for each shop's daily ledger.
+ */
+const ledgerSettingsSchema = new mongoose.Schema({
+    shop: { type: String, required: true, unique: true },
+    initialBalance: { type: Number, default: 0 },
+    startDate: { type: Date, required: true }
+});
+const LedgerSettings = mongoose.model('LedgerSettings', ledgerSettingsSchema);
+
+/**
+ * Ledger Adjustment Model
+ * Stores daily short/extra cash adjustments.
+ */
+const ledgerAdjustmentSchema = new mongoose.Schema({
+    shop: { type: String, required: true },
+    date: { type: Date, required: true },
+    amount: { type: Number, required: true }, // Positive for extra, negative for short
+    note: { type: String }
+});
+// Composite index to prevent duplicates for the same shop/day
+ledgerAdjustmentSchema.index({ shop: 1, date: 1 }, { unique: true });
+const LedgerAdjustment = mongoose.model('LedgerAdjustment', ledgerAdjustmentSchema);
+
 // --- Middlewares ---
 app.use(express.json());
 app.use(cors()); // Enable CORS for frontend connection
@@ -138,6 +163,72 @@ apiRouter.post('/auth/login', async (req, res) => {
         res.json({ token, username: user.username });
     } catch (err) {
         res.status(500).json({ error: "Login failed" });
+    }
+});
+
+/**
+ * Route to Set/Update Ledger Settings (Initial Balance)
+ * POST /api/:shop/ledger/settings
+ */
+apiRouter.post('/:shop/ledger/settings', async (req, res) => {
+    try {
+        const { shop } = req.params;
+        const { initialBalance, startDate } = req.body;
+
+        if (initialBalance === undefined || !startDate) {
+            return res.status(400).json({ error: "initialBalance and startDate are required." });
+        }
+
+        const settings = await LedgerSettings.findOneAndUpdate(
+            { shop },
+            { initialBalance: Number(initialBalance), startDate: new Date(startDate) },
+            { upsert: true, new: true }
+        );
+
+        res.json(settings);
+    } catch (err) {
+        console.error("Ledger Settings Update Error:", err);
+        res.status(500).json({ error: "Failed to update ledger settings." });
+    }
+});
+
+/**
+ * Route to Get Ledger Settings
+ * GET /api/:shop/ledger/settings
+ */
+apiRouter.get('/:shop/ledger/settings', async (req, res) => {
+    try {
+        const { shop } = req.params;
+        const settings = await LedgerSettings.findOne({ shop });
+        res.json(settings || { initialBalance: 0, startDate: null });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch ledger settings." });
+    }
+});
+
+/**
+ * Route to record Daily Ledger Adjustment (Short/Extra)
+ * POST /api/:shop/ledger/adjustment
+ */
+apiRouter.post('/:shop/ledger/adjustment', async (req, res) => {
+    try {
+        const { shop } = req.params;
+        const { date, amount, note } = req.body;
+
+        if (!date || amount === undefined) {
+            return res.status(400).json({ error: "Date and amount are required." });
+        }
+
+        const adjustment = await LedgerAdjustment.findOneAndUpdate(
+            { shop, date: new Date(date + 'T00:00:00.000Z') },
+            { amount: Number(amount), note },
+            { upsert: true, new: true }
+        );
+
+        res.json(adjustment);
+    } catch (err) {
+        console.error("Ledger Adjustment Update Error:", err);
+        res.status(500).json({ error: "Failed to update ledger adjustment." });
     }
 });
 
@@ -790,7 +881,381 @@ const createAuditArchiveRoute = (AuditModel) => async (req, res) => {
     }
 };
 
+/**
+ * Creates the Employee List Route.
+ * GET /api/:shop/expense/employees
+ * Returns: [{ name: "Ali", dept: "shop-expense", cat: "salary" }, ...]
+ */
+const createEmployeeListRoute = (ExpenseModel) => async (req, res) => {
+    try {
+        const pipeline = [
+            { "$match": { "name": { "$exists": true, "$ne": "" } } },
+            { "$sort": { "date": -1 } },
+            {
+                "$group": {
+                    "_id": { "$toLower": "$name" },
+                    "originalName": { "$first": "$name" },
+                    "dept": { "$first": "$dept" },
+                    "cat": { "$first": "$cat" }
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "name": "$originalName",
+                    "dept": 1,
+                    "cat": 1,
+                    "val": "$_id"
+                }
+            },
+            { "$sort": { "name": 1 } }
+        ];
+        const employees = await ExpenseModel.aggregate(pipeline);
+        res.json(employees);
+    } catch (err) {
+        console.error("Employee List Error:", err);
+        res.status(500).json({ error: "Failed to fetch employee list." });
+    }
+};
 
+/**
+ * Creates the Employee Summary Route.
+ * GET /api/:shop/employee/summary
+ * Returns: [{ name: "Ali", total: 1500, count: 5 }, ...]
+ */
+const createEmployeeSummaryRoute = (ExpenseModel) => async (req, res) => {
+    try {
+        const { start, end } = req.query;
+        const query = { name: { "$exists": true, "$ne": "" } };
+
+        if (start && end) {
+            query.date = {
+                $gte: new Date(start + 'T00:00:00.000Z'),
+                $lte: new Date(end + 'T23:59:59.999Z')
+            };
+        }
+
+        const pipeline = [
+            { "$match": query },
+            {
+                "$group": {
+                    "_id": { "$toLower": { "$trim": { "input": "$name" } } },
+                    "name": { "$first": { "$trim": { "input": "$name" } } },
+                    "total": { "$sum": "$amount" },
+                    "count": { "$sum": 1 }
+                }
+            },
+            { "$sort": { "total": -1 } }
+        ];
+
+        const summary = await ExpenseModel.aggregate(pipeline);
+        res.json(summary);
+    } catch (err) {
+        console.error("Employee Summary Error:", err);
+        res.status(500).json({ error: "Failed to fetch employee summary." });
+    }
+};
+
+/**
+ * Creates the Employee History Route.
+ * GET /api/:shop/employee/history?name=Ali
+ */
+const createEmployeeHistoryRoute = (ExpenseModel) => async (req, res) => {
+    try {
+        const { name, start, end } = req.query;
+        if (!name) return res.status(400).json({ error: "Name is required" });
+
+        // Use a more flexible match to handle variations in whitespace/casing
+        const cleanName = name.trim();
+        const query = {
+            name: { $regex: new RegExp(`^\\s*${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i') }
+        };
+
+        if (start && end) {
+            query.date = {
+                $gte: new Date(start + 'T00:00:00.000Z'),
+                $lte: new Date(end + 'T23:59:59.999Z')
+            };
+        }
+
+        const history = await ExpenseModel.find(query).sort({ date: -1 });
+        res.json(history);
+    } catch (err) {
+        console.error("Employee History Error:", err);
+        res.status(500).json({ error: "Failed to fetch employee history." });
+    }
+};
+
+/**
+ * Creates the Daily Ledger Route.
+ * GET /api/:shop/daily_ledger
+ * Query: ?date=YYYY-MM-DD
+ * 
+ * Returns:
+ * {
+ *   openingBalance: Number,
+ *   deliveryBreakdown: { CASH: 0, ADIB: 0, ... },
+ *   totalDelivery: Number,
+ *   totalExpense: Number,
+ *   closingBalance: Number,
+ *   grossBooking: Number
+ * }
+ */
+const createDailyLedgerRoute = (BookingModel, DeliveryModel, ExpenseModel) => async (req, res) => {
+    try {
+        const { date } = req.query;
+        // The shop prefix is available in the URL /api/:shop/daily_ledger
+        // We can extract it from the path or just pass it in? 
+        // In the mounting loop: apiRouter.get(`/${shopPrefix}/daily_ledger`, createDailyLedgerRoute(BookingModel, DeliveryModel, ExpenseModel));
+        // So req.baseUrl + req.path contains the shop prefix.
+        // Or better, let's look at the path. req.originalUrl.split('/')[2] is the shop.
+        const shop = req.originalUrl.split('/')[2];
+
+        if (!date) return res.status(400).json({ error: "Date parameter is required (YYYY-MM-DD)." });
+
+        // Parse Dates
+        const selectedDate = new Date(date + 'T00:00:00.000Z');
+        const nextDay = new Date(date + 'T23:59:59.999Z');
+
+        if (isNaN(selectedDate.getTime())) return res.status(400).json({ error: "Invalid date." });
+
+        // 1. Fetch Ledger Settings for this shop
+        const settings = await LedgerSettings.findOne({ shop });
+        const initialBal = settings ? settings.initialBalance : 0;
+        const startFrom = settings && settings.startDate ? new Date(settings.startDate) : new Date('2000-01-01');
+
+        // 2. Calculate Opening Balance
+        // Opening = Initial + (Cash Deliveries since startFrom to selectedDate-1) - (Expenses since startFrom to selectedDate-1)
+
+        // If selectedDate is exactly the startFrom date, opening balance IS the initialBalance.
+        // If selectedDate is BEFORE startFrom, we might want to return 0 or standard calc.
+
+        let openingBalance = 0;
+
+        if (selectedDate.getTime() === startFrom.getTime()) {
+            openingBalance = initialBal;
+        } else if (selectedDate < startFrom) {
+            openingBalance = 0; // Or standard old logic? Let's stick to 0 for strict ledger.
+        } else {
+            // sum previous cash deliveries and expenses between startFrom and selectedDate
+            const prevFilter = { date: { $gte: startFrom, $lt: selectedDate } };
+
+            // CASH ONLY deliveries for balance
+            const prevCashDelivery = await DeliveryModel.aggregate([
+                {
+                    $match: {
+                        ...prevFilter,
+                        $or: [
+                            { amountType: { $exists: false } },
+                            { amountType: "" },
+                            { amountType: { $regex: /^cash$/i } },
+                            { amountType: { $nin: [/atm/i, /adib/i, /card/i, /visa/i, /master/i] } }
+                        ]
+                    }
+                },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]);
+
+            const prevExpense = await ExpenseModel.aggregate([
+                { $match: prevFilter },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]);
+
+            // sum previous adjustments
+            const prevAdj = await LedgerAdjustment.aggregate([
+                { $match: { shop, date: { $gte: startFrom, $lt: selectedDate } } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]);
+
+            const totalPrevCash = prevCashDelivery.length ? prevCashDelivery[0].total : 0;
+            const totalPrevExp = prevExpense.length ? prevExpense[0].total : 0;
+            const totalPrevAdj = prevAdj.length ? prevAdj[0].total : 0;
+
+            openingBalance = initialBal + totalPrevCash - totalPrevExp + totalPrevAdj;
+        }
+
+        // 3. Fetch Daily Data
+        const dayFilter = { date: { $gte: selectedDate, $lte: nextDay } };
+        const todayAdjustment = await LedgerAdjustment.findOne({ shop, date: { $gte: selectedDate, $lte: nextDay } });
+        const adjAmount = todayAdjustment ? todayAdjustment.amount : 0;
+
+        // A. Booking Gross (Informational)
+        const dayBookings = await BookingModel.aggregate([
+            { $match: dayFilter },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]);
+        const grossBooking = dayBookings.length ? dayBookings[0].total : 0;
+
+        // B. Expenses (Always subtract from balance)
+        const dayExpenses = await ExpenseModel.aggregate([
+            { $match: dayFilter },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]);
+        const totalExpense = dayExpenses.length ? dayExpenses[0].total : 0;
+
+        // C. Deliveries (Breakdown and Cash Total)
+        const dayDeliveries = await DeliveryModel.find(dayFilter).lean();
+
+        let totalDailyCash = 0;
+        let totalDailyDelivery = 0; // Total of ALL types
+        const deliveryMap = {};
+
+        dayDeliveries.forEach(d => {
+            const amt = d.amount || 0;
+            totalDailyDelivery += amt;
+
+            let typeRaw = d.amountType ? String(d.amountType).toUpperCase().trim() : 'CASH';
+            let category = 'CASH';
+
+            if (typeRaw.includes('CARD') || typeRaw.includes('VISA') || typeRaw.includes('MASTER') || typeRaw.includes('ADIB')) {
+                category = 'ADIB';
+            } else if (typeRaw.includes('ATM')) {
+                category = 'ATM';
+            }
+
+            if (!deliveryMap[category]) deliveryMap[category] = 0;
+            deliveryMap[category] += amt;
+
+            if (category === 'CASH') {
+                totalDailyCash += amt;
+            }
+        });
+
+        // 4. Calculate Closing
+        // Closing = Opening + Today's CASH - Today's Expense + Today's Adjustment
+        const closingBalance = (selectedDate < startFrom) ? 0 : (openingBalance + totalDailyCash - totalExpense + adjAmount);
+
+        res.json({
+            openingBalance,
+            deliveryBreakdown: deliveryMap,
+            totalDelivery: totalDailyDelivery, // Used for breakdown UI
+            totalCashDelivery: totalDailyCash, // The one that actually added to balance
+            totalExpense,
+            closingBalance,
+            grossBooking,
+            adjustment: todayAdjustment || { amount: 0, note: "" },
+            hasSettings: !!settings,
+            startDate: settings ? settings.startDate : null
+        });
+
+    } catch (err) {
+        console.error("Daily Ledger Error:", err);
+        res.status(500).json({ error: "Failed to fetch daily ledger." });
+    }
+};
+
+
+
+
+/**
+ * Route to get Daily Ledger History (Last 30 Days)
+ * GET /api/:shop/ledger/history?date=YYYY-MM-DD
+ */
+apiRouter.get('/:shop/ledger/history', async (req, res) => {
+    try {
+        const { shop } = req.params;
+        const { date } = req.query;
+        if (!date) return res.status(400).json({ error: "Date is required." });
+
+        const endDate = new Date(date + 'T23:59:59.999Z');
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - 29); // Last 30 days
+        startDate.setHours(0, 0, 0, 0);
+
+        // Models
+        const shopPrefix = shop;
+        const collectionPrefix = shopPrefix.toLowerCase();
+
+        // Helper to get models (mimicking the dynamic creation)
+        const DeliveryModel = mongoose.model(shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1) + 'DeliveryModel');
+        const ExpenseModel = mongoose.model(shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1) + 'ExpenseModel');
+
+        // 1. Ledger Settings (Start point)
+        const settings = await LedgerSettings.findOne({ shop });
+        const initialBal = settings ? settings.initialBalance : 0;
+        const startFrom = settings && settings.startDate ? new Date(settings.startDate) : new Date('2000-01-01');
+
+        // 2. Fetch all raw data for the period in bulk to avoid multiple queries
+        const inclusiveStart = startFrom < startDate ? startFrom : startDate;
+
+        const deliveries = await DeliveryModel.find({ date: { $gte: inclusiveStart, $lte: endDate } }).lean();
+        const expenses = await ExpenseModel.find({ date: { $gte: inclusiveStart, $lte: endDate } }).lean();
+        const adjustments = await LedgerAdjustment.find({ shop, date: { $gte: inclusiveStart, $lte: endDate } }).lean();
+
+        // 3. Helpers to filter and sum
+        const sumCash = (data, start, end) => {
+            return data.filter(d => {
+                const dDate = new Date(d.date);
+                if (dDate < start || dDate > end) return false;
+                if (d.amountType !== undefined) {
+                    const type = String(d.amountType || 'CASH').toUpperCase();
+                    if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER') || type.includes('ADIB') || type.includes('ATM')) return false;
+                }
+                return true;
+            }).reduce((sum, d) => sum + (d.amount || 0), 0);
+        };
+
+        const sumData = (data, start, end) => {
+            return data.filter(d => {
+                const dDate = new Date(d.date);
+                return dDate >= start && dDate <= end;
+            }).reduce((sum, d) => sum + (d.amount || 0), 0);
+        };
+
+        // 4. Calculate Running History
+        const historyList = [];
+        let runningBalance = 0;
+
+        // Calculate "Base Balance" up until the start of our 30-day window
+        if (startDate <= startFrom) {
+            runningBalance = initialBal;
+        } else {
+            const preCash = sumCash(deliveries, startFrom, new Date(startDate.getTime() - 1));
+            const preExp = sumData(expenses, startFrom, new Date(startDate.getTime() - 1));
+            const preAdj = sumData(adjustments, startFrom, new Date(startDate.getTime() - 1));
+            runningBalance = initialBal + preCash - preExp + preAdj;
+        }
+
+        // Iterate through 30 days
+        for (let i = 0; i < 30; i++) {
+            const currentDay = new Date(startDate);
+            currentDay.setDate(currentDay.getDate() + i);
+            const dayStart = new Date(currentDay);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(currentDay);
+            dayEnd.setHours(23, 59, 59, 999);
+
+            if (dayStart < startFrom) {
+                historyList.push({ date: dayStart.toISOString().split('T')[0], opening: 0, cash: 0, expense: 0, adj: 0, closing: 0, inactive: true });
+                continue;
+            }
+
+            const dayCash = sumCash(deliveries, dayStart, dayEnd);
+            const dayExp = sumData(expenses, dayStart, dayEnd);
+            const dayAdj = sumData(adjustments, dayStart, dayEnd);
+
+            const opening = runningBalance;
+            const closing = opening + dayCash - dayExp + dayAdj;
+
+            historyList.push({
+                date: dayStart.toISOString().split('T')[0],
+                opening,
+                cash: dayCash,
+                expense: dayExp,
+                adj: dayAdj,
+                closing
+            });
+
+            runningBalance = closing;
+        }
+
+        res.json(historyList.reverse()); // Return newest first
+
+    } catch (err) {
+        console.error("Ledger History Error:", err);
+        res.status(500).json({ error: "Failed to fetch ledger history." });
+    }
+});
 
 // --- ANALYTICS ROUTES ---
 
@@ -930,6 +1395,13 @@ SHOP_NAMES.forEach(shopPrefix => {
         // NEW: Create POST route for manual entry
         const createPath = `/${shopPrefix}/${config.path}/create`;
         apiRouter.post(createPath, createEntryRoute(Model, config.path));
+
+        // NEW: Employee List Route (Only for Expense)
+        if (config.path === 'expense') {
+            apiRouter.get(`/${shopPrefix}/expense/employees`, createEmployeeListRoute(Model));
+            apiRouter.get(`/${shopPrefix}/employee/summary`, createEmployeeSummaryRoute(Model));
+            apiRouter.get(`/${shopPrefix}/employee/history`, createEmployeeHistoryRoute(Model));
+        }
     });
 
     // 2. Create Monthly Summary Route
@@ -954,6 +1426,8 @@ SHOP_NAMES.forEach(shopPrefix => {
     // Retrieve Mongoose Models safely
     const BookingsModel = mongoose.model(bookingsModelName);
     const DeliveryModel = mongoose.model(deliveryModelName);
+    const expenseModelName = shopPrefix.charAt(0).toUpperCase() + shopPrefix.slice(1) + 'ExpenseModel';
+    const ExpenseModel = mongoose.model(expenseModelName);
 
     // NEW: Create/Retrieve Audit Model
     const auditCollectionName = `${collectionPrefix}audit`;
@@ -975,6 +1449,9 @@ SHOP_NAMES.forEach(shopPrefix => {
     apiRouter.get(`/${shopPrefix}/bill_details`, createBillDetailsRoute(BookingsModel, DeliveryModel));
 
     apiRouter.get(`/${shopPrefix}/lifetime/summary`, createLifetimeSummaryRoute(BookingsModel, DeliveryModel));
+
+    // Daily Ledger Route (New)
+    apiRouter.get(`/${shopPrefix}/daily_ledger`, createDailyLedgerRoute(BookingsModel, DeliveryModel, ExpenseModel));
 
 });
 

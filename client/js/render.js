@@ -95,12 +95,17 @@ function renderContent(shopPrefix, dataType) {
         renderDeliveryByTypeDetails(shopPrefix, data);
     } else if (dataType === 'expense') {
         renderExpenseByTypeDetails(shopPrefix, data);
+    } else if (dataType === 'employees') {
+        renderEmployeeSection(shopPrefix, container);
     } else if (isMonthlySummaryTab) {
         // Defined in render_monthly.js
         renderMonthlySummary(shopPrefix);
     } else if (dataType === 'stock_audit') {
         // Defined in stock_audit.js
         renderStockAuditView(shopPrefix);
+    } else if (dataType === 'daily_ledger') {
+        // Defined in dailyLedger.js
+        renderDailyLedger(shopPrefix);
     } else {
         // Fallback for other potential types, renders standard table
         renderStandardTable(shopPrefix, data, dataType);
@@ -108,7 +113,7 @@ function renderContent(shopPrefix, dataType) {
 }
 
 function isValidDataTypeForShop(dt) {
-    return ['dashboard', 'bookings', 'delivery', 'expense', 'monthly_summary', 'stock_audit'].includes(dt);
+    return ['dashboard', 'bookings', 'delivery', 'expense', 'employees', 'monthly_summary', 'stock_audit', 'daily_ledger'].includes(dt);
 }
 
 // --- DASHBOARD RENDERERS ---
@@ -137,7 +142,7 @@ function renderShopDashboard(shop, container) {
     let shopDel = 0;
     let shopBookingDel = 0;
     let shopMiscDel = 0;
-    let paymentMethods = { CASH: 0, ADIB: 0, ATM: 0, OTHER: 0 };
+    let paymentMethods = { CASH: 0, ADIB: 0, ATM: 0 };
 
     if (del && del.filteredData) {
         shopDel = del.filteredData.reduce((s, d) => {
@@ -150,11 +155,13 @@ function renderShopDashboard(shop, container) {
                 shopMiscDel += amt;
             }
 
-            let type = d.amountType ? d.amountType.toUpperCase().trim() : 'OTHER';
+            let type = d.amountType ? d.amountType.toUpperCase().trim() : 'CASH';
             if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
 
+            if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+
             if (paymentMethods.hasOwnProperty(type)) paymentMethods[type] += amt;
-            else paymentMethods.OTHER += amt;
+            else paymentMethods.CASH += amt;
             return s + amt;
         }, 0);
     }
@@ -325,10 +332,10 @@ function renderShopDashboard(shop, container) {
     chartInstances.shopPay = new Chart(ctx2, {
         type: 'doughnut',
         data: {
-            labels: ['Cash', 'Card/ADIB', 'ATM', 'Other'],
+            labels: ['Cash', 'Card/ADIB', 'ATM'],
             datasets: [{
-                data: [paymentMethods.CASH, paymentMethods.ADIB, paymentMethods.ATM, paymentMethods.OTHER],
-                backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#94a3b8'],
+                data: [paymentMethods.CASH, paymentMethods.ADIB, paymentMethods.ATM],
+                backgroundColor: ['#10b981', '#6366f1', '#f59e0b'],
                 borderWidth: 0
             }]
         },
@@ -377,13 +384,15 @@ function renderOverviewDashboard(container) {
                     shopMiscDel += amt;
                 }
 
-                let type = d.amountType ? d.amountType.toUpperCase().trim() : 'OTHER';
+                let type = d.amountType ? d.amountType.toUpperCase().trim() : 'CASH';
                 if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
+
+                if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
 
                 if (paymentMethods.hasOwnProperty(type)) {
                     paymentMethods[type] += amt;
                 } else {
-                    paymentMethods.OTHER += amt;
+                    paymentMethods.CASH += amt;
                 }
                 return s + amt;
             }, 0);
@@ -604,10 +613,10 @@ function initCharts(shopLabels, netValues, paymentData) {
     chartInstances.pay = new Chart(ctx2, {
         type: 'doughnut',
         data: {
-            labels: ['Cash', 'Card/ADIB', 'ATM', 'Other'],
+            labels: ['Cash', 'Card/ADIB', 'ATM'],
             datasets: [{
-                data: [paymentData.CASH, paymentData.ADIB, paymentData.ATM, paymentData.OTHER],
-                backgroundColor: ['#10b981', '#6366f1', '#f59e0b', '#94a3b8'],
+                data: [paymentData.CASH, paymentData.ADIB, paymentData.ATM],
+                backgroundColor: ['#10b981', '#6366f1', '#f59e0b'],
                 borderWidth: 0
             }]
         },
@@ -712,41 +721,32 @@ function renderDeliveryByTypeDetails(shopPrefix, deliveryData) {
     // 1. Identify all unique categories in this specific dataset
     const allCategoriesSet = new Set();
     deliveryData.filteredData.forEach(doc => {
-        let type;
-        const bNo = (doc.billNo || '').toLowerCase().trim();
-        if (bNo && bNo !== 'other-amounts') {
-            type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'OTHER';
-        } else {
-            type = (doc.remarks || doc.name || 'MISC').toUpperCase().trim();
-        }
+        let type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
 
         if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
+        if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
         allCategoriesSet.add(type);
     });
 
-    const primaryCats = ['CASH', 'ADIB', 'ATM', 'OTHER'];
-    const DELIVERY_CATEGORIES = Array.from(allCategoriesSet).sort((a, b) => {
-        const aIdx = primaryCats.indexOf(a);
-        const bIdx = primaryCats.indexOf(b);
-        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        if (aIdx !== -1) return -1;
-        if (bIdx !== -1) return 1;
-        return a.localeCompare(b);
-    });
+    const DELIVERY_CATEGORIES = ['CASH', 'ADIB', 'ATM'];
 
     // Day-wise Aggregation for Deliveries (Multi-Category)
     // Create a local version of the data with standardized types for the trend table
     const standardizedData = deliveryData.filteredData.map(doc => {
-        let type;
-        const bNo = (doc.billNo || '').toLowerCase().trim();
-        if (bNo && bNo !== 'other-amounts') {
-            type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'OTHER';
-        } else {
-            type = (doc.remarks || doc.name || 'MISC').toUpperCase().trim();
-        }
+        let type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
 
         if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
-        return { ...doc, amountTypeStandardized: type };
+        if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+
+        let detailedType;
+        const bNo = (doc.billNo || '').toLowerCase().trim();
+        if (bNo && bNo !== 'other-amounts') {
+            detailedType = type;
+        } else {
+            detailedType = (doc.remarks || doc.name || 'MISC').toUpperCase().trim();
+        }
+
+        return { ...doc, amountTypeStandardized: type, detailedType };
     });
 
     let dailyAggregates = aggregateDailyCategories(standardizedData, 'amountTypeStandardized');
@@ -774,7 +774,7 @@ function renderDeliveryByTypeDetails(shopPrefix, deliveryData) {
 
     // Grouping
     const groups = standardizedData.reduce((acc, doc) => {
-        const type = doc.amountTypeStandardized;
+        const type = doc.detailedType;
         if (!acc[type]) {
             acc[type] = { docs: [], total: 0 };
         }
@@ -784,8 +784,8 @@ function renderDeliveryByTypeDetails(shopPrefix, deliveryData) {
     }, {});
 
     Object.keys(groups).sort((a, b) => {
-        const aIdx = primaryCats.indexOf(a);
-        const bIdx = primaryCats.indexOf(b);
+        const aIdx = DELIVERY_CATEGORIES.indexOf(a);
+        const bIdx = DELIVERY_CATEGORIES.indexOf(b);
         if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
         if (aIdx !== -1) return -1;
         if (bIdx !== -1) return 1;
@@ -862,6 +862,139 @@ function renderExpenseByTypeDetails(shopPrefix, expenseData) {
     });
 
     container.innerHTML = html;
+}
+
+/**
+ * Renders the Employee Summary and List
+ */
+async function renderEmployeeSection(shopPrefix, container) {
+    const data = allResults[`${shopPrefix}|employee`];
+
+    if (!data || !data.length) {
+        container.innerHTML = '<p class="text-center text-slate-500 mt-8">No employee data found in this period.</p>';
+        return;
+    }
+
+    const totalMoneyTaken = data.reduce((sum, e) => sum + (e.total || 0), 0);
+
+    let html = `
+        <div class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-indigo-50 dark:bg-indigo-900/30 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
+                <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Money Taken</p>
+                <p class="text-3xl font-black text-indigo-900 dark:text-white mt-1">${formatCurrency(totalMoneyTaken)}</p>
+            </div>
+            <div class="bg-emerald-50 dark:bg-emerald-900/30 p-6 rounded-2xl border border-emerald-100 dark:border-emerald-800 shadow-sm">
+                <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Active Employees</p>
+                <p class="text-3xl font-black text-emerald-900 dark:text-white mt-1">${data.length}</p>
+            </div>
+            <div class="md:col-span-1 flex items-end">
+                <div class="w-full relative">
+                    <input type="text" id="employeeSearch" placeholder="Search employee..." 
+                           oninput="filterEmployeeGrid(this.value)"
+                           class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
+                    <span class="absolute right-4 top-3 text-slate-400">🔍</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="employeeGrid">
+            ${data.map(emp => {
+        // Escape single quotes for the onclick handler
+        const safeName = emp.name.replace(/'/g, "\\'");
+        return `
+                <div class="employee-card bg-white dark:bg-slate-700/50 p-5 rounded-xl border border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer group shadow-sm hover:shadow-md" 
+                     data-name="${emp.name.toLowerCase()}"
+                     onclick="viewEmployeeHistory('${shopPrefix}', '${safeName}')">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 font-bold group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                            ${(emp.name || 'E').charAt(0).toUpperCase()}
+                        </div>
+                        <span class="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-full font-bold">
+                            ${emp.count} Entries
+                        </span>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">${emp.name}</h4>
+                    <p class="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">${formatCurrency(emp.total)}</p>
+                    <div class="mt-4 flex items-center text-xs font-semibold text-slate-400 group-hover:text-indigo-500 transition-colors">
+                        View History
+                        <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                    </div>
+                </div>
+                `;
+    }).join('')}
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+/**
+ * Fetches and renders detailed history for a specific employee
+ */
+async function viewEmployeeHistory(shopPrefix, employeeName) {
+    showLoading(true);
+    const container = document.getElementById('dataTypeContentContainer');
+
+    try {
+        const response = await fetch(`${BASE_URL}/api/${shopPrefix}/employee/history?name=${encodeURIComponent(employeeName)}&start=${dateRange.start}&end=${dateRange.end}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch history");
+        const history = await response.json();
+
+        const total = history.reduce((sum, h) => sum + (h.amount || 0), 0);
+
+        let html = `
+            <div class="mb-6 flex items-center justify-between">
+                <button onclick="renderContent('${shopPrefix}', 'employees')" class="flex items-center text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors">
+                    <svg class="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to List
+                </button>
+                <div class="text-right">
+                    <h3 class="text-2xl font-black text-slate-800 dark:text-white">${employeeName}</h3>
+                    <p class="text-sm font-bold text-indigo-600 dark:text-indigo-400">Total: ${formatCurrency(total)}</p>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 dark:bg-slate-700/50">
+                        <tr>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Description / Remarks</th>
+                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        ${history.map(item => `
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-sm">
+                                <td class="p-4 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">${new Date(item.date).toLocaleDateString()}</td>
+                                <td class="p-4">
+                                    <span class="px-2 py-1 rounded-md text-xs font-bold bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 uppercase">
+                                        ${item.cat || 'Misc'}
+                                    </span>
+                                </td>
+                                <td class="p-4 text-slate-700 dark:text-slate-200">${item.remarks || item.desc || '-'}</td>
+                                <td class="p-4 text-right font-bold text-slate-900 dark:text-white">${formatCurrency(item.amount)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    } catch (error) {
+        logError(error.message);
+    } finally {
+        showLoading(false);
+    }
 }
 
 function aggregateDailyCategories(filteredData, typeField) {

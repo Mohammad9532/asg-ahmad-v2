@@ -1,6 +1,7 @@
 // Global state for Add Entry
 let currentEntryType = 'booking';
 let hasNewEntries = false; // Track if updates occurred
+const EMPLOYEE_CACHE = {}; // Store employee lists by shop
 
 const EXPENSE_MAPPING = {
     "Profit": {
@@ -47,6 +48,16 @@ function openAddEntryModal() {
         option.textContent = shop;
         shopSelect.appendChild(option);
     });
+
+    // Fetch Employees Filtered by CURRENT shop (initially first one or default)
+    // We'll update this whenever shop changes too (listener needed?)
+    // For now, let's attach a listener to shop select
+    shopSelect.addEventListener('change', () => fetchEmployees(shopSelect.value));
+
+    // Initial fetch for the first/default shop
+    if (shopSelect.value) {
+        fetchEmployees(shopSelect.value);
+    }
 
     // Default to currently selected shop if possible, else first one
     // (Assuming there's a way to know current shop context, otherwise default)
@@ -149,7 +160,6 @@ function switchEntryType(type) {
                         <option value="cash">CASH</option>
                         <option value="atm">ATM</option>
                         <option value="adib">ADIB</option>
-                        <option value="other">OTHER</option>
                     </select>
                 </div>
             </div>
@@ -203,7 +213,6 @@ function switchEntryType(type) {
                     <option value="CASH">CASH</option>
                     <option value="ADIB">ADIB (Card)</option>
                     <option value="ATM">ATM</option>
-                    <option value="OTHER">OTHER</option>
                 </select>
             </div>
 
@@ -246,7 +255,8 @@ function switchEntryType(type) {
                 </div>
                  <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                    <input type="text" name="name" list="employeeSuggestions" oninput="handleNameInput(this)" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" autocomplete="off">
+                    <datalist id="employeeSuggestions"></datalist>
                 </div>
             </div>
             
@@ -519,5 +529,89 @@ function handleBookingStatusChange(selectElem) {
 
         const amountInput = form.querySelector('[name="amount"]');
         if (amountInput) amountInput.value = "0";
+    }
+}
+
+// --- Employee Autofill Logic ---
+
+async function fetchEmployees(shop) {
+    if (!shop) return;
+
+    // Check Cache first? Or always fetch fresh to get latest?
+    // Let's fetch fresh for now, it's small data.
+    try {
+        console.log(`[DEBUG] Fetching employees for shop: ${shop}`);
+        const response = await fetch(`${API_BASE_URL}/${shop}/expense/employees`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (response.ok) {
+            const employees = await response.json();
+            console.log(`[DEBUG] Fetched ${employees.length} employees`, employees);
+            EMPLOYEE_CACHE[shop] = employees;
+            updateEmployeeDatalist(shop);
+        } else {
+            console.error(`[DEBUG] Failed to fetch employees: ${response.status}`);
+        }
+    } catch (err) {
+        console.error("Failed to fetch employees", err);
+    }
+}
+
+function updateEmployeeDatalist(shop) {
+    const list = document.getElementById('employeeSuggestions');
+    if (!list) return;
+
+    list.innerHTML = '';
+    const employees = EMPLOYEE_CACHE[shop] || [];
+
+    employees.forEach(emp => {
+        const option = document.createElement('option');
+        // Value is the name (what gets put in input)
+        option.value = emp.name;
+        // Label could show extra info
+        // option.label = `${emp.dept} > ${emp.cat}`; 
+        list.appendChild(option);
+    });
+    console.log(`[DEBUG] Updated datalist with ${employees.length} options`);
+}
+
+// When user switches to Expense tab, we should ensure datalist is populated for current shop
+const originalSwitch = switchEntryType;
+switchEntryType = function (type) {
+    originalSwitch(type);
+    if (type === 'expense') {
+        const shopSelect = document.getElementById('entryShop');
+        if (shopSelect && shopSelect.value) {
+            updateEmployeeDatalist(shopSelect.value);
+        }
+    }
+};
+
+function handleNameInput(input) {
+    const val = input.value.toLowerCase();
+    const shop = document.getElementById('entryShop').value;
+    const employees = EMPLOYEE_CACHE[shop] || [];
+
+    // Find exact match (case insensitive)
+    const match = employees.find(e => e.name.toLowerCase() === val);
+
+    if (match) {
+        const form = input.closest('form');
+        const deptSelect = form.querySelector('[name="dept"]');
+        const catSelect = form.querySelector('[name="cat"]');
+
+        // 1. Set Department
+        if (deptSelect && match.dept) {
+            deptSelect.value = match.dept;
+            // Trigger category update
+            updateExpenseCategories(deptSelect);
+
+            // 2. Set Category (after options populate)
+            // We need to wait for updateExpenseCategories to finish (it's sync, so we're good)
+            if (catSelect && match.cat) {
+                catSelect.value = match.cat;
+            }
+        }
     }
 }
