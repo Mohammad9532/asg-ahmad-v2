@@ -109,7 +109,7 @@ function switchEntryType(type) {
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                    <input type="text" id="bookingName" name="name" autocomplete="name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                 </div>
             </div>
 
@@ -124,7 +124,7 @@ function switchEntryType(type) {
                             <option value="+974">QAT (+974)</option>
                             <option value="+965">KWT (+965)</option>
                         </select>
-                        <input type="text" name="phone" class="flex-1 w-full px-3 py-2 border border-slate-300 rounded-r-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                        <input type="text" id="bookingPhone" name="phone" autocomplete="tel" class="flex-1 w-full px-3 py-2 border border-slate-300 rounded-r-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                     </div>
                 </div>
                  <div>
@@ -255,7 +255,7 @@ function switchEntryType(type) {
                 </div>
                  <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" list="employeeSuggestions" oninput="handleNameInput(this)" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" autocomplete="off">
+                    <input type="text" name="name" list="employeeSuggestions" oninput="handleNameInput(this)" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                     <datalist id="employeeSuggestions"></datalist>
                 </div>
             </div>
