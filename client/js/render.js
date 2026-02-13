@@ -890,8 +890,26 @@ function renderExpenseByTypeDetails(shopPrefix, expenseData) {
 async function renderEmployeeSection(shopPrefix, container) {
     const data = allResults[`${shopPrefix}|employee`];
 
-    if (!data || !data.length) {
-        container.innerHTML = '<p class="text-center text-slate-500 mt-8">No employee data found in this period.</p>';
+    if (!data || data.isError) {
+        const errorMsg = data?.errorMessage || "No employee data found in this period.";
+        container.innerHTML = `
+            <div class="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
+                <p class="text-3xl mb-4">👥</p>
+                <p class="text-slate-500 font-bold">${errorMsg}</p>
+                <button onclick="fetchShopData('${shopPrefix}')" class="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest">Refresh Data</button>
+            </div>
+        `;
+        return;
+    }
+
+    if (!data.length) {
+        container.innerHTML = `
+            <div class="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
+                <p class="text-3xl mb-4">👥</p>
+                <p class="text-slate-500 font-bold text-sm uppercase tracking-tight">No employee records found</p>
+                <p class="text-xs text-slate-400 mt-1">Employee data is generated from recorded expenses.</p>
+            </div>
+        `;
         return;
     }
 

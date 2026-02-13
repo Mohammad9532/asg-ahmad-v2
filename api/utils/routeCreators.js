@@ -556,6 +556,64 @@ const createDailyLedgerRoute = (BookingModel, DeliveryModel, ExpenseModel) => as
     }
 };
 
+/**
+ * Creates the Ledger History Route (30-day automated).
+ */
+const createLedgerHistoryRoute = (BookingModel, DeliveryModel, ExpenseModel) => async (req, res) => {
+    try {
+        const { date: targetDateStr } = req.query;
+        const shop = req.originalUrl.split('/')[2];
+        const targetDate = targetDateStr ? new Date(targetDateStr + 'T00:00:00.000Z') : new Date();
+
+        const history = [];
+        // Calculate for the last 30 days
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(targetDate);
+            date.setDate(date.getDate() - i);
+            date.setUTCHours(0, 0, 0, 0);
+
+            const nextDay = new Date(date);
+            nextDay.setUTCHours(23, 59, 59, 999);
+
+            const dayFilter = { date: { $gte: date, $lte: nextDay } };
+
+            // Optimization: These could be aggregated in bulk outside the loop, but for 30 days this is okay for now.
+            // Let's do a slightly better way for production later, but for now, this works.
+            const [deliveries, expenses, adjustment] = await Promise.all([
+                DeliveryModel.find(dayFilter).lean(),
+                ExpenseModel.find(dayFilter).lean(),
+                LedgerAdjustment.findOne({ shop, date: { $gte: date, $lte: nextDay } })
+            ]);
+
+            const cashDelivery = deliveries
+                .filter(d => {
+                    if (!d.amountType || d.amountType === "" || d.amountType.toLowerCase().includes('cash')) return true;
+                    return !(/card|visa|master|adib|atm/i.test(d.amountType));
+                })
+                .reduce((sum, d) => sum + (d.amount || 0), 0);
+
+            const totalExpense = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+            const adj = adjustment ? adjustment.amount : 0;
+
+            // Note: We are not calculating the opening balance for EACH day here to save time.
+            // But the frontend can derive it if needed, or we just show daily delta.
+            // Actually, let's just return the basics.
+            history.push({
+                date: date.toISOString(),
+                cash: cashDelivery,
+                expense: totalExpense,
+                adj: adj,
+                inactive: cashDelivery === 0 && totalExpense === 0 && adj === 0
+            });
+        }
+
+        res.json(history);
+    } catch (err) {
+        console.error("Ledger History Error:", err);
+        res.status(500).json({ error: "Failed to fetch ledger history." });
+    }
+};
+
 module.exports = {
     createEntryRoute,
     createSummaryRoute,
@@ -568,5 +626,6 @@ module.exports = {
     createEmployeeListRoute,
     createEmployeeSummaryRoute,
     createEmployeeHistoryRoute,
-    createDailyLedgerRoute
+    createDailyLedgerRoute,
+    createLedgerHistoryRoute
 };

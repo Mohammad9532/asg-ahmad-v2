@@ -124,6 +124,7 @@ async function fetchShopData(shopPrefix) {
         fetchEndpoint(shopPrefix, 'bookings', dateRange.start, dateRange.end),
         fetchEndpoint(shopPrefix, 'delivery', dateRange.start, dateRange.end),
         fetchEndpoint(shopPrefix, 'expense', dateRange.start, dateRange.end),
+        fetchEndpoint(shopPrefix, 'employee', dateRange.start, dateRange.end),
         fetchEndpoint(shopPrefix, 'accrual_delivery', dateRange.start, dateRange.end),
         fetchEndpoint(shopPrefix, 'lifetime', dateRange.start, dateRange.end)
     ];

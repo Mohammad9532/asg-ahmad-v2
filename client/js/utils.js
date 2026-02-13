@@ -1,7 +1,8 @@
 function formatCurrency(amount) {
-    if (typeof amount !== 'number') return 'AED 0.00';
-    const sign = amount < 0 ? '-' : '';
-    return `${sign} AED ${Math.abs(amount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+    const num = Number(amount);
+    if (isNaN(num)) return 'AED 0.00';
+    const sign = num < 0 ? '-' : '';
+    return `${sign} AED ${Math.abs(num).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
 /**

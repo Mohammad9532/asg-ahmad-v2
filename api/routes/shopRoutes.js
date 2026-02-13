@@ -54,6 +54,7 @@ SHOP_NAMES.forEach(shopPrefix => {
     router.get(`/${shopPrefix}/bill_details`, authenticateToken, creators.createBillDetailsRoute(BookingsModel, DeliveryModel));
     router.get(`/${shopPrefix}/lifetime/summary`, authenticateToken, creators.createLifetimeSummaryRoute(BookingsModel, DeliveryModel));
     router.get(`/${shopPrefix}/daily_ledger`, authenticateToken, creators.createDailyLedgerRoute(BookingsModel, DeliveryModel, ExpenseModel));
+    router.get(`/${shopPrefix}/ledger/history`, authenticateToken, creators.createLedgerHistoryRoute(BookingsModel, DeliveryModel, ExpenseModel));
 });
 
 module.exports = router;

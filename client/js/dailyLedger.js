@@ -14,8 +14,8 @@ async function renderDailyLedger(shopPrefix, forcedDate = null) {
     }
 
     try {
-        const url = `/api/${shopPrefix}/daily_ledger?date=${targetDate}`;
-        const historyUrl = `/api/${shopPrefix}/ledger/history?date=${targetDate}`;
+        const url = `${BASE_URL}/api/${shopPrefix}/daily_ledger?date=${targetDate}`;
+        const historyUrl = `${BASE_URL}/api/${shopPrefix}/ledger/history?date=${targetDate}`;
 
         const [dayRes, historyRes] = await Promise.all([
             fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` } }),
@@ -26,10 +26,32 @@ async function renderDailyLedger(shopPrefix, forcedDate = null) {
         if (!historyRes.ok) throw new Error("Failed to fetch history");
 
         const data = await dayRes.json();
-        const history = await historyRes.json();
+        const historyData = await historyRes.json();
+
+        // Calculate historical balances moving backwards from today's opening balance
+        let currentRefBalance = data.openingBalance || 0;
+        const processedHistory = historyData.map((row, index) => {
+            // The first record in history is today (usually index 0)
+            // But let's be safe and just calculate backwards for all
+            if (index === 0) {
+                row.opening = data.openingBalance;
+                row.closing = data.closingBalance;
+            } else {
+                // Moving backwards: Opening(n) = Opening(n+1) - Cash(n) + Expense(n) - Adj(n)
+                // Wait, if history[0] is today, then history[1] is yesterday.
+                // Opening(today) = Closing(yesterday)
+                // Closing(yesterday) = Opening(yesterday) + Cash(yesterday) - Expense(yesterday) + Adj(yesterday)
+                // So Opening(yesterday) = Closing(yesterday) - Cash(yesterday) + Expense(yesterday) - Adj(yesterday)
+
+                row.closing = currentRefBalance;
+                row.opening = row.closing - (row.cash || 0) + (row.expense || 0) - (row.adj || 0);
+            }
+            currentRefBalance = row.opening;
+            return row;
+        });
 
         // Render UI
-        renderDailyLedgerUI(container, shopPrefix, targetDate, data, history);
+        renderDailyLedgerUI(container, shopPrefix, targetDate, data, processedHistory);
 
     } catch (error) {
         console.error("Daily Ledger Render Error:", error);
@@ -340,26 +362,6 @@ function renderDeliveryRows(breakdown) {
     `).join('');
 }
 
-function refreshLedger(shopPrefix) {
-    const dateInput = document.getElementById('ledgerDateInput');
-    if (dateInput && dateInput.value) {
-        const newDate = dateInput.value;
-        const container = document.getElementById('dataTypeContentContainer');
-        container.innerHTML = '<div class="text-center py-10"><div class="loader inline-block"></div><p class="mt-2 text-slate-500">Updating Ledger...</p></div>';
-
-        fetch(`/api/${shopPrefix}/daily_ledger?date=${newDate}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-        })
-            .then(res => res.json())
-            .then(data => {
-                renderDailyLedgerUI(container, shopPrefix, newDate, data);
-            })
-            .catch(err => {
-                console.error(err);
-                container.innerHTML = `<p class="text-red-500 text-center">Failed to update.</p>`;
-            });
-    }
-}
 
 async function openLedgerSettingsModal(shopPrefix) {
     const modal = document.getElementById('ledgerSettingsModal');
@@ -370,7 +372,7 @@ async function openLedgerSettingsModal(shopPrefix) {
 
     // Fetch current settings
     try {
-        const response = await fetch(`/api/${shopPrefix}/ledger/settings`, {
+        const response = await fetch(`${BASE_URL}/api/${shopPrefix}/ledger/settings`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
         });
         if (response.ok) {
@@ -402,7 +404,7 @@ async function saveLedgerSettings(shopPrefix) {
 
     showLoading(true);
     try {
-        const response = await fetch(`/api/${shopPrefix}/ledger/settings`, {
+        const response = await fetch(`${BASE_URL}/api/${shopPrefix}/ledger/settings`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -444,7 +446,7 @@ async function saveLedgerAdjustment(shopPrefix, date) {
 
     showLoading(true);
     try {
-        const response = await fetch(`/api/${shopPrefix}/ledger/adjustment`, {
+        const response = await fetch(`${BASE_URL}/api/${shopPrefix}/ledger/adjustment`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

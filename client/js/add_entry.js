@@ -389,6 +389,14 @@ function switchEntryType(type) {
     // Refresh Totals for the new type
     loadDailyTotals();
 
+    // Trigger employee fetch if moving to expense
+    if (type === 'expense') {
+        const shopSelect = document.getElementById('entryShop');
+        if (shopSelect && shopSelect.value) {
+            fetchEmployees(shopSelect.value);
+        }
+    }
+
     const today = new Date().toISOString().split('T')[0];
 
     if (type === 'booking') {
@@ -845,7 +853,8 @@ async function fetchEmployees(shop) {
             updateEmployeeDatalist(shop);
         }
     } catch (err) {
-        console.error("Failed to fetch employees", err);
+        // Essential error log for debugging
+        console.error("Employee fetch failed:", err);
     }
 }
 
@@ -866,23 +875,6 @@ function updateEmployeeDatalist(shop) {
     });
 }
 
-// When user switches to Expense tab, we should ensure datalist is populated for current shop
-const originalSwitch = switchEntryType;
-switchEntryType = function (type) {
-    originalSwitch(type);
-    if (type === 'expense') {
-        const shopSelect = document.getElementById('entryShop');
-        if (shopSelect && shopSelect.value) {
-            // Ensure employees are fetched/updated for current shop
-            fetchEmployees(shopSelect.value);
-        }
-        // Focus Name field
-        setTimeout(() => {
-            const nameInput = document.getElementById('expenseNameInput');
-            if (nameInput) nameInput.focus();
-        }, 50);
-    }
-};
 
 function handleNameInput(input) {
     const val = input.value.trim().toLowerCase();
