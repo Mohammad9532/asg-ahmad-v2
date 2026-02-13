@@ -138,35 +138,46 @@ async function fetchShopData(shopPrefix) {
 }
 
 async function fetchAllData() {
+    // 1. Sync Date Range from UI
     dateRange.start = document.getElementById('startDate').value;
     dateRange.end = document.getElementById('endDate').value;
 
+    // 2. State Reset (Makes it feel like a "new page")
     allResults = {};
     sortState = {};
     searchState = {};
-    document.getElementById('errorLog').classList.add('hidden');
+    pageState = {}; // Reset pagination on refresh
 
+    document.getElementById('errorLog').classList.add('hidden');
     showLoading(true);
 
-    // 1. Fetch Global Summary (1 request instead of 45+)
-    await fetchGlobalSummary(dateRange.start, dateRange.end);
+    try {
+        // 3. Selective Fetching (Optimization)
+        if (activeShop === 'OVERVIEW' || activeShop === 'COMPARE') {
+            // Global overview needs metrics for all shops
+            await fetchGlobalSummary(dateRange.start, dateRange.end);
+        } else if (activeShop === 'CUSTOMERS') {
+            // Customer view needs detailed data for current period
+            // Currently it fetches everything via fetchGlobalSummary?
+            // Let's stick to global summary for now as it's small for just totals
+            await fetchGlobalSummary(dateRange.start, dateRange.end);
+        } else {
+            // ACTIVE SHOP VIEW: Skip 44 other shops!
+            await fetchShopData(activeShop);
+        }
 
-    // 2. If a shop is active, fetch its detailed data (with filteredData)
-    if (activeShop !== 'OVERVIEW' && !['COMPARE', 'CUSTOMERS'].includes(activeShop)) {
-        await fetchShopData(activeShop);
+        // 4. Update UI
+        const now = new Date();
+        const lastUpdated = document.getElementById('lastUpdated');
+        if (lastUpdated) lastUpdated.textContent = now.toLocaleTimeString();
+
+        renderShopTabs();
+        renderDataTypeTabs(activeShop);
+        renderContent(activeShop, activeDataType);
+
+    } catch (err) {
+        logError("Fetch Operation Failed: " + err.message);
+    } finally {
+        showLoading(false);
     }
-
-    showLoading(false);
-
-    // Update "Last Updated" text
-    const now = new Date();
-    document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
-
-    renderShopTabs();
-
-    if (activeShop !== 'OVERVIEW' && !isValidDataTypeForShop(activeDataType)) {
-        activeDataType = 'dashboard';
-    }
-    renderDataTypeTabs(activeShop);
-    renderContent(activeShop, activeDataType);
 }

@@ -15,7 +15,22 @@ function renderContent(shopPrefix, dataType) {
     // Show Skeleton and yield for paint
     container.innerHTML = '';
     const skeleton = document.getElementById('skeletonLoader');
-    if (skeleton) skeleton.classList.remove('hidden');
+    const skeletonDash = document.getElementById('skeletonDashboard');
+    const skeletonTable = document.getElementById('skeletonTable');
+
+    if (skeleton) {
+        skeleton.classList.remove('hidden');
+        // Hide all specific ones first
+        if (skeletonDash) skeletonDash.classList.add('hidden');
+        if (skeletonTable) skeletonTable.classList.add('hidden');
+
+        // Show the relevant one
+        if (dataType === 'dashboard' || shopPrefix === 'OVERVIEW' || shopPrefix === 'COMPARE') {
+            if (skeletonDash) skeletonDash.classList.remove('hidden');
+        } else {
+            if (skeletonTable) skeletonTable.classList.remove('hidden');
+        }
+    }
     if (statusMessage) statusMessage.classList.add('hidden');
 
     // Yield to let the skeleton paint

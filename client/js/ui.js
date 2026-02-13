@@ -87,25 +87,40 @@ function renderShopTabs() {
 }
 
 async function setActiveShop(shop) {
+    // 1. Memory Isolation: Clear detailed data of PREVIOUS shop to save memory
+    // This addresses "everything loads on one page" by keeping only active data
+    if (activeShop !== shop) {
+        Object.keys(allResults).forEach(key => {
+            if (key.startsWith(`${activeShop}|`)) delete allResults[key];
+        });
+    }
+
     activeShop = shop;
 
-    // On mobile, close sidebar after selection
+    // 2. On mobile, close sidebar after selection
     if (window.innerWidth < 1024) { // lg breakpoint
         const sidebar = document.getElementById('sidebar');
-        if (!sidebar.classList.contains('-translate-x-full')) {
+        if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
             toggleSidebar();
         }
     }
 
-    // Lazy load detailed data if not present (and not a special view)
-    if (shop !== 'OVERVIEW' && shop !== 'COMPARE' && shop !== 'CUSTOMERS') {
+    // 3. Page Simulation: Automatic Fetch if dates are set
+    // If we don't have detailed data for this shop, fetch it immediately
+    const isSpecial = shop === 'OVERVIEW' || shop === 'COMPARE' || shop === 'CUSTOMERS';
+    if (!isSpecial) {
         if (!allResults[`${shop}|FULL_LOADED`] && typeof fetchShopData === 'function') {
             await fetchShopData(shop);
+        }
+    } else {
+        // For Global views, we might need a fetch if results are empty
+        if (Object.keys(allResults).length === 0) {
+            await fetchAllData();
         }
     }
 
     renderDataTypeTabs(shop);
-    renderContent(shop, activeDataType); // Defined in render.js
+    renderContent(shop, activeDataType);
     renderShopTabs(); // Re-render sidebar to highlight active
 }
 

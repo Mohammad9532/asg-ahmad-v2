@@ -223,18 +223,27 @@
 
                     <!-- Skeleton Loader (Hidden by default) -->
                     <div id="skeletonLoader" class="hidden p-6 space-y-6 animate-pulse">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
-                            <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
-                            <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
-                            <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
-                            <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+                        <!-- Dashboard Skeleton -->
+                        <div id="skeletonDashboard" class="hidden space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                                <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+                                <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+                                <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+                                <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+                                <div class="h-24 bg-slate-100 dark:bg-slate-700 rounded-xl"></div>
+                            </div>
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div class="h-64 bg-slate-50 dark:bg-slate-700/50 rounded-xl"></div>
+                                <div class="h-64 bg-slate-50 dark:bg-slate-700/50 rounded-xl"></div>
+                            </div>
                         </div>
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <div class="h-64 bg-slate-50 dark:bg-slate-700/50 rounded-xl"></div>
-                            <div class="h-64 bg-slate-50 dark:bg-slate-700/50 rounded-xl"></div>
+                        <!-- Table Skeleton -->
+                        <div id="skeletonTable" class="hidden space-y-4">
+                            <div class="h-10 w-48 bg-slate-100 dark:bg-slate-700 rounded-lg"></div>
+                            <div
+                                class="h-96 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-700">
+                            </div>
                         </div>
-                        <div class="h-48 bg-slate-50 dark:bg-slate-700/50 rounded-xl"></div>
                     </div>
 
                     <!-- Content -->
