@@ -10,18 +10,6 @@ function showLoading(state) {
     if (statusMessage) statusMessage.classList.toggle('hidden', state);
 }
 
-// --- UI CORE & NAVIGATION ---
-
-function showLoading(state) {
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const fetchButton = document.getElementById('fetchButton');
-    const statusMessage = document.getElementById('statusMessage');
-
-    if (loadingIndicator) loadingIndicator.classList.toggle('hidden', !state);
-    if (fetchButton) fetchButton.disabled = state;
-    if (statusMessage) statusMessage.classList.toggle('hidden', state);
-}
-
 // Side Bar Toggle (Mobile)
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
@@ -98,7 +86,7 @@ function renderShopTabs() {
     `;
 }
 
-function setActiveShop(shop) {
+async function setActiveShop(shop) {
     activeShop = shop;
 
     // On mobile, close sidebar after selection
@@ -106,6 +94,13 @@ function setActiveShop(shop) {
         const sidebar = document.getElementById('sidebar');
         if (!sidebar.classList.contains('-translate-x-full')) {
             toggleSidebar();
+        }
+    }
+
+    // Lazy load detailed data if not present (and not a special view)
+    if (shop !== 'OVERVIEW' && shop !== 'COMPARE' && shop !== 'CUSTOMERS') {
+        if (!allResults[`${shop}|FULL_LOADED`] && typeof fetchShopData === 'function') {
+            await fetchShopData(shop);
         }
     }
 

@@ -25,6 +25,23 @@ function openAddEntryModal() {
     const modal = document.getElementById('addEntryModal');
     modal.classList.remove('hidden');
 
+    // Load Side-by-Side Preference
+    const isSXS = localStorage.getItem('sideBySideMode') !== 'false'; // Default to true
+    const toggle = document.getElementById('sideBySideToggle');
+    if (toggle) {
+        toggle.checked = isSXS;
+        applySideBySideLayout(isSXS);
+    }
+
+    // Initialize Image Viewer (listeners and state)
+    initImageViewer();
+
+    // Hook into form changes for real-time totals
+    setupDailyTotalsListeners();
+
+    // Trigger initial totals load
+    loadDailyTotals();
+
     // Reset Last Entry Preview
     const preview = document.getElementById('lastEntryPreview');
     if (preview) {
@@ -64,16 +81,287 @@ function openAddEntryModal() {
 
     // Reset to default type
     switchEntryType('booking');
+
+    // Add Ctrl+Enter Shortcut
+    modal.onkeydown = (e) => {
+        if (e.ctrlKey && e.key === 'Enter') {
+            const form = document.getElementById('addEntryForm');
+            if (form) form.requestSubmit();
+        }
+    };
 }
 
 function closeAddEntryModal() {
     document.getElementById('addEntryModal').classList.add('hidden');
     document.getElementById('addEntryForm').reset();
 
+    // Clear image on close to free memory and reset state
+    clearEntryImage();
+
     // Only refresh if data was actually changed
     if (hasNewEntries && window.fetchAllData) {
         window.fetchAllData();
     }
+}
+
+// --- Image Viewer Logic ---
+let entryImageZoom = 1;
+let isImageViewerInitialized = false;
+
+function toggleSideBySideMode() {
+    const toggle = document.getElementById('sideBySideToggle');
+    const isEnabled = toggle.checked;
+    localStorage.setItem('sideBySideMode', isEnabled);
+    applySideBySideLayout(isEnabled);
+}
+
+function applySideBySideLayout(isEnabled) {
+    const leftCol = document.getElementById('imageViewerColumn');
+    const rightCol = document.getElementById('entryFormColumn');
+    const modalContent = document.querySelector('#addEntryModal > div');
+    const hint = document.getElementById('pastedHint');
+
+    if (isEnabled) {
+        if (leftCol) leftCol.classList.remove('hidden');
+        if (rightCol) {
+            rightCol.classList.remove('md:w-full', 'max-w-2xl', 'mx-auto');
+            rightCol.classList.add('md:w-1/2');
+        }
+        if (modalContent) {
+            modalContent.classList.remove('max-w-2xl');
+            modalContent.classList.add('max-w-6xl');
+        }
+        if (hint) hint.classList.remove('hidden');
+    } else {
+        if (leftCol) leftCol.classList.add('hidden');
+        if (rightCol) {
+            rightCol.classList.remove('md:w-1/2');
+            rightCol.classList.add('md:w-full', 'max-w-2xl', 'mx-auto');
+        }
+        if (modalContent) {
+            modalContent.classList.remove('max-w-6xl');
+            modalContent.classList.add('max-w-2xl');
+        }
+        if (hint) hint.classList.add('hidden');
+    }
+}
+
+function initImageViewer() {
+    const placeholder = document.getElementById('imagePlaceholder');
+    const fileInput = document.getElementById('billImageInput');
+
+    if (!isImageViewerInitialized) {
+        if (placeholder && fileInput) {
+            placeholder.onclick = () => fileInput.click();
+            fileInput.onchange = (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    handleImageFile(e.target.files[0]);
+                }
+            };
+        }
+
+        // Paste Global Listener (attached only once)
+        document.addEventListener('paste', handleGlobalPaste);
+        isImageViewerInitialized = true;
+    }
+}
+
+function handleGlobalPaste(e) {
+    const modal = document.getElementById('addEntryModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let index in items) {
+            const item = items[index];
+            if (item.kind === 'file' && item.type.includes('image')) {
+                const blob = item.getAsFile();
+                handleImageFile(blob);
+            }
+        }
+    }
+}
+
+function handleImageFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('entryImagePreview');
+        const placeholder = document.getElementById('imagePlaceholder');
+        const clearBtn = document.getElementById('clearImageBtn');
+        const controls = document.getElementById('imageControls');
+
+        if (preview && placeholder) {
+            preview.src = e.target.result;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            if (controls) controls.classList.remove('hidden');
+
+            // Reset Zoom
+            entryImageZoom = 1;
+            updateImageZoom();
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearEntryImage() {
+    const preview = document.getElementById('entryImagePreview');
+    const placeholder = document.getElementById('imagePlaceholder');
+    const clearBtn = document.getElementById('clearImageBtn');
+    const controls = document.getElementById('imageControls');
+    const fileInput = document.getElementById('billImageInput');
+
+    if (preview && placeholder) {
+        preview.src = '';
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (controls) controls.classList.add('hidden');
+        if (fileInput) fileInput.value = '';
+    }
+}
+
+function zoomImage(delta) {
+    entryImageZoom += delta;
+    if (entryImageZoom < 0.1) entryImageZoom = 0.1;
+    if (entryImageZoom > 5) entryImageZoom = 5;
+    updateImageZoom();
+}
+
+function updateImageZoom() {
+    const preview = document.getElementById('entryImagePreview');
+    const zoomText = document.getElementById('zoomLevel');
+    if (preview) {
+        preview.style.transform = `scale(${entryImageZoom})`;
+        preview.style.transformOrigin = 'center center';
+    }
+    if (zoomText) {
+        zoomText.textContent = `${Math.round(entryImageZoom * 100)}%`;
+    }
+}
+
+// --- Daily Totals Logic ---
+
+function setupDailyTotalsListeners() {
+    const shopSelect = document.getElementById('entryShop');
+    const form = document.getElementById('addEntryForm');
+
+    // Listen for shop changes
+    shopSelect?.addEventListener('change', loadDailyTotals);
+
+    // Use event delegation for date changes inside the dynamic fields
+    form?.addEventListener('change', (e) => {
+        if (e.target.name === 'date') {
+            loadDailyTotals();
+        }
+    });
+}
+
+let loadTotalsDebounceTimer = null;
+
+async function loadDailyTotals() {
+    // Basic debounce to prevent rapid switching spam
+    if (loadTotalsDebounceTimer) clearTimeout(loadTotalsDebounceTimer);
+
+    loadTotalsDebounceTimer = setTimeout(async () => {
+        const shop = document.getElementById('entryShop').value;
+        const dateInput = document.querySelector('input[name="date"]');
+        const totalContainer = document.getElementById('dailyTotalsContainer');
+
+        // UI Elements
+        const sLabel = document.getElementById('selectedDateLabel');
+        const sValue = document.getElementById('selectedDateValue');
+        const sCard = document.getElementById('selectedDateCard');
+
+        const pValue = document.getElementById('previousDateValue');
+        const pLabel = document.getElementById('previousDateLabel');
+
+        if (!shop || !dateInput) return;
+
+        const selectedDate = dateInput.value;
+        if (!selectedDate) return;
+
+        // Show container
+        totalContainer?.classList.remove('hidden');
+
+        try {
+            const token = localStorage.getItem('authToken');
+
+            // Parallel Fetch: Today and Yesterday
+            const prevDateObj = new Date(selectedDate);
+            prevDateObj.setDate(prevDateObj.getDate() - 1);
+            const prevDateStr = prevDateObj.toISOString().split('T')[0];
+
+            const [response, prevResponse] = await Promise.all([
+                fetch(`${BASE_URL}/api/${shop}/daily_ledger?date=${selectedDate}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`${BASE_URL}/api/${shop}/daily_ledger?date=${prevDateStr}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+
+            const [data, prevData] = await Promise.all([
+                response.json(),
+                prevResponse.json()
+            ]);
+
+            // Determine which metric to show based on active tab
+            let typeLabel = 'Booking';
+            let todayVal = data.grossBooking || 0;
+            let prevVal = prevData.grossBooking || 0;
+            let colorTheme = 'indigo';
+
+            if (currentEntryType === 'delivery') {
+                typeLabel = 'Delivery';
+                todayVal = data.totalDelivery || 0;
+                prevVal = prevData.totalDelivery || 0;
+                colorTheme = 'emerald';
+            } else if (currentEntryType === 'expense') {
+                typeLabel = 'Expense';
+                todayVal = data.totalExpense || 0;
+                prevVal = prevData.totalExpense || 0;
+                colorTheme = 'rose';
+            }
+
+            // Apply Card Styling
+            if (sCard) {
+                sCard.className = `p-3 rounded-xl border transition-all duration-300 shadow-sm ${colorTheme === 'indigo' ? 'bg-indigo-50 border-indigo-100 dark:bg-indigo-900/20 dark:border-indigo-800/50' :
+                    colorTheme === 'emerald' ? 'bg-emerald-50 border-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800/50' :
+                        'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-800/50'
+                    }`;
+            }
+
+            // Update UI with Pulse Effect
+            if (sLabel) sLabel.textContent = `${typeLabel} Total`;
+            if (pLabel) pLabel.textContent = `Prev ${typeLabel}`;
+
+            animateValuePulse(sValue, todayVal, colorTheme);
+            animateValuePulse(pValue, prevVal, 'slate');
+
+        } catch (error) {
+            console.error("Daily Totals Fetch Error:", error);
+        }
+    }, 50); // Small debounce
+}
+
+function animateValuePulse(element, newValue, colorTheme = 'indigo') {
+    if (!element) return;
+    const formatted = typeof formatCurrency !== 'undefined' ? formatCurrency(newValue) : `AED ${parseFloat(newValue).toFixed(2)}`;
+
+    // Apply theme-based color classes
+    const colorClass = {
+        indigo: ['text-indigo-600', 'dark:text-indigo-400'],
+        emerald: ['text-emerald-600', 'dark:text-emerald-400'],
+        rose: ['text-rose-600', 'dark:text-rose-400'],
+        slate: ['text-slate-600', 'dark:text-slate-400']
+    }[colorTheme] || ['text-indigo-600', 'dark:text-indigo-400'];
+
+    element.classList.add('scale-105', ...colorClass);
+
+    setTimeout(() => {
+        element.textContent = formatted;
+        element.classList.remove('scale-105', ...colorClass);
+    }, 250);
 }
 
 // --- Dynamic Form Fields ---
@@ -97,6 +385,9 @@ function switchEntryType(type) {
 
     const container = document.getElementById('entryFields');
     container.innerHTML = ''; // Clear existing fields
+
+    // Refresh Totals for the new type
+    loadDailyTotals();
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -225,39 +516,39 @@ function switchEntryType(type) {
         container.innerHTML = `
             <div class="grid grid-cols-2 gap-4">
                  <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="name" list="employeeSuggestions" oninput="handleNameInput(this)" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" id="expenseNameInput">
+                    <datalist id="employeeSuggestions"></datalist>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount <span class="text-red-500">*</span></label>
                     <input type="number" name="amount" required step="0.01" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                 </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
                  <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date <span class="text-red-500">*</span></label>
                     <input type="date" name="date" value="${today}" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                 </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Department</label>
-                <div class="relative">
-                    <select name="dept" onchange="updateExpenseCategories(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                        ${Object.entries(EXPENSE_MAPPING).map(([label, data]) => `<option value="${data.value}">${label}</option>`).join('')}
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700 dark:text-slate-300">
-                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Department</label>
+                    <div class="relative">
+                        <select name="dept" onchange="updateExpenseCategories(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                            ${Object.entries(EXPENSE_MAPPING).map(([label, data]) => `<option value="${data.value}">${label}</option>`).join('')}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700 dark:text-slate-300">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
                     </div>
                 </div>
             </div>
 
-             <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category <span class="text-red-500">*</span></label>
-                    <select name="cat" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                        <!-- Populated dynamically -->
-                    </select>
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" list="employeeSuggestions" oninput="handleNameInput(this)" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                    <datalist id="employeeSuggestions"></datalist>
-                </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category <span class="text-red-500">*</span></label>
+                <select name="cat" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                    <!-- Populated dynamically -->
+                </select>
             </div>
             
             <div>
@@ -399,6 +690,9 @@ async function handleAddEntrySubmit(event) {
         // Mark as having updates
         hasNewEntries = true;
 
+        // --- UPDATE TOTALS REAL-TIME ---
+        loadDailyTotals(); // Non-blocking!
+
         // --- UPDATE LAST ENTRY PREVIEW ---
         const preview = document.getElementById('lastEntryPreview');
         if (preview) {
@@ -478,8 +772,8 @@ async function handleAddEntrySubmit(event) {
             form.querySelector('[name="name"]').value = '';
             form.querySelector('[name="message"]').value = '';
 
-            // Focus amount
-            form.querySelector('[name="amount"]').focus();
+            // Focus name
+            form.querySelector('[name="name"]').focus();
         }
 
     } catch (error) {
@@ -540,18 +834,15 @@ async function fetchEmployees(shop) {
     // Check Cache first? Or always fetch fresh to get latest?
     // Let's fetch fresh for now, it's small data.
     try {
-        console.log(`[DEBUG] Fetching employees for shop: ${shop}`);
-        const response = await fetch(`${API_BASE_URL}/${shop}/expense/employees`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${BASE_URL}/api/${shop}/expense/employees`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
             const employees = await response.json();
-            console.log(`[DEBUG] Fetched ${employees.length} employees`, employees);
             EMPLOYEE_CACHE[shop] = employees;
             updateEmployeeDatalist(shop);
-        } else {
-            console.error(`[DEBUG] Failed to fetch employees: ${response.status}`);
         }
     } catch (err) {
         console.error("Failed to fetch employees", err);
@@ -573,7 +864,6 @@ function updateEmployeeDatalist(shop) {
         // option.label = `${emp.dept} > ${emp.cat}`; 
         list.appendChild(option);
     });
-    console.log(`[DEBUG] Updated datalist with ${employees.length} options`);
 }
 
 // When user switches to Expense tab, we should ensure datalist is populated for current shop
@@ -583,13 +873,23 @@ switchEntryType = function (type) {
     if (type === 'expense') {
         const shopSelect = document.getElementById('entryShop');
         if (shopSelect && shopSelect.value) {
-            updateEmployeeDatalist(shopSelect.value);
+            // Ensure employees are fetched/updated for current shop
+            fetchEmployees(shopSelect.value);
         }
+        // Focus Name field
+        setTimeout(() => {
+            const nameInput = document.getElementById('expenseNameInput');
+            if (nameInput) nameInput.focus();
+        }, 50);
     }
 };
 
 function handleNameInput(input) {
-    const val = input.value.toLowerCase();
+    const val = input.value.trim().toLowerCase();
+    // Prevent premature jump for very short names (e.g., typing 'M' when meaning 'Mess')
+    // We only trigger autofill and jump if length >= 3
+    if (val.length < 3) return;
+
     const shop = document.getElementById('entryShop').value;
     const employees = EMPLOYEE_CACHE[shop] || [];
 
@@ -600,18 +900,23 @@ function handleNameInput(input) {
         const form = input.closest('form');
         const deptSelect = form.querySelector('[name="dept"]');
         const catSelect = form.querySelector('[name="cat"]');
+        const amountInput = form.querySelector('[name="amount"]');
 
         // 1. Set Department
         if (deptSelect && match.dept) {
-            deptSelect.value = match.dept;
+            deptSelect.value = match.dept.toLowerCase();
             // Trigger category update
             updateExpenseCategories(deptSelect);
 
             // 2. Set Category (after options populate)
-            // We need to wait for updateExpenseCategories to finish (it's sync, so we're good)
             if (catSelect && match.cat) {
-                catSelect.value = match.cat;
+                catSelect.value = match.cat.toLowerCase();
             }
+        }
+
+        // 3. AUTO FOCUS AMOUNT (Always move focus if match is found)
+        if (amountInput) {
+            setTimeout(() => amountInput.focus(), 10);
         }
     }
 }

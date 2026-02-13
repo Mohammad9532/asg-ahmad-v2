@@ -23,14 +23,18 @@ async function downloadPDF() {
     const reportType = activeDataType.replace('_', ' ').toUpperCase();
 
     header.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1 style="margin: 0; color: #1e293b; font-size: 24px; font-weight: 800;">SHOP DATA REPORT</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px;">
+            <div>
+                <h1 style="margin: 0; color: #1e293b; font-size: 28px; font-weight: 900; letter-spacing: -0.5px;">beingReal <span style="color: #0d9488;">Accounts</span></h1>
+                <p style="margin: 0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Professional Shop Data Report</p>
+            </div>
             <div style="text-align: right;">
-                <p style="margin: 0; font-weight: 700; color: #0d9488;">${shopName}</p>
-                <p style="margin: 0; font-size: 12px; color: #64748b;">${dateStr}</p>
+                <p style="margin: 0; font-weight: 800; color: #1e293b; font-size: 18px;">${shopName}</p>
+                <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 500;">${dateStr}</p>
+                <p style="margin: 0; font-size: 11px; color: #94a3b8; margin-top: 4px;">Generated on ${new Date().toLocaleDateString()}</p>
             </div>
         </div>
-        <div style="margin-top: 10px; font-weight: 600; color: #475569; font-size: 14px;">${reportType}</div>
+        <div style="display: inline-block; background-color: #0d9488; color: white; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 12px; text-transform: uppercase;">${reportType}</div>
     `;
 
     pdfContent.insertBefore(header, pdfContent.firstChild);

@@ -17,8 +17,6 @@ async function renderDailyLedger(shopPrefix, forcedDate = null) {
         const url = `/api/${shopPrefix}/daily_ledger?date=${targetDate}`;
         const historyUrl = `/api/${shopPrefix}/ledger/history?date=${targetDate}`;
 
-        console.log("Fetching Ledger & History:", targetDate);
-
         const [dayRes, historyRes] = await Promise.all([
             fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` } }),
             fetch(historyUrl, { headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` } })

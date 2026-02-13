@@ -147,44 +147,61 @@ function getChatContext() {
         shop: activeShop,
         dateRange: dateRange,
         dataType: activeDataType,
-        activeDataSummary: {}
+        activeDataSummary: {},
+        globalSummary: {}
     };
 
-    // 2. Data Snapshot
-    if (activeShop === 'OVERVIEW') {
-        ctx.activeDataSummary = "User is in Global Overview mode. Data from all shops is potentially relevant, but summary metrics are not fully aggregated here for brevity.";
-    } else {
-        // Get bookings, expense, delivery for this shop
-        // Global allResults from state.js
+    // 2. Global Summary Data (Important for overall business context)
+    if (typeof SHOP_PREFIXES !== 'undefined') {
+        SHOP_PREFIXES.forEach(shop => {
+            const bk = allResults[`${shop}|bookings`];
+            const del = allResults[`${shop}|delivery`];
+            const exp = allResults[`${shop}|expense`];
+
+            if (bk) {
+                ctx.globalSummary[shop] = {
+                    netBooking: bk.netAmount !== undefined ? bk.netAmount : (bk.totalAmount || 0),
+                    delivery: del ? (del.totalAmount || 0) : 0,
+                    expense: exp ? (exp.totalAmount || 0) : 0
+                };
+            }
+        });
+    }
+
+    // 3. Detailed Data Snapshot for Active Shop
+    if (activeShop !== 'OVERVIEW' && !['COMPARE', 'CUSTOMERS'].includes(activeShop)) {
         const bk = allResults[`${activeShop}|bookings`];
         const exp = allResults[`${activeShop}|expense`];
         const del = allResults[`${activeShop}|delivery`];
 
-        if (bk && bk.filteredData) {
-            const total = getTotalBookingsAmount(activeShop);
-            const cancel = getTotalCanceledAmount(activeShop);
+        if (bk) {
+            const net = bk.netAmount !== undefined ? bk.netAmount : 0;
+            const gross = bk.totalAmount || 0;
+            const cancel = bk.cancelAmount !== undefined ? bk.cancelAmount : 0;
+
             ctx.activeDataSummary.bookings = {
-                gross: total,
+                gross: gross,
                 canceled: cancel,
-                net: total - cancel,
-                count: bk.filteredData.length
+                net: net,
+                count: bk.filteredData ? bk.filteredData.length : 0
             };
         }
 
-        if (exp && exp.filteredData) {
-            const totalExp = exp.filteredData.reduce((s, d) => s + (d.amount || 0), 0);
+        if (exp) {
+            const totalExp = exp.totalAmount || 0;
             ctx.activeDataSummary.expenses = {
                 total: totalExp,
-                count: exp.filteredData.length
+                count: exp.filteredData ? exp.filteredData.length : 0
             };
         }
 
-        if (del && del.filteredData) {
-            const totalDel = del.filteredData.reduce((s, d) => s + (d.amount || 0), 0);
+        if (del) {
+            const totalDel = del.totalAmount || 0;
             ctx.activeDataSummary.delivery = {
                 total: totalDel,
-                count: del.filteredData.length
-            }
+                count: del.filteredData ? del.filteredData.length : 0,
+                paymentMethods: del.paymentMethods || {}
+            };
         }
     }
 

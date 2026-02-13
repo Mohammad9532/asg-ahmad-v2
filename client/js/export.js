@@ -99,12 +99,15 @@ function downloadMonthlyExcel(shop, monthYearStr) {
     processData(exp, 'expense');
     processData(del, 'delivery');
 
-    // Prepare Excel Headers
+    // Prepare Excel Branding & Headers
+    const brandingRow = ['beingReal Accounts', '', '', '', '', '', '', 'Official Monthly Report'];
+    const metaRow = [`Shop: ${shop.toUpperCase()}`, `Month: ${monthName} ${targetYear}`, `Generated: ${new Date().toLocaleDateString()}`];
+    const emptyRow = [];
     const headers = ['Date', 'Booking'];
     deliveryCategories.forEach(cat => headers.push(`${cat} Delivery`));
     headers.push('Total Delivery', 'Expense', 'Cancelled', 'Salman Bhai');
 
-    const dataRows = [headers];
+    const dataRows = [brandingRow, metaRow, emptyRow, headers];
     const sortedDays = Array.from(monthDataMap.keys()).sort((a, b) => a - b);
 
     let totalBookingMonthly = 0, totalCancelMonthly = 0, totalExpMonthly = 0;

@@ -360,8 +360,20 @@ function renderOverviewDashboard(container) {
         // Bookings Data
         const bk = allResults[`${shop}|bookings`];
         const shopGross = bk ? (bk.totalAmount || 0) : 0;
-        const shopNet = bk ? (bk.filteredData.reduce((sum, doc) => sum + (isCanceledStatus(doc.status) ? 0 : (doc.amount || 0)), 0)) : 0;
-        const shopCancel = calculateCanceledSum(bk ? bk.filteredData : []);
+
+        // Use pre-calculated net if available, otherwise reduce (for shop-specific lazy load)
+        let shopNet = 0;
+        let shopCancel = 0;
+
+        if (bk) {
+            if (bk.netAmount !== undefined) {
+                shopNet = bk.netAmount;
+                shopCancel = bk.cancelAmount || 0;
+            } else if (bk.filteredData) {
+                shopNet = bk.filteredData.reduce((sum, doc) => sum + (isCanceledStatus(doc.status) ? 0 : (doc.amount || 0)), 0);
+                shopCancel = calculateCanceledSum(bk.filteredData);
+            }
+        }
 
         totalGrossBooking += shopGross;
         totalCancelBooking += shopCancel;
@@ -373,30 +385,38 @@ function renderOverviewDashboard(container) {
         let shopBookingDel = 0;
         let shopMiscDel = 0;
 
-        if (del && del.filteredData) {
-            shopDel = del.filteredData.reduce((s, d) => {
-                const amt = d.amount || 0;
-                const bNo = (d.billNo || '').toLowerCase().trim();
+        if (del) {
+            shopDel = del.totalAmount || 0;
 
-                if (bNo && bNo !== 'other-amounts') {
-                    shopBookingDel += amt;
-                } else {
-                    shopMiscDel += amt;
-                }
+            // Use pre-calculated breakdowns
+            if (del.paymentMethods) {
+                shopBookingDel = del.bookingDel || 0;
+                shopMiscDel = del.miscDel || 0;
 
-                let type = d.amountType ? d.amountType.toUpperCase().trim() : 'CASH';
-                if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
+                paymentMethods.CASH += (del.paymentMethods.CASH || 0);
+                paymentMethods.ADIB += (del.paymentMethods.ADIB || 0);
+                paymentMethods.ATM += (del.paymentMethods.ATM || 0);
+            } else if (del.filteredData) {
+                // Fallback for lazy-loaded shop data
+                del.filteredData.forEach(d => {
+                    const amt = d.amount || 0;
+                    const bNo = (d.billNo || '').toLowerCase().trim();
 
-                if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+                    if (bNo && bNo !== 'other-amounts') {
+                        shopBookingDel += amt;
+                    } else {
+                        shopMiscDel += amt;
+                    }
 
-                if (paymentMethods.hasOwnProperty(type)) {
+                    let type = d.amountType ? d.amountType.toUpperCase().trim() : 'CASH';
+                    if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER') || type.includes('ADIB')) type = 'ADIB';
+                    if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+
                     paymentMethods[type] += amt;
-                } else {
-                    paymentMethods.CASH += amt;
-                }
-                return s + amt;
-            }, 0);
+                });
+            }
         }
+
         totalDeliveries += shopDel;
         totalBookingDeliveries += shopBookingDel;
         totalMiscDeliveries += shopMiscDel;
