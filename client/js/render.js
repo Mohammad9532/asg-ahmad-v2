@@ -12,8 +12,20 @@ function renderContent(shopPrefix, dataType) {
 
     if (!container) return;
 
+    // Show Skeleton and yield for paint
     container.innerHTML = '';
+    const skeleton = document.getElementById('skeletonLoader');
+    if (skeleton) skeleton.classList.remove('hidden');
     if (statusMessage) statusMessage.classList.add('hidden');
+
+    // Yield to let the skeleton paint
+    setTimeout(() => {
+        if (skeleton) skeleton.classList.add('hidden');
+        renderContentSync(shopPrefix, dataType, container, statusMessage, dataTypeTabs);
+    }, 10);
+}
+
+function renderContentSync(shopPrefix, dataType, container, statusMessage, dataTypeTabs) {
 
     // Handle OVERVIEW special case
     if (shopPrefix === 'OVERVIEW') {

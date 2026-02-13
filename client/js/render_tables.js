@@ -30,6 +30,16 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
         });
     }
 
+    // --- PAGINATION LOGIC ---
+    const rowsPerPage = 50;
+    const totalRows = filteredData.length;
+    const totalPages = Math.ceil(totalRows / rowsPerPage);
+    const currentPage = pageState[tableId] || 1;
+
+    // Slice data for current page
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const paginatedData = filteredData.slice(startIndex, startIndex + rowsPerPage);
+
     const headerMap = {
         'billNo': 'Bill No',
         'name': 'Customer/Ref',
@@ -43,7 +53,7 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
 
     // Get all unique keys for headers, prioritize the map keys
     let allKeys = new Set(Object.keys(headerMap));
-    filteredData.forEach(doc => Object.keys(doc).forEach(key => allKeys.add(key)));
+    filteredData.slice(0, 100).forEach(doc => Object.keys(doc).forEach(key => allKeys.add(key)));
 
     // Filter out internal MongoDB keys
     const relevantKeys = Array.from(allKeys).filter(key =>
@@ -58,8 +68,8 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
         </th>`;
     }).join('');
 
-    // Generate data rows
-    const rows = filteredData.map(doc => {
+    // Generate data rows for PAGINATED data
+    const rows = paginatedData.map(doc => {
         const isCanceled = showCanceledIndicator && isCanceledStatus(doc.status);
         const displayAmount = isCanceled ? -(doc.amount || 0) : (doc.amount || 0);
         const colorClass = isCanceled ? 'text-red-700-bold' : 'text-green-700-bold';
@@ -79,9 +89,30 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
             return `<td class="px-6 py-4">${value || '-'}</td>`;
         }).join('');
 
-        return `<tr class="bg-white border-b hover:bg-gray-50 ${isCanceled ? 'bg-red-50' : ''}">${cellData}</tr>`;
+        return `<tr class="bg-white border-b hover:bg-gray-50 transition-colors ${isCanceled ? 'bg-red-50' : ''}">${cellData}</tr>`;
     }).join('');
 
+    // Generate Pagination Controls
+    const paginationHtml = totalPages > 1 ? `
+        <div class="flex items-center justify-between px-6 py-4 bg-slate-50 border-t border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+            <div class="text-xs text-slate-500 font-medium">
+                Showing <span class="font-bold text-slate-700 dark:text-slate-300">${startIndex + 1}</span> to <span class="font-bold text-slate-700 dark:text-slate-300">${Math.min(startIndex + rowsPerPage, totalRows)}</span> of <span class="font-bold text-slate-700 dark:text-slate-300">${totalRows}</span>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="handlePageChange('${tableId}', ${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+                        class="px-3 py-1 bg-white border border-slate-300 rounded-md text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
+                    Prev
+                </button>
+                <div class="flex items-center px-2 text-xs font-bold text-slate-600">
+                    Page ${currentPage} / ${totalPages}
+                </div>
+                <button onclick="handlePageChange('${tableId}', ${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}
+                        class="px-3 py-1 bg-white border border-slate-300 rounded-md text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm">
+                    Next
+                </button>
+            </div>
+        </div>
+    ` : '';
 
     // Add Search Bar
     const searchHtml = `
@@ -104,19 +135,30 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
     // Construct the final HTML table
     return `
         ${searchHtml}
-        <div id="${tableId}" class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner">
-            <table class="w-full text-sm text-left text-gray-500 data-table">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
-                    <tr>
-                        ${headerRow}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-            </table>
+        <div class="overflow-hidden border rounded-xl shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700">
+            <div id="${tableId}" class="overflow-x-auto custom-scroll max-h-[600px]">
+                <table class="w-full text-sm text-left text-gray-500 data-table">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700/50 dark:text-slate-300 sticky top-0 z-10">
+                        <tr>
+                            ${headerRow}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
+            ${paginationHtml}
         </div>
     `;
+}
+
+function handlePageChange(tableId, newPage) {
+    pageState[tableId] = newPage;
+    // Re-render the current view
+    if (typeof renderContent === 'function') {
+        renderContent(activeShop, activeDataType);
+    }
 }
 
 /**
