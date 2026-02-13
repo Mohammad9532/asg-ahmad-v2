@@ -97,12 +97,14 @@ async function fetchGlobalSummary(start, end) {
         // Populate allResults with summary data
         Object.keys(summaryData).forEach(shop => {
             const metrics = summaryData[shop];
-            allResults[`${shop}|bookings`] = metrics.bookings;
-            allResults[`${shop}|delivery`] = metrics.delivery;
-            allResults[`${shop}|expense`] = metrics.expense;
-            allResults[`${shop}|accrual_delivery`] = metrics.accrual_delivery;
-            allResults[`${shop}|lifetime`] = metrics.lifetime;
+            allResults[`${shop}|SUMMARY|bookings`] = metrics.bookings;
+            allResults[`${shop}|SUMMARY|delivery`] = metrics.delivery;
+            allResults[`${shop}|SUMMARY|expense`] = metrics.expense;
+            allResults[`${shop}|SUMMARY|accrual_delivery`] = metrics.accrual_delivery;
+            allResults[`${shop}|SUMMARY|lifetime`] = metrics.lifetime;
         });
+
+        allResults['GLOBAL|LOADED'] = true;
 
     } catch (error) {
         console.error("Global Summary Error:", error);

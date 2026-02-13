@@ -87,17 +87,7 @@ function renderShopTabs() {
 }
 
 async function setActiveShop(shop) {
-    // 1. Memory Isolation: Clear detailed data of PREVIOUS shop to save memory
-    // This addresses "everything loads on one page" by keeping only active data
-    if (activeShop !== shop) {
-        Object.keys(allResults).forEach(key => {
-            if (key.startsWith(`${activeShop}|`)) delete allResults[key];
-        });
-    }
-
-    activeShop = shop;
-
-    // 2. On mobile, close sidebar after selection
+    // 1. Mobile UI Cleanup: close sidebar after selection
     if (window.innerWidth < 1024) { // lg breakpoint
         const sidebar = document.getElementById('sidebar');
         if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
@@ -105,23 +95,11 @@ async function setActiveShop(shop) {
         }
     }
 
-    // 3. Page Simulation: Automatic Fetch if dates are set
-    // If we don't have detailed data for this shop, fetch it immediately
-    const isSpecial = shop === 'OVERVIEW' || shop === 'COMPARE' || shop === 'CUSTOMERS';
-    if (!isSpecial) {
-        if (!allResults[`${shop}|FULL_LOADED`] && typeof fetchShopData === 'function') {
-            await fetchShopData(shop);
-        }
-    } else {
-        // For Global views, we might need a fetch if results are empty
-        if (Object.keys(allResults).length === 0) {
-            await fetchAllData();
-        }
+    // 2. URL-Based Navigation
+    // navigateTo handles state, memory clearing, and rendering
+    if (typeof navigateTo === 'function') {
+        navigateTo(shop, activeDataType);
     }
-
-    renderDataTypeTabs(shop);
-    renderContent(shop, activeDataType);
-    renderShopTabs(); // Re-render sidebar to highlight active
 }
 
 function renderDataTypeTabs(shopPrefix) {
@@ -160,9 +138,9 @@ function renderDataTypeTabs(shopPrefix) {
 }
 
 function setActiveDataType(dataType) {
-    activeDataType = dataType;
-    renderDataTypeTabs(activeShop); // Re-render tabs to update active state
-    renderContent(activeShop, dataType); // Defined in render.js
+    if (typeof navigateTo === 'function') {
+        navigateTo(activeShop, dataType);
+    }
 }
 
 // --- DATE & FISCAL YEAR CONTROLS ---

@@ -25,17 +25,9 @@ window.addEventListener('DOMContentLoaded', () => {
         dateRange.end = document.getElementById('endDate').value;
     }
 
-    // 4. Render Initial UI State
-    renderShopTabs();
-
-    // Initial content render (likely empty until data fetched)
-    // We don't auto-fetch data to keep it fast, user must click 'Fetch Data'.
-    // Or we can show the overview empty state.
-    if (activeShop === 'OVERVIEW') {
-        renderContent('OVERVIEW');
-    } else {
-        renderDataTypeTabs(activeShop);
-        renderContent(activeShop, activeDataType);
+    // 4. Initial Routing (Determines what to show based on URL)
+    if (typeof handleRouting === 'function') {
+        handleRouting();
     }
 });
 

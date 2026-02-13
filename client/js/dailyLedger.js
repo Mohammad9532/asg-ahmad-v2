@@ -4,14 +4,20 @@
  */
 async function renderDailyLedger(shopPrefix, forcedDate = null) {
     const container = document.getElementById('dataTypeContentContainer');
-    container.innerHTML = '<div class="text-center py-10"><div class="loader inline-block"></div><p class="mt-2 text-slate-500">Loading Daily Ledger...</p></div>';
-
     // Default to today in YYYY-MM-DD format (local time)
     let targetDate = forcedDate;
-
     if (!targetDate) {
         targetDate = new Date().toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD
     }
+
+    // --- INSTANT PREVIEW CHECK ---
+    const cacheKey = `${shopPrefix}|daily_ledger|${targetDate}`;
+    if (typeof allResults !== 'undefined' && allResults[cacheKey]) {
+        renderDailyLedgerUI(container, shopPrefix, targetDate, allResults[cacheKey].data, allResults[cacheKey].history);
+        return;
+    }
+
+    container.innerHTML = '<div class="text-center py-10"><div class="loader inline-block"></div><p class="mt-2 text-slate-500">Loading Daily Ledger...</p></div>';
 
     try {
         const url = `${BASE_URL}/api/${shopPrefix}/daily_ledger?date=${targetDate}`;
@@ -52,6 +58,11 @@ async function renderDailyLedger(shopPrefix, forcedDate = null) {
 
         // Render UI
         renderDailyLedgerUI(container, shopPrefix, targetDate, data, processedHistory);
+
+        // --- CACHE FOR INSTANT RE-VISIT ---
+        if (typeof allResults !== 'undefined') {
+            allResults[cacheKey] = { data, history: processedHistory };
+        }
 
     } catch (error) {
         console.error("Daily Ledger Render Error:", error);
@@ -415,6 +426,13 @@ async function saveLedgerSettings(shopPrefix) {
 
         if (!response.ok) throw new Error("Failed to save settings");
 
+        // --- CLEAR CACHE ON SETTINGS CHANGE ---
+        if (typeof allResults !== 'undefined') {
+            Object.keys(allResults).forEach(key => {
+                if (key.includes('|daily_ledger|')) delete allResults[key];
+            });
+        }
+
         closeLedgerSettingsModal();
         // Refresh the ledger view for the current date
         renderDailyLedger(shopPrefix);
@@ -456,6 +474,11 @@ async function saveLedgerAdjustment(shopPrefix, date) {
         });
 
         if (!response.ok) throw new Error("Failed to save adjustment");
+
+        // --- CLEAR CACHE ON ADJUSTMENT ---
+        if (typeof allResults !== 'undefined') {
+            delete allResults[`${shopPrefix}|daily_ledger|${date}`];
+        }
 
         closeAdjustmentModal();
         renderDailyLedger(shopPrefix, date); // Refresh everything

@@ -12,7 +12,28 @@ function renderContent(shopPrefix, dataType) {
 
     if (!container) return;
 
-    // Show Skeleton and yield for paint
+    // --- INSTANT PREVIEW LOGIC ---
+    // If data is already in memory, skip the skeleton and render immediately
+    const isSpecial = shopPrefix === 'OVERVIEW' || shopPrefix === 'COMPARE' || shopPrefix === 'CUSTOMERS';
+    const isGlobalLoaded = allResults['GLOBAL|LOADED'];
+    const isShopLoaded = allResults[`${shopPrefix}|FULL_LOADED`];
+
+    // We can render instantly if:
+    // 1. It's a special view and global data is loaded
+    // 2. It's a shop view and full shop data is loaded (except for ledger/audit which fetch own data)
+    const canRenderInstantly = (isSpecial && isGlobalLoaded) || (!isSpecial && isShopLoaded);
+
+    // Note: Daily Ledger and Stock Audit currently fetch their own data, 
+    // we'll handle their caching internally in their files.
+    const isInternalFetchView = dataType === 'daily_ledger' || dataType === 'stock_audit';
+
+    if (canRenderInstantly && !isInternalFetchView) {
+        if (statusMessage) statusMessage.classList.add('hidden');
+        renderContentSync(shopPrefix, dataType, container, statusMessage, dataTypeTabs);
+        return;
+    }
+
+    // --- ASYNC LOADING PATH (Show Skeleton) ---
     container.innerHTML = '';
     const skeleton = document.getElementById('skeletonLoader');
     const skeletonDash = document.getElementById('skeletonDashboard');
@@ -20,12 +41,10 @@ function renderContent(shopPrefix, dataType) {
 
     if (skeleton) {
         skeleton.classList.remove('hidden');
-        // Hide all specific ones first
         if (skeletonDash) skeletonDash.classList.add('hidden');
         if (skeletonTable) skeletonTable.classList.add('hidden');
 
-        // Show the relevant one
-        if (dataType === 'dashboard' || shopPrefix === 'OVERVIEW' || shopPrefix === 'COMPARE') {
+        if (dataType === 'dashboard' || isSpecial) {
             if (skeletonDash) skeletonDash.classList.remove('hidden');
         } else {
             if (skeletonTable) skeletonTable.classList.remove('hidden');
@@ -33,7 +52,6 @@ function renderContent(shopPrefix, dataType) {
     }
     if (statusMessage) statusMessage.classList.add('hidden');
 
-    // Yield to let the skeleton paint
     setTimeout(() => {
         if (skeleton) skeleton.classList.add('hidden');
         renderContentSync(shopPrefix, dataType, container, statusMessage, dataTypeTabs);
@@ -384,11 +402,13 @@ function renderOverviewDashboard(container) {
     const paymentMethods = { CASH: 0, ADIB: 0, ATM: 0, OTHER: 0 };
 
     SHOP_PREFIXES.forEach(shop => {
+        // Helper to get Best Data (Detailed > Summary)
+        const getMetric = (type) => allResults[`${shop}|${type}`] || allResults[`${shop}|SUMMARY|${type}`];
+
         // Bookings Data
-        const bk = allResults[`${shop}|bookings`];
+        const bk = getMetric('bookings');
         const shopGross = bk ? (bk.totalAmount || 0) : 0;
 
-        // Use pre-calculated net if available, otherwise reduce (for shop-specific lazy load)
         let shopNet = 0;
         let shopCancel = 0;
 
@@ -407,38 +427,28 @@ function renderOverviewDashboard(container) {
         totalNetBooking += shopNet;
 
         // Deliveries Data
-        const del = allResults[`${shop}|delivery`];
+        const del = getMetric('delivery');
         let shopDel = 0;
         let shopBookingDel = 0;
         let shopMiscDel = 0;
 
         if (del) {
             shopDel = del.totalAmount || 0;
-
-            // Use pre-calculated breakdowns
             if (del.paymentMethods) {
                 shopBookingDel = del.bookingDel || 0;
                 shopMiscDel = del.miscDel || 0;
-
                 paymentMethods.CASH += (del.paymentMethods.CASH || 0);
                 paymentMethods.ADIB += (del.paymentMethods.ADIB || 0);
                 paymentMethods.ATM += (del.paymentMethods.ATM || 0);
             } else if (del.filteredData) {
-                // Fallback for lazy-loaded shop data
                 del.filteredData.forEach(d => {
                     const amt = d.amount || 0;
                     const bNo = (d.billNo || '').toLowerCase().trim();
-
-                    if (bNo && bNo !== 'other-amounts') {
-                        shopBookingDel += amt;
-                    } else {
-                        shopMiscDel += amt;
-                    }
-
+                    if (bNo && bNo !== 'other-amounts') shopBookingDel += amt;
+                    else shopMiscDel += amt;
                     let type = d.amountType ? d.amountType.toUpperCase().trim() : 'CASH';
                     if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER') || type.includes('ADIB')) type = 'ADIB';
                     if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
-
                     paymentMethods[type] += amt;
                 });
             }
@@ -448,17 +458,18 @@ function renderOverviewDashboard(container) {
         totalBookingDeliveries += shopBookingDel;
         totalMiscDeliveries += shopMiscDel;
 
-        // Accrual Delivery Total (specifically for Profit/Stock)
-        const accData = allResults[`${shop}|accrual_delivery`];
+        // Accrual Delivery Total
+        const accData = getMetric('accrual_delivery');
         const shopAccDel = accData ? (accData.totalAccrualAmount || 0) : 0;
         totalAccrualDeliveries += shopAccDel;
-        // ... rest of loop
-        const exp = allResults[`${shop}|expense`];
+
+        // Expenses
+        const exp = getMetric('expense');
         const shopExp = exp ? (exp.totalAmount || 0) : 0;
         totalExpenses += shopExp;
 
         // Lifetime Data
-        const lifeData = allResults[`${shop}|lifetime`];
+        const lifeData = getMetric('lifetime');
         const shopTwStock = lifeData ? (lifeData.lifetimeStock || 0) : 0;
 
         shopPerformance.push({

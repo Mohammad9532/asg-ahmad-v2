@@ -62,6 +62,17 @@ async function switchAuditTab(shop, status) {
 
 async function loadAuditContent(shop) {
     const content = document.getElementById('auditContent');
+
+    // --- INSTANT PREVIEW CHECK ---
+    const cacheKey = `${shop}|stock_audit|${currentAuditStatus}`;
+    if (typeof allResults !== 'undefined' && allResults[cacheKey]) {
+        currentAuditData = allResults[cacheKey];
+        if (currentAuditStatus === 'pending') renderPendingTable(shop, currentAuditData);
+        else if (currentAuditStatus === 'verified') renderHistoryTable(shop, currentAuditData);
+        else if (currentAuditStatus === 'archived') renderArchivedTable(shop, currentAuditData);
+        return;
+    }
+
     content.innerHTML = `
         <div class="flex justify-center p-12">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
@@ -70,6 +81,11 @@ async function loadAuditContent(shop) {
 
     try {
         currentAuditData = await fetchStockAuditData(shop, currentAuditStatus);
+
+        // --- CACHE FOR INSTANT RE-VISIT ---
+        if (typeof allResults !== 'undefined') {
+            allResults[cacheKey] = currentAuditData;
+        }
 
         if (currentAuditStatus === 'pending') {
             renderPendingTable(shop, currentAuditData);
@@ -139,6 +155,13 @@ async function archiveCurrentAudit(shop) {
 
         if (!response.ok) throw new Error(await response.text());
         const result = await response.json();
+
+        // --- CLEAR CACHE ON ARCHIVE ---
+        if (typeof allResults !== 'undefined') {
+            Object.keys(allResults).forEach(key => {
+                if (key.startsWith(`${shop}|stock_audit|`)) delete allResults[key];
+            });
+        }
 
         alert(`Successfully archived ${result.modifiedCount} items!`);
 
@@ -750,6 +773,13 @@ async function verifyStockAuditItem(shop, billNo, qty, amount) {
             },
             body: JSON.stringify({ billNo, remark, qty, missingPcs, amount })
         });
+
+        // --- CLEAR CACHE ON VERIFICATION ---
+        // We need to invalidate both pending and verified views
+        if (typeof allResults !== 'undefined') {
+            delete allResults[`${shop}|stock_audit|pending`];
+            delete allResults[`${shop}|stock_audit|verified`];
+        }
 
         // Add success effect and remove
         if (row) {
