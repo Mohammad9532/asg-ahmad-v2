@@ -141,7 +141,9 @@
                             window.location.href = 'index.html';
                         }, 100);
                     } else {
-                        throw new Error(data.error || 'Login failed');
+                        // Use the detailed message from our new backend diagnostics if available
+                        const detailedError = data.message || data.error || 'Login failed';
+                        throw new Error(detailedError);
                     }
                 } else {
                     // Not JSON! Probably an HTML error page

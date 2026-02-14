@@ -10,17 +10,39 @@ const router = express.Router();
 router.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
+        console.log(`[AUTH] Login attempt for user: ${username}`);
+
+        if (!username || !password) {
+            return res.status(400).json({ error: "Username and password are required." });
+        }
+
         const user = await User.findOne({ username });
-        if (!user) return res.status(400).json({ error: "User not found" });
+        if (!user) {
+            console.warn(`[AUTH] User not found: ${username}`);
+            return res.status(400).json({ error: "User not found" });
+        }
 
         const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) return res.status(400).json({ error: "Invalid password" });
+        if (!validPassword) {
+            console.warn(`[AUTH] Invalid password for user: ${username}`);
+            return res.status(400).json({ error: "Invalid password" });
+        }
 
         // Generate Token
+        if (!JWT_SECRET) {
+            throw new Error("Internal Configuration Error: JWT_SECRET is missing.");
+        }
+
         const token = jwt.sign({ _id: user._id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+        console.log(`[AUTH] Login successful for: ${username}`);
         res.json({ token, username: user.username });
     } catch (err) {
-        res.status(500).json({ error: "Login failed" });
+        console.error("[AUTH_CATCH_ERROR]:", err);
+        res.status(500).json({
+            error: "Login failed",
+            message: err.message,
+            tip: "Check server logs for more details."
+        });
     }
 });
 
