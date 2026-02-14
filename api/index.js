@@ -24,6 +24,11 @@ const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || process.en
 let isDbConnected = false;
 let dbErrorCode = null;
 let dbErrorMessage = null;
+let dbEventLog = [];
+function logDbEvent(msg) {
+    dbEventLog.unshift(`[${new Date().toISOString()}] ${msg}`);
+    if (dbEventLog.length > 10) dbEventLog.pop();
+}
 
 // Remove the global disable to avoid "Cannot call users.findOne() before connection" errors.
 // Mongoose will now buffer commands until connected, but we've set a strict 5s timeout below.
@@ -38,6 +43,7 @@ if (!MONGO_URI) {
             isDbConnected = true;
             dbErrorCode = null;
             dbErrorMessage = null;
+            logDbEvent("CONNECTED ✅");
             if (typeof seedAdminUser === 'function') {
                 seedAdminUser();
             }
@@ -47,12 +53,13 @@ if (!MONGO_URI) {
             isDbConnected = false;
             dbErrorCode = err.name || 'ConnectionError';
             dbErrorMessage = err.message;
+            logDbEvent(`ERROR ❌: ${err.message}`);
         });
 
     // Explicit listeners for state tracking
-    mongoose.connection.on('connected', () => { isDbConnected = true; });
-    mongoose.connection.on('disconnected', () => { isDbConnected = false; console.warn('⚠️ MongoDB disconnected'); });
-    mongoose.connection.on('error', (err) => { console.error('🔴 MongoDB Runtime Error:', err); });
+    mongoose.connection.on('connected', () => { isDbConnected = true; logDbEvent("EVENT: connected"); });
+    mongoose.connection.on('disconnected', () => { isDbConnected = false; logDbEvent("EVENT: disconnected"); console.warn('⚠️ MongoDB disconnected'); });
+    mongoose.connection.on('error', (err) => { logDbEvent(`EVENT: error (${err.message})`); console.error('🔴 MongoDB Runtime Error:', err); });
 }
 
 // --- Middlewares ---
@@ -85,9 +92,19 @@ mountingPrefixes.forEach(prefix => {
 
     app.get(`${prefix}/health`, async (req, res) => {
         let sampleCount = 0;
+        let dbNameInUri = 'NONE';
+
+        if (finalUri) {
+            try {
+                // Extract DB name from URI (between last / and ?)
+                const uriWithoutOptions = finalUri.split('?')[0];
+                const parts = uriWithoutOptions.split('/');
+                dbNameInUri = parts[parts.length - 1] || 'DEFAULT (test)';
+            } catch (e) { dbNameInUri = 'ERROR_PARSING'; }
+        }
+
         try {
-            // Probe one known collection to see if data exists
-            if (isDbConnected) {
+            if (isDbConnected && mongoose.connection.db) {
                 const coll = mongoose.connection.db.collection('gaidatailorbookings');
                 sampleCount = await coll.countDocuments();
             }
@@ -98,11 +115,15 @@ mountingPrefixes.forEach(prefix => {
             dbConnected: isDbConnected,
             dbState: mongoose.connection.readyState,
             dbName: mongoose.connection.name,
+            dbNameInUri: dbNameInUri,
+            hasQuotes: finalUri ? (finalUri.startsWith('"') || finalUri.endsWith('"')) : false,
+            hasWhitespace: finalUri ? (finalUri.trim() !== finalUri) : false,
+            uriMasked: finalUri ? `${finalUri.substring(0, 15)}...${finalUri.substring(finalUri.length - 10)}` : 'NONE',
             sampleDataFound: sampleCount > 0,
             sampleCount: sampleCount,
             modelCount: Object.keys(mongoose.models).length,
+            dbEventLog: dbEventLog,
             detectedUriName: detectedName || 'NONE',
-            hasUri: !!finalUri,
             environment: process.env.VERCEL ? 'vercel' : 'local',
             timestamp: new Date().toISOString()
         });
