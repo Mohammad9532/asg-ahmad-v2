@@ -87,6 +87,9 @@ mountingPrefixes.forEach(prefix => {
         status: 'ok',
         dbConnected: isDbConnected,
         dbState: mongoose.connection.readyState,
+        dbName: mongoose.connection.name, // The actual database name!
+        modelCount: Object.keys(mongoose.models).length,
+        models: Object.keys(mongoose.models),
         dbError: dbErrorMessage,
         dbCode: dbErrorCode,
         detectedUriName: detectedName || 'NONE',
