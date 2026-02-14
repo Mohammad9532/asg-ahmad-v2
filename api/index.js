@@ -30,11 +30,7 @@ if (!MONGO_URI) {
     console.error('❌ MONGO_URI is not defined in environment variables!');
 } else {
     console.log('[DB] Connecting to MongoDB...');
-    mongoose.connect(MONGO_URI, {
-        serverSelectionTimeoutMS: 5000, // Fail fast (5s) instead of 30s
-        socketTimeoutMS: 45000,
-        family: 4 // Use IPv4
-    })
+    mongoose.connect(MONGO_URI)
         .then(() => {
             console.log('✅ MongoDB connected successfully!');
             isDbConnected = true;
@@ -61,22 +57,6 @@ const { cacheMiddleware } = require('./_lib/middleware/cache');
 // --- Request Logger ---
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
-
-// Middleware to check DB connection - MUST be before routes!
-app.use((req, res, next) => {
-    const isHealthCheck = req.path.includes('health');
-
-    // If not connected and it's an API route (that isn't health), block it.
-    // We now block login too if DB isn't ready because it WILL fail without DB.
-    if (req.path.startsWith('/api') && !isHealthCheck && !isDbConnected) {
-        console.warn(`[DB_STATUS] Connection pending... block request to ${req.url}`);
-        return res.status(503).json({
-            error: "Database Connection Error",
-            message: "The server is currently unable to connect to the database. Please verify your MONGO_URI environment variable on Vercel."
-        });
-    }
     next();
 });
 
