@@ -100,8 +100,7 @@ if (!process.env.VERCEL) {
     });
 }
 
-// --- Export app for Vercel ---
-module.exports = app;
+// --- Deleted module.exports here and moved to bottom ---
 
 // --- Server Start Listener (for local dev) ---
 if (require.main === module) {
@@ -116,3 +115,6 @@ if (require.main === module) {
         console.log(`--- Ready to serve dynamic endpoints ---`);
     });
 }
+
+// --- Export app for Vercel ---
+module.exports = app;
