@@ -1,6 +1,11 @@
+
+import { state } from './state.js';
+import { BASE_URL } from './config.js';
+import { SHOP_PREFIXES } from './config.js';
+
 // --- AI CHAT LOGIC ---
 
-function toggleAIChat() {
+export function toggleAIChat() {
     const modal = document.getElementById('aiChatModal');
     const isHidden = modal.classList.contains('hidden');
 
@@ -21,7 +26,7 @@ function toggleAIChat() {
     }
 }
 
-async function handleChatSubmit(event) {
+export async function handleChatSubmit(event) {
     if (event) event.preventDefault();
     const input = document.getElementById('chatInput');
     const message = input.value.trim();
@@ -80,7 +85,7 @@ async function sendAIMessage(message, hiddenSystemPrompt = null) {
     }
 }
 
-function triggerHealthAnalysis() {
+export function triggerHealthAnalysis() {
     // 1. Open Chat
     const modal = document.getElementById('aiChatModal');
     if (modal.classList.contains('hidden')) {
@@ -144,9 +149,9 @@ function getChatContext() {
 
     // 1. Basic Info
     const ctx = {
-        shop: activeShop,
-        dateRange: dateRange,
-        dataType: activeDataType,
+        shop: state.activeShop,
+        dateRange: state.dateRange,
+        dataType: state.activeDataType,
         activeDataSummary: {},
         globalSummary: {}
     };
@@ -154,9 +159,9 @@ function getChatContext() {
     // 2. Global Summary Data (Important for overall business context)
     if (typeof SHOP_PREFIXES !== 'undefined') {
         SHOP_PREFIXES.forEach(shop => {
-            const bk = allResults[`${shop}|bookings`];
-            const del = allResults[`${shop}|delivery`];
-            const exp = allResults[`${shop}|expense`];
+            const bk = state.allResults[`${shop}|bookings`];
+            const del = state.allResults[`${shop}|delivery`];
+            const exp = state.allResults[`${shop}|expense`];
 
             if (bk) {
                 ctx.globalSummary[shop] = {
@@ -169,10 +174,10 @@ function getChatContext() {
     }
 
     // 3. Detailed Data Snapshot for Active Shop
-    if (activeShop !== 'OVERVIEW' && !['COMPARE', 'CUSTOMERS'].includes(activeShop)) {
-        const bk = allResults[`${activeShop}|bookings`];
-        const exp = allResults[`${activeShop}|expense`];
-        const del = allResults[`${activeShop}|delivery`];
+    if (state.activeShop !== 'OVERVIEW' && !['COMPARE', 'CUSTOMERS'].includes(state.activeShop)) {
+        const bk = state.allResults[`${state.activeShop}|bookings`];
+        const exp = state.allResults[`${state.activeShop}|expense`];
+        const del = state.allResults[`${state.activeShop}|delivery`];
 
         if (bk) {
             const net = bk.netAmount !== undefined ? bk.netAmount : 0;
@@ -207,3 +212,8 @@ function getChatContext() {
 
     return ctx;
 }
+
+// Global attachments
+window.toggleAIChat = toggleAIChat;
+window.handleChatSubmit = handleChatSubmit;
+window.triggerHealthAnalysis = triggerHealthAnalysis;

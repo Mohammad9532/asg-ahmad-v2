@@ -63,7 +63,16 @@ function createAggregationPipeline(startDate, endDate, isMonthly) {
             "$group": {
                 "_id": null,
                 "totalAmount": { "$sum": "$amount" },
-                "filteredData": { "$push": "$$ROOT" }
+                "filteredData": { "$push": "$$ROOT" },
+                "cancelAmount": {
+                    "$sum": {
+                        "$cond": {
+                            if: { "$in": [{ "$toLower": "$status" }, ["cancel", "canceled", "cancelled", "deducted"]] },
+                            then: "$amount",
+                            else: 0
+                        }
+                    }
+                }
             }
         });
 
@@ -71,7 +80,9 @@ function createAggregationPipeline(startDate, endDate, isMonthly) {
             "$project": {
                 "_id": 0,
                 "totalAmount": 1,
-                "filteredData": 1
+                "filteredData": 1,
+                "cancelAmount": 1,
+                "netAmount": { "$subtract": ["$totalAmount", "$cancelAmount"] }
             }
         });
     }

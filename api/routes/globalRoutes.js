@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { SHOP_NAMES } = require('../utils/constants');
 const { authenticateToken } = require('../middleware/auth');
+const { cacheMiddleware } = require('../middleware/cache');
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
  * GET /api/global/summary
  * Fetches high-level metrics (Net Bookings, Deliveries, Expenses, Accrual) for ALL shops in one go.
  */
-router.get('/global/summary', authenticateToken, async (req, res) => {
+router.get('/global/summary', authenticateToken, cacheMiddleware(300), async (req, res) => {
     try {
         const { start, end } = req.query;
         if (!start || !end) {

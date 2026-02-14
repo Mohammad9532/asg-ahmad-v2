@@ -1,11 +1,10 @@
-
 // User Configured Backend URL
-const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+export const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:3000'
-    : 'https://asg-ahmad.vercel.app';
+    : '';
 
 // --- SHOP CONFIGURATION (MUST MATCH server.js SHOP_NAMES array exactly) ---
-const SHOP_PREFIXES = [
+export const SHOP_PREFIXES = [
     'Albarieklamaa',
     'Algaidamadam',
     'Gaidamnasir',
@@ -17,13 +16,13 @@ const SHOP_PREFIXES = [
     'Staralgawani',
 ];
 
-const DATA_TYPES = ['bookings', 'delivery', 'expense', 'employee'];
+export const DATA_TYPES = ['bookings', 'delivery', 'expense', 'employee'];
 
 // --- DATE CONFIGURATION (Bakra Eid Logic) ---
 
 // Define key dates
 // Each entry represents a Full Fiscal Year cycle (Bakra Eid to Bakra Eid)
-const ISLAMIC_CYCLES = [
+export const ISLAMIC_CYCLES = [
     { id: '2027-2028', label: '2027 - 2028', start: '2027-05-18', end: '2028-05-06', eid: '2028-02-25' }, // Approx dates
     { id: '2026-2027', label: '2026 - 2027', start: '2026-05-28', end: '2027-05-17', eid: '2027-03-09' },
     { id: '2025-2026', label: '2025 - 2026', start: '2025-06-08', end: '2026-05-27', eid: '2026-03-20' },

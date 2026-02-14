@@ -1,3 +1,7 @@
+
+import { state } from './state.js';
+import { isCanceledStatus } from './utils.js';
+
 // --- EXCEL EXPORT LOGIC ---
 
 /**
@@ -5,10 +9,10 @@
  * @param {string} shop 
  * @param {string} [monthYearStr] Optional 'YYYY-MM' to specify month. Defaults to start date month.
  */
-function downloadMonthlyExcel(shop, monthYearStr) {
-    const bk = allResults[`${shop}|bookings`];
-    const exp = allResults[`${shop}|expense`];
-    const del = allResults[`${shop}|delivery`];
+export function downloadMonthlyExcel(shop, monthYearStr) {
+    const bk = state.allResults[`${shop}|bookings`];
+    const exp = state.allResults[`${shop}|expense`];
+    const del = state.allResults[`${shop}|delivery`];
 
     const errorMessage = "Please ensure all data (Bookings, Expenses, Deliveries) is fetched for this shop and try again.";
     if (!bk || !exp || !del) { alert(errorMessage); return; }
@@ -201,6 +205,10 @@ function downloadMonthlyExcel(shop, monthYearStr) {
 }
 
 // Alias for button click
-function exportMonthlySummaryToCSV(shop) {
+export function exportMonthlySummaryToCSV(shop) {
     downloadMonthlyExcel(shop);
 }
+
+// Global attachment
+window.downloadMonthlyExcel = downloadMonthlyExcel;
+window.exportMonthlySummaryToCSV = exportMonthlySummaryToCSV;

@@ -1,7 +1,10 @@
+
+import { state } from './state.js';
+
 /**
  * Generates and downloads a professional PDF report using html2pdf.js
  */
-async function downloadPDF() {
+export async function downloadPDF() {
     const container = document.getElementById('dataTypeContentContainer');
     if (!container) return;
 
@@ -18,9 +21,9 @@ async function downloadPDF() {
     header.style.borderBottom = '2px solid #0d9488';
     header.style.backgroundColor = '#f8fafc';
 
-    const shopName = activeShop === 'OVERVIEW' ? 'GLOBAL OVERVIEW' : activeShop;
+    const shopName = state.activeShop === 'OVERVIEW' ? 'GLOBAL OVERVIEW' : state.activeShop;
     const dateStr = `Period: ${document.getElementById('startDate').value} to ${document.getElementById('endDate').value}`;
-    const reportType = activeDataType.replace('_', ' ').toUpperCase();
+    const reportType = state.activeDataType.replace('_', ' ').toUpperCase();
 
     header.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px;">
@@ -60,25 +63,37 @@ async function downloadPDF() {
 
     // 6. Show loading state on the button
     const btn = document.querySelector('button[onclick="downloadPDF()"]');
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = `
-        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        Generating PDF...
-    `;
-    btn.disabled = true;
+    if (btn) {
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Generating PDF...
+        `;
+        btn.disabled = true;
 
-    try {
-        // 7. Generate!
-        await html2pdf().set(opt).from(pdfContent).save();
-    } catch (error) {
-        console.error('PDF Generation failed:', error);
-        alert('Failed to generate PDF. Please try again.');
-    } finally {
-        // 8. Restore button state
-        btn.innerHTML = originalContent;
-        btn.disabled = false;
+        try {
+            // 7. Generate!
+            await html2pdf().set(opt).from(pdfContent).save();
+        } catch (error) {
+            console.error('PDF Generation failed:', error);
+            alert('Failed to generate PDF. Please try again.');
+        } finally {
+            // 8. Restore button state
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    } else {
+        // Fallback if triggered programmatically
+        try {
+            await html2pdf().set(opt).from(pdfContent).save();
+        } catch (error) {
+            console.error('PDF Generation failed:', error);
+        }
     }
 }
+
+// Global attachment
+window.downloadPDF = downloadPDF;

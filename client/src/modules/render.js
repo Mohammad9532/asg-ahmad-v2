@@ -1,11 +1,24 @@
+
+import { state } from './state.js';
+import { SHOP_PREFIXES } from './config.js';
+import { formatCurrency, calculateCanceledSum, isCanceledStatus, sortArray, getSortIcon } from './utils.js';
+import { renderMonthlySummary } from './render_monthly.js';
+import { renderStockAuditView } from './stock_audit.js';
+import { renderDailyLedger } from './dailyLedger.js';
+import { renderCompareDashboard } from './compare.js';
+import { aggregateCustomers } from './customers.js';
+import { renderStandardTable, renderDailyNetBookingTable, renderDailyCategoryTrendTable } from './render_tables.js';
+// import { setActiveDataType } from './ui.js'; // Removed to avoid circular dependency
+
 // --- MAIN CONTENT RENDERING & CHARTS ---
 
 // Global chart instances to destroy before re-rendering
-if (typeof chartInstances === 'undefined') {
-    var chartInstances = {}; // use var to avoid redeclaration issues if scripts reloaded
+// We attach to window to ensure persistence across module reloads if HMR is used, though less critical here.
+if (typeof window.chartInstances === 'undefined') {
+    window.chartInstances = {};
 }
 
-function renderContent(shopPrefix, dataType) {
+export function renderContent(shopPrefix, dataType) {
     const container = document.getElementById('dataTypeContentContainer');
     const statusMessage = document.getElementById('statusMessage');
     const dataTypeTabs = document.getElementById('dataTypeTabsContainer');
@@ -15,8 +28,8 @@ function renderContent(shopPrefix, dataType) {
     // --- INSTANT PREVIEW LOGIC ---
     // If data is already in memory, skip the skeleton and render immediately
     const isSpecial = shopPrefix === 'OVERVIEW' || shopPrefix === 'COMPARE' || shopPrefix === 'CUSTOMERS';
-    const isGlobalLoaded = allResults['GLOBAL|LOADED'];
-    const isShopLoaded = allResults[`${shopPrefix}|FULL_LOADED`];
+    const isGlobalLoaded = state.allResults['GLOBAL|LOADED'];
+    const isShopLoaded = state.allResults[`${shopPrefix}|FULL_LOADED`];
 
     // We can render instantly if:
     // 1. It's a special view and global data is loaded
@@ -66,7 +79,7 @@ function renderContentSync(shopPrefix, dataType, container, statusMessage, dataT
 
         // Check if we have data to show (at least one shop fetched)
         // Heuristic: check if allResults is empty
-        if (Object.keys(allResults).length === 0) {
+        if (Object.keys(state.allResults).length === 0) {
             if (statusMessage) {
                 statusMessage.textContent = "Welcome to the Global Overview. Please select a date range and click 'Fetch Data'.";
                 statusMessage.classList.remove('hidden');
@@ -89,7 +102,7 @@ function renderContentSync(shopPrefix, dataType, container, statusMessage, dataT
     if (shopPrefix === 'CUSTOMERS') {
         if (dataTypeTabs) dataTypeTabs.classList.add('hidden');
         aggregateCustomers(); // Defined in customers.js
-        renderCustomerDirectory(); // Defined in customers.js
+
         return;
     }
 
@@ -107,7 +120,7 @@ function renderContentSync(shopPrefix, dataType, container, statusMessage, dataT
         const deliveryKey = `${shopPrefix}|delivery`;
         const expenseKey = `${shopPrefix}|expense`;
 
-        if (!allResults[bookingsKey] || !allResults[deliveryKey] || !allResults[expenseKey]) {
+        if (!state.allResults[bookingsKey] || !state.allResults[deliveryKey] || !state.allResults[expenseKey]) {
             if (statusMessage) {
                 statusMessage.textContent = `Error: Core data (Bookings, Deliveries, or Expenses) needed for the Monthly Summary is missing. Please click 'Fetch All Shop Data'.`;
                 statusMessage.classList.remove('hidden');
@@ -115,14 +128,14 @@ function renderContentSync(shopPrefix, dataType, container, statusMessage, dataT
             return;
         }
         // Check if any of the core data results show an API error.
-        if (allResults[bookingsKey].isError || allResults[deliveryKey].isError || allResults[expenseKey].isError) {
+        if (state.allResults[bookingsKey].isError || state.allResults[deliveryKey].isError || state.allResults[expenseKey].isError) {
             container.innerHTML = `
                 <div class="p-6 bg-red-100 text-red-800 rounded-xl shadow-lg border border-red-300">
                     <p class="font-bold">Error: Monthly Summary cannot be calculated due to API errors in core data types:</p>
                     <ul class="list-disc ml-5 mt-2 text-sm">
-                        ${allResults[bookingsKey].isError ? `<li>Bookings: ${allResults[bookingsKey].errorMessage}</li>` : ''}
-                        ${allResults[deliveryKey].isError ? `<li>Deliveries: ${allResults[deliveryKey].errorMessage}</li>` : ''}
-                        ${allResults[expenseKey].isError ? `<li>Expenses: ${allResults[expenseKey].errorMessage}</li>` : ''}
+                        ${state.allResults[bookingsKey].isError ? `<li>Bookings: ${state.allResults[bookingsKey].errorMessage}</li>` : ''}
+                        ${state.allResults[deliveryKey].isError ? `<li>Deliveries: ${state.allResults[deliveryKey].errorMessage}</li>` : ''}
+                        ${state.allResults[expenseKey].isError ? `<li>Expenses: ${state.allResults[expenseKey].errorMessage}</li>` : ''}
                     </ul>
                     <p class="mt-3 text-sm font-semibold">Action: Check the backend server for these specific routes.</p>
                 </div>`;
@@ -130,17 +143,17 @@ function renderContentSync(shopPrefix, dataType, container, statusMessage, dataT
         }
     }
 
-    const data = allResults[key]; // This will be undefined for monthly_summary, which is fine.
+    const data = state.allResults[key]; // This will be undefined for monthly_summary, which is fine.
 
     if (dataType === 'dashboard') {
         renderShopDashboard(shopPrefix, container);
     } else if (dataType === 'bookings') {
-        renderNetBookingDetails(shopPrefix, data);
+        renderNetBookingDetails(shopPrefix, data, container);
     } else if (dataType === 'delivery') {
-        renderDeliveryByTypeDetails(shopPrefix, data);
+        renderDeliveryByTypeDetails(shopPrefix, data, container);
     } else if (dataType === 'expense') {
-        renderExpenseByTypeDetails(shopPrefix, data);
-    } else if (dataType === 'employees') {
+        renderExpenseByTypeDetails(shopPrefix, data, container);
+    } else if (dataType === 'employee') {
         renderEmployeeSection(shopPrefix, container);
     } else if (isMonthlySummaryTab) {
         // Defined in render_monthly.js
@@ -164,9 +177,9 @@ function isValidDataTypeForShop(dt) {
 // --- DASHBOARD RENDERERS ---
 
 function renderShopDashboard(shop, container) {
-    const bk = allResults[`${shop}|bookings`];
-    const exp = allResults[`${shop}|expense`];
-    const del = allResults[`${shop}|delivery`];
+    const bk = state.allResults[`${shop}|bookings`];
+    const exp = state.allResults[`${shop}|expense`];
+    const del = state.allResults[`${shop}|delivery`];
 
     // 1. Calculate Metrics
     let shopNet = 0;
@@ -212,7 +225,7 @@ function renderShopDashboard(shop, container) {
     }
 
     // NEW: Get Accrual Delivery Amount (Deliveries matching current bookings)
-    const accrualData = allResults[`${shop}|accrual_delivery`];
+    const accrualData = state.allResults[`${shop}|accrual_delivery`];
     const accrualDeliveryAmount = accrualData ? (accrualData.totalAccrualAmount || 0) : 0;
 
     // Updated Formula: Profit matches this year's booking deliveries - expenses
@@ -353,11 +366,11 @@ function renderShopDashboard(shop, container) {
     `;
 
     // 4. Init Charts
-    if (chartInstances.shopTrend) chartInstances.shopTrend.destroy();
-    if (chartInstances.shopPay) chartInstances.shopPay.destroy();
+    if (window.chartInstances.shopTrend) window.chartInstances.shopTrend.destroy();
+    if (window.chartInstances.shopPay) window.chartInstances.shopPay.destroy();
 
     const ctx1 = document.getElementById('shopTrendChart').getContext('2d');
-    chartInstances.shopTrend = new Chart(ctx1, {
+    window.chartInstances.shopTrend = new Chart(ctx1, {
         type: 'line',
         data: {
             labels: sortedDates,
@@ -374,7 +387,7 @@ function renderShopDashboard(shop, container) {
     });
 
     const ctx2 = document.getElementById('shopPaymentChart').getContext('2d');
-    chartInstances.shopPay = new Chart(ctx2, {
+    window.chartInstances.shopPay = new Chart(ctx2, {
         type: 'doughnut',
         data: {
             labels: ['Cash', 'Card/ADIB', 'ATM'],
@@ -403,7 +416,7 @@ function renderOverviewDashboard(container) {
 
     SHOP_PREFIXES.forEach(shop => {
         // Helper to get Best Data (Detailed > Summary)
-        const getMetric = (type) => allResults[`${shop}|${type}`] || allResults[`${shop}|SUMMARY|${type}`];
+        const getMetric = (type) => state.allResults[`${shop}|${type}`] || state.allResults[`${shop}|SUMMARY|${type}`];
 
         // Bookings Data
         const bk = getMetric('bookings');
@@ -644,11 +657,11 @@ function renderOverviewDashboard(container) {
 }
 
 function initCharts(shopLabels, netValues, paymentData) {
-    if (chartInstances.perf) chartInstances.perf.destroy();
-    if (chartInstances.pay) chartInstances.pay.destroy();
+    if (window.chartInstances.perf) window.chartInstances.perf.destroy();
+    if (window.chartInstances.pay) window.chartInstances.pay.destroy();
 
     const ctx1 = document.getElementById('shopPerformanceChart').getContext('2d');
-    chartInstances.perf = new Chart(ctx1, {
+    window.chartInstances.perf = new Chart(ctx1, {
         type: 'bar',
         data: {
             labels: shopLabels.map(s => s.substring(0, 10)),
@@ -668,7 +681,7 @@ function initCharts(shopLabels, netValues, paymentData) {
     });
 
     const ctx2 = document.getElementById('paymentMethodsChart').getContext('2d');
-    chartInstances.pay = new Chart(ctx2, {
+    window.chartInstances.pay = new Chart(ctx2, {
         type: 'doughnut',
         data: {
             labels: ['Cash', 'Card/ADIB', 'ATM'],
@@ -686,11 +699,12 @@ function initCharts(shopLabels, netValues, paymentData) {
     });
 }
 
-function renderNetBookingDetails(shopPrefix, bookingData) {
-    const container = document.getElementById('dataTypeContentContainer');
+function renderNetBookingDetails(shopPrefix, bookingData, container) {
+    if (!container) container = document.getElementById('dataTypeContentContainer');
+    if (!container) return;
 
-    const totalBookings = getTotalBookingsAmount(shopPrefix);
-    const totalCanceled = getTotalCanceledAmount(shopPrefix);
+    const totalBookings = bookingData.filteredData.reduce((s, d) => s + (d.amount || 0), 0);
+    const totalCanceled = calculateCanceledSum(bookingData.filteredData);
     const netTotal = totalBookings - totalCanceled;
 
     const summaryBlock = `
@@ -720,7 +734,6 @@ function renderNetBookingDetails(shopPrefix, bookingData) {
             </div>
         </div>
     `;
-    container.innerHTML += summaryBlock;
 
     // Day-wise Aggregation
     const dailyAggregates = bookingData.filteredData.reduce((acc, doc) => {
@@ -734,365 +747,438 @@ function renderNetBookingDetails(shopPrefix, bookingData) {
 
         acc[dateStr].gross += amount;
         acc[dateStr].count += 1;
-
-        if (isCanceled) {
-            acc[dateStr].canceled += amount;
-        }
+        if (isCanceled) acc[dateStr].canceled += amount;
 
         return acc;
     }, {});
 
-    // Finalize net calculation for each day and sort
-    let dailyData = Object.keys(dailyAggregates)
-        .map(dateStr => {
-            const daily = dailyAggregates[dateStr];
-            daily.net = daily.gross - daily.canceled;
-            return { dateStr, ...daily };
-        });
+    let dailyData = Object.keys(dailyAggregates).map(dateStr => {
+        const daily = dailyAggregates[dateStr];
+        daily.net = daily.gross - daily.canceled;
+        return { dateStr, ...daily };
+    });
 
-    // Apply sorting
     const tableId = `${shopPrefix}_daily_bookings`;
-    const currentSort = sortState[tableId];
+    const currentSort = state.sortState[tableId];
     if (currentSort) {
         dailyData = sortArray(dailyData, currentSort.key, currentSort.dir);
     } else {
         dailyData = sortArray(dailyData, 'dateStr', 'asc');
     }
 
-    container.innerHTML += `<h3 class="text-xl font-bold mt-8 mb-4">Daily Net Booking Trend (${dateRange.start} to ${dateRange.end})</h3>`;
-    container.innerHTML += renderDailyNetBookingTable(dailyData, 'Bookings', tableId);
+    let finalHtml = `
+        <div class="space-y-8">
+            ${summaryBlock}
+            <div>
+                <h3 class="text-xl font-bold mb-4">Daily Net Booking Trend (${state.dateRange.start} to ${state.dateRange.end})</h3>
+                ${renderDailyNetBookingTable(dailyData, 'Bookings', tableId)}
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-4">All Booking Records (Gross & Canceled)</h3>
+                ${renderStandardTable(shopPrefix, bookingData, 'bookings', true)}
+            </div>
+        </div>
+    `;
 
-    // Detailed Table 
-    container.innerHTML += `<h3 class="text-xl font-bold mt-8 mb-4">All Booking Records (Gross & Canceled)</h3>`;
-    container.innerHTML += renderStandardTable(shopPrefix, bookingData, 'bookings', true);
+    container.innerHTML = finalHtml;
 }
 
 
-function renderDeliveryByTypeDetails(shopPrefix, deliveryData) {
-    const container = document.getElementById('dataTypeContentContainer');
+function renderDeliveryByTypeDetails(shopPrefix, deliveryData, container) {
+    if (!container) container = document.getElementById('dataTypeContentContainer');
+    if (!container) return;
 
     if (deliveryData.filteredData.length === 0) {
         container.innerHTML = '<p class="text-center text-gray-500 mt-8">No delivery data found in the selected date range.</p>';
         return;
     }
 
-    // 1. Identify all unique categories in this specific dataset
-    const allCategoriesSet = new Set();
+    const tableId = `${shopPrefix}_daily_delivery`;
+    const dailyAggregatesMap = new Map();
+    const categoriesSet = new Set();
+
     deliveryData.filteredData.forEach(doc => {
+        const dateStr = new Date(doc.date).toISOString().split('T')[0];
         let type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
-
         if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
         if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
-        allCategoriesSet.add(type);
-    });
+        categoriesSet.add(type);
 
-    const DELIVERY_CATEGORIES = ['CASH', 'ADIB', 'ATM'];
-
-    // Day-wise Aggregation for Deliveries (Multi-Category)
-    // Create a local version of the data with standardized types for the trend table
-    const standardizedData = deliveryData.filteredData.map(doc => {
-        let type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
-
-        if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
-        if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
-
-        let detailedType;
-        const bNo = (doc.billNo || '').toLowerCase().trim();
-        if (bNo && bNo !== 'other-amounts') {
-            detailedType = type;
-        } else {
-            detailedType = (doc.remarks || doc.name || 'MISC').toUpperCase().trim();
+        const amount = doc.amount || 0;
+        if (!dailyAggregatesMap.has(dateStr)) {
+            dailyAggregatesMap.set(dateStr, { dateStr, total: 0, count: 0, breakdown: {} });
         }
-
-        return { ...doc, amountTypeStandardized: type, detailedType };
+        const day = dailyAggregatesMap.get(dateStr);
+        day.total += amount;
+        day.count += 1;
+        day.breakdown[type] = (day.breakdown[type] || 0) + amount;
     });
 
-    let dailyAggregates = aggregateDailyCategories(standardizedData, 'amountTypeStandardized');
+    const categories = Array.from(categoriesSet).sort();
+    let dailyData = Array.from(dailyAggregatesMap.values());
+    const currentSort = state.sortState[tableId];
+    if (currentSort) dailyData = sortArray(dailyData, currentSort.key, currentSort.dir);
+    else dailyData = sortArray(dailyData, 'dateStr', 'asc');
 
-    // Apply sorting
-    const tableId = `${shopPrefix}_daily_deliveries`;
-    const currentSort = sortState[tableId];
-    if (currentSort) {
-        dailyAggregates = sortArray(dailyAggregates, currentSort.key, currentSort.dir);
-    } else {
-        dailyAggregates = sortArray(dailyAggregates, 'dateStr', 'asc');
-    }
+    const breakdown = deliveryData.paymentMethods || {};
+    const total = deliveryData.totalAmount || 0;
 
-    const grandTotal = deliveryData.filteredData.reduce((sum, doc) => sum + (doc.amount || 0), 0);
-
-    let html = `
-        <div class="bg-teal-50 p-4 rounded-xl shadow-md text-center mb-6 border-2 border-teal-200">
-            <p class="text-sm text-gray-600 font-medium">DELIVERIES GRAND TOTAL</p>
-            <p class="text-2xl font-extrabold text-teal-700">${formatCurrency(grandTotal)}</p>
+    let finalHtml = `
+        <div class="space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="stat-card bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Total Delivery Volume</p>
+                    <p class="text-3xl font-black text-indigo-600">${formatCurrency(total)}</p>
+                </div>
+                ${Object.entries(breakdown).map(([key, val]) => `
+                    <div class="stat-card bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-bold text-slate-500 uppercase mb-2">${key} Collection</p>
+                        <p class="text-2xl font-bold text-slate-700">${formatCurrency(val)}</p>
+                    </div>
+                `).join('')}
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-4">Daily Delivery Trend</h3>
+                ${renderDailyCategoryTrendTable(dailyData, categories, 'Deliveries', tableId)}
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-4">All Delivery Records</h3>
+                ${renderStandardTable(shopPrefix, deliveryData, 'delivery', false)}
+            </div>
         </div>
-        <h3 class="text-xl font-bold mb-4">Daily Delivery Trend by Type (${dateRange.start} to ${dateRange.end})</h3>
-        ${renderDailyCategoryTrendTable(dailyAggregates, DELIVERY_CATEGORIES, 'Deliveries', tableId)}
-        <h3 class="text-xl font-bold mt-8 mb-4">Delivery Payments by Type</h3>
     `;
 
-    // Grouping
-    const groups = standardizedData.reduce((acc, doc) => {
-        const type = doc.detailedType;
-        if (!acc[type]) {
-            acc[type] = { docs: [], total: 0 };
-        }
-        acc[type].docs.push(doc);
-        acc[type].total += (doc.amount || 0);
-        return acc;
-    }, {});
-
-    Object.keys(groups).sort((a, b) => {
-        const aIdx = DELIVERY_CATEGORIES.indexOf(a);
-        const bIdx = DELIVERY_CATEGORIES.indexOf(b);
-        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        if (aIdx !== -1) return -1;
-        if (bIdx !== -1) return 1;
-        return a.localeCompare(b);
-    }).forEach(type => {
-        const group = groups[type];
-
-        html += `<div class="mt-6 border-t pt-4">
-            <h4 class="text-lg font-semibold text-teal-700">${type} Total: ${formatCurrency(group.total)}</h4>
-        </div>`;
-
-        html += renderStandardTable(shopPrefix, { filteredData: group.docs, totalAmount: group.total }, 'delivery', false);
-    });
-
-    container.innerHTML = html;
+    container.innerHTML = finalHtml;
 }
 
-function renderExpenseByTypeDetails(shopPrefix, expenseData) {
-    const container = document.getElementById('dataTypeContentContainer');
+function renderExpenseByTypeDetails(shopPrefix, expenseData, container) {
+    if (!container) container = document.getElementById('dataTypeContentContainer');
+    if (!container) return;
 
     if (expenseData.filteredData.length === 0) {
         container.innerHTML = '<p class="text-center text-gray-500 mt-8">No expense data found in the selected date range.</p>';
         return;
     }
 
-    // Day-wise Aggregation
-    let dailyAggregates = aggregateDailyCategories(expenseData.filteredData, 'cat');
+    const tableId = `${shopPrefix}_daily_expense`;
+    const categoriesSet = new Set();
+    const dailyAggregatesMap = new Map();
 
-    let uniqueCategories = new Set();
     expenseData.filteredData.forEach(doc => {
-        if (doc.cat) uniqueCategories.add(doc.cat.toUpperCase());
-    });
-    const EXPENSE_CATEGORIES = Array.from(uniqueCategories).sort();
-
-    // Apply sorting
-    const tableId = `${shopPrefix}_daily_expenses`;
-    const currentSort = sortState[tableId];
-    if (currentSort) {
-        dailyAggregates = sortArray(dailyAggregates, currentSort.key, currentSort.dir);
-    } else {
-        dailyAggregates = sortArray(dailyAggregates, 'dateStr', 'asc');
-    }
-
-    const grandTotal = expenseData.filteredData.reduce((sum, doc) => sum + (doc.amount || 0), 0);
-
-    let html = `
-        <div class="bg-red-50 p-4 rounded-xl shadow-md text-center mb-6 border-2 border-red-200">
-            <p class="text-sm text-gray-600 font-medium">EXPENSES GRAND TOTAL</p>
-            <p class="text-2xl font-extrabold text-red-700">${formatCurrency(grandTotal)}</p>
-        </div>
-        <h3 class="text-xl font-bold mb-4">Daily Expense Trend by Category (${dateRange.start} to ${dateRange.end})</h3>
-        ${renderDailyCategoryTrendTable(dailyAggregates, EXPENSE_CATEGORIES, 'Expenses', tableId)}
-        <h3 class="text-xl font-bold mt-8 mb-4">Expenses by Category</h3>
-    `;
-
-    const groups = expenseData.filteredData.reduce((acc, doc) => {
-        const category = doc.cat ? doc.cat.toUpperCase() : 'UNCATEGORIZED';
-        if (!acc[category]) {
-            acc[category] = { docs: [], total: 0 };
-        }
-        acc[category].docs.push(doc);
-        acc[category].total += (doc.amount || 0);
-        return acc;
-    }, {});
-
-    Object.keys(groups).sort().forEach(category => {
-        const group = groups[category];
-
-        html += `<div class="mt-6 border-t pt-4">
-            <h4 class="text-lg font-semibold text-red-700">${category} Total: ${formatCurrency(group.total)}</h4>
-        </div>`;
-
-        html += renderStandardTable(shopPrefix, { filteredData: group.docs, totalAmount: group.total }, 'expense', false);
-    });
-
-    container.innerHTML = html;
-}
-
-/**
- * Renders the Employee Summary and List
- */
-async function renderEmployeeSection(shopPrefix, container) {
-    const data = allResults[`${shopPrefix}|employee`];
-
-    if (!data || data.isError) {
-        const errorMsg = data?.errorMessage || "No employee data found in this period.";
-        container.innerHTML = `
-            <div class="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
-                <p class="text-3xl mb-4">👥</p>
-                <p class="text-slate-500 font-bold">${errorMsg}</p>
-                <button onclick="fetchShopData('${shopPrefix}')" class="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest">Refresh Data</button>
-            </div>
-        `;
-        return;
-    }
-
-    if (!data.length) {
-        container.innerHTML = `
-            <div class="p-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
-                <p class="text-3xl mb-4">👥</p>
-                <p class="text-slate-500 font-bold text-sm uppercase tracking-tight">No employee records found</p>
-                <p class="text-xs text-slate-400 mt-1">Employee data is generated from recorded expenses.</p>
-            </div>
-        `;
-        return;
-    }
-
-    const totalMoneyTaken = data.reduce((sum, e) => sum + (e.total || 0), 0);
-
-    let html = `
-        <div class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-indigo-50 dark:bg-indigo-900/30 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
-                <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Total Money Taken</p>
-                <p class="text-3xl font-black text-indigo-900 dark:text-white mt-1">${formatCurrency(totalMoneyTaken)}</p>
-            </div>
-            <div class="bg-emerald-50 dark:bg-emerald-900/30 p-6 rounded-2xl border border-emerald-100 dark:border-emerald-800 shadow-sm">
-                <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Active Employees</p>
-                <p class="text-3xl font-black text-emerald-900 dark:text-white mt-1">${data.length}</p>
-            </div>
-            <div class="md:col-span-1 flex items-end">
-                <div class="w-full relative">
-                    <input type="text" id="employeeSearch" placeholder="Search employee..." 
-                           oninput="filterEmployeeGrid(this.value)"
-                           class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm">
-                    <span class="absolute right-4 top-3 text-slate-400">🔍</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="employeeGrid">
-            ${data.map(emp => {
-        // Escape single quotes for the onclick handler
-        const safeName = emp.name.replace(/'/g, "\\'");
-        return `
-                <div class="employee-card bg-white dark:bg-slate-700/50 p-5 rounded-xl border border-slate-200 dark:border-slate-600 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer group shadow-sm hover:shadow-md" 
-                     data-name="${emp.name.toLowerCase()}"
-                     onclick="viewEmployeeHistory('${shopPrefix}', '${safeName}')">
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 font-bold group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                            ${(emp.name || 'E').charAt(0).toUpperCase()}
-                        </div>
-                        <span class="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-full font-bold">
-                            ${emp.count} Entries
-                        </span>
-                    </div>
-                    <h4 class="text-lg font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">${emp.name}</h4>
-                    <p class="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">${formatCurrency(emp.total)}</p>
-                    <div class="mt-4 flex items-center text-xs font-semibold text-slate-400 group-hover:text-indigo-500 transition-colors">
-                        View History
-                        <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
-                    </div>
-                </div>
-                `;
-    }).join('')}
-        </div>
-    `;
-
-    container.innerHTML = html;
-}
-
-/**
- * Fetches and renders detailed history for a specific employee
- */
-async function viewEmployeeHistory(shopPrefix, employeeName) {
-    showLoading(true);
-    const container = document.getElementById('dataTypeContentContainer');
-
-    try {
-        const response = await fetch(`${BASE_URL}/api/${shopPrefix}/employee/history?name=${encodeURIComponent(employeeName)}&start=${dateRange.start}&end=${dateRange.end}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-        });
-
-        if (!response.ok) throw new Error("Failed to fetch history");
-        const history = await response.json();
-
-        const total = history.reduce((sum, h) => sum + (h.amount || 0), 0);
-
-        let html = `
-            <div class="mb-6 flex items-center justify-between">
-                <button onclick="renderContent('${shopPrefix}', 'employees')" class="flex items-center text-sm font-bold text-slate-500 hover:text-indigo-600 transition-colors">
-                    <svg class="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Back to List
-                </button>
-                <div class="text-right">
-                    <h3 class="text-2xl font-black text-slate-800 dark:text-white">${employeeName}</h3>
-                    <p class="text-sm font-bold text-indigo-600 dark:text-indigo-400">Total: ${formatCurrency(total)}</p>
-                </div>
-            </div>
-
-            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-50 dark:bg-slate-700/50">
-                        <tr>
-                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
-                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
-                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Description / Remarks</th>
-                            <th class="p-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                        ${history.map(item => `
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-sm">
-                                <td class="p-4 font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">${new Date(item.date).toLocaleDateString()}</td>
-                                <td class="p-4">
-                                    <span class="px-2 py-1 rounded-md text-xs font-bold bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 uppercase">
-                                        ${item.cat || 'Misc'}
-                                    </span>
-                                </td>
-                                <td class="p-4 text-slate-700 dark:text-slate-200">${item.remarks || item.desc || '-'}</td>
-                                <td class="p-4 text-right font-bold text-slate-900 dark:text-white">${formatCurrency(item.amount)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-
-        container.innerHTML = html;
-    } catch (error) {
-        logError(error.message);
-    } finally {
-        showLoading(false);
-    }
-}
-
-function aggregateDailyCategories(filteredData, typeField) {
-    const dailyAggregates = filteredData.reduce((acc, doc) => {
         const dateStr = new Date(doc.date).toISOString().split('T')[0];
-        const type = doc[typeField] ? doc[typeField].toUpperCase() : 'OTHER';
+        const cat = doc.dept || 'Uncategorized';
+        categoriesSet.add(cat);
         const amount = doc.amount || 0;
 
-        if (!acc[dateStr]) {
-            acc[dateStr] = { dateStr: dateStr, total: 0, count: 0, breakdown: {} };
+        if (!dailyAggregatesMap.has(dateStr)) {
+            dailyAggregatesMap.set(dateStr, { dateStr, total: 0, count: 0, breakdown: {} });
         }
+        const day = dailyAggregatesMap.get(dateStr);
+        day.total += amount;
+        day.count += 1;
+        day.breakdown[cat] = (day.breakdown[cat] || 0) + amount;
+    });
 
-        acc[dateStr].total += amount;
-        acc[dateStr].count += 1;
+    const categories = Array.from(categoriesSet).sort();
+    let dailyData = Array.from(dailyAggregatesMap.values());
+    const currentSort = state.sortState[tableId];
+    if (currentSort) dailyData = sortArray(dailyData, currentSort.key, currentSort.dir);
+    else dailyData = sortArray(dailyData, 'dateStr', 'asc');
 
-        if (!acc[dateStr].breakdown[type]) {
-            acc[dateStr].breakdown[type] = 0;
-        }
-        acc[dateStr].breakdown[type] += amount;
+    const breakdown = expenseData.categoryTotals || {};
+    const total = expenseData.totalAmount || 0;
 
-        return acc;
-    }, {});
+    let finalHtml = `
+        <div class="space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="stat-card bg-red-50 p-6 rounded-xl border border-red-100">
+                    <p class="text-xs font-bold text-red-600 uppercase mb-2">Total Expense</p>
+                    <p class="text-3xl font-black text-red-700">${formatCurrency(total)}</p>
+                </div>
+                ${Object.entries(breakdown).slice(0, 3).map(([key, val]) => `
+                    <div class="stat-card bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-bold text-slate-500 uppercase mb-2">${key}</p>
+                        <p class="text-xl font-bold text-slate-700">${formatCurrency(val)}</p>
+                    </div>
+                `).join('')}
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-4">Daily Expense Trend (By Department)</h3>
+                ${renderDailyCategoryTrendTable(dailyData, categories, 'Expenses', tableId)}
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-4">All Expense Records</h3>
+                ${renderStandardTable(shopPrefix, expenseData, 'expense', false)}
+            </div>
+        </div>
+    `;
 
-    return Object.values(dailyAggregates);
+    container.innerHTML = finalHtml;
 }
+
+function renderEmployeeSection(shopPrefix, container) {
+    // Check both plural and singular keys just in case
+    const data = state.allResults[`${shopPrefix}|employee`] || state.allResults[`${shopPrefix}|employees`];
+
+    if (!container) container = document.getElementById('dataTypeContentContainer');
+    if (!container) return;
+
+    if (!data) {
+        container.innerHTML = '<p class="text-center text-gray-500 mt-4 italic">No employee data loaded in cache.</p>';
+        return;
+    }
+
+    if (data.isError) {
+        container.innerHTML = `
+            <div class="p-6 bg-red-50 border border-red-200 rounded-xl text-center">
+                <p class="text-red-700 font-bold">Failed to load staff data</p>
+                <p class="text-red-600 text-sm mt-1">${data.errorMessage || 'Unknown API Error'}</p>
+            </div>`;
+        return;
+    }
+
+    if (!data.employees || data.employees.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-10 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                <p class="text-slate-500 font-medium whitespace-pre-wrap">No staff activity found in ${shopPrefix}
+Between ${state.dateRange.start} and ${state.dateRange.end}</p>
+            </div>`;
+        return;
+    }
+
+    const employees = data.employees;
+
+    // Calculate Summary Stats
+    const totalEmployees = employees.length;
+    let totalSalaries = 0;
+    let activeCount = 0;
+
+    const cardsHtml = employees.map(emp => {
+        const salary = emp.total || 0;
+        totalSalaries += salary;
+        const status = emp.status || 'active';
+        if (status === 'active') activeCount++;
+
+        return `
+        <div class="employee-card bg-white rounded-xl shadow border border-slate-200 p-4 hover:shadow-md transition-shadow relative group cursor-pointer" 
+             data-name="${emp.name.toLowerCase()}"
+             onclick="viewEmployeeHistory('${shopPrefix}', '${emp.name}')">
+            <div class="flex items-center space-x-4">
+               <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
+                    ${emp.name.charAt(0).toUpperCase()}
+               </div>
+               <div>
+                   <h4 class="font-bold text-slate-800">${emp.name}</h4>
+                   <p class="text-xs text-slate-500">${emp.designation || 'Staff Member'}</p>
+               </div>
+            </div>
+            <div class="mt-4 border-t border-slate-100 pt-3">
+                 <div class="flex justify-between text-sm mb-1">
+                    <span class="text-slate-500">Period Earnings</span>
+                    <span class="font-semibold text-slate-700">${formatCurrency(salary)}</span>
+                 </div>
+                 <div class="flex justify-between text-sm">
+                    <span class="text-slate-500">Records</span>
+                    <span class="font-semibold text-slate-700">${emp.count || 0} entries</span>
+                 </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="space-y-6">
+            <!-- Summary Header -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                     <p class="text-xs text-indigo-600 uppercase font-semibold">Total Staff</p>
+                     <p class="text-2xl font-bold text-indigo-900">${totalEmployees}</p>
+                 </div>
+                 <div class="bg-green-50 p-4 rounded-xl border border-green-100">
+                     <p class="text-xs text-green-600 uppercase font-semibold">Active Now</p>
+                     <p class="text-2xl font-bold text-green-900">${activeCount}</p>
+                 </div>
+                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                     <p class="text-xs text-slate-500 uppercase font-semibold">Total Payroll (Basic)</p>
+                     <p class="text-2xl font-bold text-slate-700">${formatCurrency(totalSalaries)}</p>
+                 </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative">
+                 <input type="text" placeholder="Search employees..." 
+                    class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                    oninput="filterEmployeeGrid(this.value)">
+                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                 </div>
+            </div>
+
+            <!-- Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="employeeGrid">
+                ${cardsHtml}
+            </div>
+        </div>
+    `;
+
+    // Expose filter function to global scope for the oninput handler
+    // Actually we imported `filterEmployeeGrid` from UI.
+    // Wait, the `oninput = "filterEmployeeGrid(this.value)"` assumes global function.
+    // We should attach it to window in UI.js or duplicate logic here.
+    // Since we imported UI logic, `ui.js` has `filterEmployeeGrid`.
+    if (typeof window.filterEmployeeGrid === 'undefined') {
+        // It should be attached in ui.js or main.js. 
+        // Assuming main.js handles linking, or I should reference it if I can.
+        // But in module HTML, string handlers need global access.
+        // I'll make sure main.js or ui.js attaches it.
+        // For now, I'll rely on it being global.
+    }
+}
+
+/**
+ * Renders a detailed history modal for an employee.
+ */
+async function viewEmployeeHistory(shop, name) {
+    const { fetchEmployeeHistory } = await import('./api.js');
+
+    // Create Modal Container
+    let modal = document.getElementById('employeeHistoryModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'employeeHistoryModal';
+        modal.className = 'fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4';
+        modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+        document.body.appendChild(modal);
+    }
+
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in duration-200">
+            <div class="p-8 flex items-center justify-center">
+                <div class="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+            </div>
+        </div>
+        `;
+
+    try {
+        const history = await fetchEmployeeHistory(shop, name);
+
+        const totalEarned = history.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+        modal.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+                <!-- Header -->
+                <div class="bg-indigo-600 p-6 text-white flex justify-between items-start shrink-0">
+                    <div>
+                        <div class="flex items-center gap-3 mb-1">
+                            <div class="h-12 w-12 rounded-lg bg-white/20 flex items-center justify-center font-bold text-xl">${name.charAt(0).toUpperCase()}</div>
+                            <div>
+                                <h3 class="text-2xl font-bold">${name}</h3>
+                                <p class="text-indigo-100 text-sm">Staff Activity Log • ${shop}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('employeeHistoryModal').classList.add('hidden')" class="text-indigo-200 hover:text-white p-2 rounded-lg transition-colors">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                    <div class="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Total Earned</p>
+                        <p class="text-lg font-black text-indigo-600">${formatCurrency(totalEarned)}</p>
+                    </div>
+                    <div class="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <p class="text-[10px] font-bold text-slate-500 uppercase">Entries</p>
+                        <p class="text-lg font-black text-slate-700 dark:text-slate-200">${history.length}</p>
+                    </div>
+                </div>
+
+                <!-- History Table Area -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scroll">
+            ${history.length === 0 ? '<p class="text-center text-slate-500 py-10">No records found for this period.</p>' : `
+                        <div class="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+                            <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700/50 dark:text-slate-300">
+                                    <tr>
+                                        <th class="px-6 py-3">Date</th>
+                                        <th class="px-6 py-3">Category</th>
+                                        <th class="px-6 py-3">Reference/Note</th>
+                                        <th class="px-6 py-3 text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                    ${history.map(row => `
+                                        <tr class="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                            <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-900 dark:text-white">
+                                                ${new Date(row.date).toLocaleDateString()}
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
+                                                    ${row.cat || 'General'}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-xs text-slate-500 max-w-[200px] truncate">
+                                                ${row.description || row.dept || '-'}
+                                            </td>
+                                            <td class="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">
+                                                ${formatCurrency(row.amount)}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                     `}
+        </div>
+            </div>
+        `;
+    } catch (err) {
+        modal.innerHTML = `
+            <div class="bg-white p-8 rounded-2xl text-center">
+                <p class="text-red-500 font-bold">Failed to load history</p>
+                <p class="text-sm text-slate-500 mt-2">${err.message}</p>
+                <button onclick="document.getElementById('employeeHistoryModal').classList.add('hidden')" class="mt-4 px-4 py-2 bg-slate-100 rounded-lg">Close</button>
+            </div>
+        `;
+    }
+}
+
+window.viewEmployeeHistory = viewEmployeeHistory;
+
+
+function renderLegendHTML(methods, total) {
+    const colors = { CASH: '#10b981', ADIB: '#6366f1', ATM: '#f59e0b', OTHER: '#94a3b8' };
+    const labels = { CASH: 'Cash', ADIB: 'Card/ADIB', ATM: 'ATM', OTHER: 'Other' };
+
+    let html = '<div class="space-y-3">';
+    for (const [key, val] of Object.entries(methods)) {
+        if (val > 0 || key === 'CASH') {
+            const percent = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+            html += `
+        <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center">
+                        <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${colors[key]}"></span>
+                        <span class="text-slate-600 font-medium">${labels[key]}</span>
+                    </div>
+                    <div class="flex items-center text-slate-700">
+                        <span class="font-bold mr-2">${formatCurrency(val)}</span>
+                        <span class="text-xs text-slate-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded">${percent}%</span>
+                    </div>
+                </div>
+        `;
+        }
+    }
+    html += '</div>';
+    return html;
+}
+
+
+// Helper functions (inline replacement of utils needed if not imported, but we imported them)
+
+// Attach global functions
+window.renderContent = renderContent;
+

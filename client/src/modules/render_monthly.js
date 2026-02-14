@@ -1,13 +1,17 @@
+import { state } from './state.js';
+import { formatCurrency, isCanceledStatus, sortArray, getSortIcon } from './utils.js';
+
+
 // --- MONTHLY SUMMARY RENDERING ---
 
 /**
  * Aggregates data by month across all data types.
  */
 function aggregateMonthlyData(shopPrefix) {
-    // This function relies on 'bookings', 'delivery', and 'expense' being present in allResults
-    const allBookings = allResults[`${shopPrefix}|bookings`]?.filteredData || [];
-    const allDeliveries = allResults[`${shopPrefix}|delivery`]?.filteredData || [];
-    const allExpenses = allResults[`${shopPrefix}|expense`]?.filteredData || [];
+    // This function relies on 'bookings', 'delivery', and 'expense' being present in state.allResults
+    const allBookings = state.allResults[`${shopPrefix}|bookings`]?.filteredData || [];
+    const allDeliveries = state.allResults[`${shopPrefix}|delivery`]?.filteredData || [];
+    const allExpenses = state.allResults[`${shopPrefix}|expense`]?.filteredData || [];
 
     const monthlyData = {}; // Key: "YYYY-MM"
 
@@ -106,7 +110,7 @@ function aggregateMonthlyData(shopPrefix) {
 }
 
 
-function renderMonthlySummary(shopPrefix) {
+export function renderMonthlySummary(shopPrefix) {
     const container = document.getElementById('dataTypeContentContainer');
     const monthlyData = aggregateMonthlyData(shopPrefix);
 
@@ -141,7 +145,7 @@ function renderMonthlySummary(shopPrefix) {
 
 function renderMonthlyBookingsTable(monthlyData, shopPrefix) {
     const tableId = `${shopPrefix}_monthly_bookings`;
-    const currentSort = sortState[tableId];
+    const currentSort = state.sortState[tableId];
 
     if (currentSort) {
         monthlyData = sortArray([...monthlyData], currentSort.key, currentSort.dir);
@@ -235,7 +239,7 @@ function renderMonthlyDeliveriesTable(monthlyData, shopPrefix) {
     // Sort categories: prioritize CASH, ADIB, ATM, then alphabetize others
     const categories = ['CASH', 'ADIB', 'ATM'];
 
-    const currentSort = sortState[tableId];
+    const currentSort = state.sortState[tableId];
     if (currentSort) {
         monthlyData = sortArray([...monthlyData], currentSort.key, currentSort.dir);
     }
@@ -305,7 +309,7 @@ function renderMonthlyDeliveriesTable(monthlyData, shopPrefix) {
 
 function renderMonthlyExpensesTable(monthlyData, shopPrefix) {
     const tableId = `${shopPrefix}_monthly_expenses`;
-    const currentSort = sortState[tableId];
+    const currentSort = state.sortState[tableId];
 
     if (currentSort) {
         monthlyData = sortArray([...monthlyData], currentSort.key, currentSort.dir);

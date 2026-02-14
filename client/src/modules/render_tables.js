@@ -1,9 +1,13 @@
+import { state } from './state.js';
+import { sortArray, formatCurrency, isCanceledStatus, getSortIcon } from './utils.js';
+
 // --- REUSABLE TABLE RENDERERS ---
 
 /**
  * Renders a standard table for any data type (Bookings, Delivery, Expenses).
  */
-function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) {
+export function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) {
+
     if (data.filteredData.length === 0) {
         return '<p class="text-center text-gray-500 mt-4">No data found in the selected date range.</p>';
     }
@@ -12,7 +16,8 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
     let filteredData = [...data.filteredData];
 
     // Apply sorting
-    const currentSort = sortState[tableId];
+    const currentSort = state.sortState[tableId];
+
     if (currentSort) {
         filteredData = sortArray(filteredData, currentSort.key, currentSort.dir);
     } else {
@@ -20,7 +25,7 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
     }
 
     // Apply Search Filtering
-    const searchQuery = searchState[tableId] || '';
+    const searchQuery = state.searchState[tableId] || '';
     if (searchQuery) {
         const lowerQ = searchQuery.toLowerCase();
         filteredData = filteredData.filter(doc => {
@@ -34,7 +39,7 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
     const rowsPerPage = 50;
     const totalRows = filteredData.length;
     const totalPages = Math.ceil(totalRows / rowsPerPage);
-    const currentPage = pageState[tableId] || 1;
+    const currentPage = state.pageState[tableId] || 1;
 
     // Slice data for current page
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -63,7 +68,7 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
     // Generate header row with sort handlers
     const headerRow = relevantKeys.map(key => {
         const headerText = headerMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
-        return `<th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('${key}', '${tableId}', renderContent)">
+        return `<th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('${key}', '${tableId}')">
             ${headerText} ${getSortIcon(key, tableId)}
         </th>`;
     }).join('');
@@ -153,28 +158,28 @@ function renderStandardTable(shopPrefix, data, dataType, showCanceledIndicator) 
     `;
 }
 
-function handlePageChange(tableId, newPage) {
-    pageState[tableId] = newPage;
+export function handlePageChange(tableId, newPage) {
+    state.pageState[tableId] = newPage;
     // Re-render the current view
-    if (typeof renderContent === 'function') {
-        renderContent(activeShop, activeDataType);
+    if (typeof window.renderContent === 'function') {
+        window.renderContent(state.activeShop, state.activeDataType);
     }
 }
 
 /**
  * Renders the day-wise table for Net Bookings.
  */
-function renderDailyNetBookingTable(dailyData, dataTypeLabel, tableId) {
+export function renderDailyNetBookingTable(dailyData, dataTypeLabel, tableId) {
     if (dailyData.length === 0) {
         return `<p class="text-center text-gray-500 mt-4">No daily ${dataTypeLabel.toLowerCase()} trend data found in the selected date range.</p>`;
     }
 
     let headerCells = `
-        <th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('dateStr', '${tableId}', renderContent)">Date ${getSortIcon('dateStr', tableId)}</th>
-        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('gross', '${tableId}', renderContent)">Gross Bookings ${getSortIcon('gross', tableId)}</th>
-        <th scope="col" class="px-6 py-3 text-right text-red-700-bold sortable-header" onclick="handleSort('canceled', '${tableId}', renderContent)">Canceled/Deducted ${getSortIcon('canceled', tableId)}</th>
-        <th scope="col" class="px-6 py-3 text-right bg-green-100/50 text-green-700-bold sortable-header" onclick="handleSort('net', '${tableId}', renderContent)">Net Booking Total ${getSortIcon('net', tableId)}</th>
-        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('count', '${tableId}', renderContent)">Count ${getSortIcon('count', tableId)}</th>
+        <th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('dateStr', '${tableId}')">Date ${getSortIcon('dateStr', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('gross', '${tableId}')">Gross Bookings ${getSortIcon('gross', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right text-red-700-bold sortable-header" onclick="handleSort('canceled', '${tableId}')">Canceled/Deducted ${getSortIcon('canceled', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right bg-green-100/50 text-green-700-bold sortable-header" onclick="handleSort('net', '${tableId}')">Net Booking Total ${getSortIcon('net', tableId)}</th>
+        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('count', '${tableId}')">Count ${getSortIcon('count', tableId)}</th>
     `;
     let rowCells = '';
 
@@ -214,7 +219,7 @@ function renderDailyNetBookingTable(dailyData, dataTypeLabel, tableId) {
 /**
  * Renders the day-wise multi-category table for Deliveries and Expenses.
  */
-function renderDailyCategoryTrendTable(dailyAggregates, allCategories, dataTypeLabel, tableId) {
+export function renderDailyCategoryTrendTable(dailyAggregates, allCategories, dataTypeLabel, tableId) {
     if (dailyAggregates.length === 0) {
         return `<p class="text-center text-gray-500 mt-4">No daily ${dataTypeLabel.toLowerCase()} trend data found in the selected date range.</p>`;
     }
@@ -222,7 +227,7 @@ function renderDailyCategoryTrendTable(dailyAggregates, allCategories, dataTypeL
     const isExpense = dataTypeLabel === 'Expenses';
 
     // --- 1. Build Headers ---
-    let headerCells = `<th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('dateStr', '${tableId}', renderContent)">Date ${getSortIcon('dateStr', tableId)}</th>`;
+    let headerCells = `<th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('dateStr', '${tableId}')">Date ${getSortIcon('dateStr', tableId)}</th>`;
 
     const totalLabel = isExpense ? 'Total Expense' : 'Grand Total';
     const totalBgClass = isExpense ? 'bg-red-100/50' : 'bg-teal-100/50';
@@ -230,20 +235,20 @@ function renderDailyCategoryTrendTable(dailyAggregates, allCategories, dataTypeL
 
     // 1a. Expense: Total column first
     if (isExpense) {
-        headerCells += `<th scope="col" class="px-6 py-3 text-right font-bold ${totalBgClass} sortable-header" onclick="handleSort('${totalSortKey}', '${tableId}', renderContent)">${totalLabel} ${getSortIcon(totalSortKey, tableId)}</th>`;
+        headerCells += `<th scope="col" class="px-6 py-3 text-right font-bold ${totalBgClass} sortable-header" onclick="handleSort('${totalSortKey}', '${tableId}')">${totalLabel} ${getSortIcon(totalSortKey, tableId)}</th>`;
     }
 
     // 1b. Category columns
     allCategories.forEach(cat => {
-        headerCells += `<th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('breakdown.${cat}', '${tableId}', renderContent)">${cat.charAt(0).toUpperCase() + cat.slice(1)} ${getSortIcon(`breakdown.${cat}`, tableId)}</th>`;
+        headerCells += `<th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('breakdown.${cat}', '${tableId}')">${cat.charAt(0).toUpperCase() + cat.slice(1)} ${getSortIcon(`breakdown.${cat}`, tableId)}</th>`;
     });
 
     // 1c. Deliveries: Total column last
     if (!isExpense) {
-        headerCells += `<th scope="col" class="px-6 py-3 text-right font-bold ${totalBgClass} sortable-header" onclick="handleSort('${totalSortKey}', '${tableId}', renderContent)">${totalLabel} ${getSortIcon(totalSortKey, tableId)}</th>`;
+        headerCells += `<th scope="col" class="px-6 py-3 text-right font-bold ${totalBgClass} sortable-header" onclick="handleSort('${totalSortKey}', '${tableId}')">${totalLabel} ${getSortIcon(totalSortKey, tableId)}</th>`;
     }
 
-    headerCells += `<th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('count', '${tableId}', renderContent)">Count ${getSortIcon('count', tableId)}</th>`;
+    headerCells += `<th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('count', '${tableId}')">Count ${getSortIcon('count', tableId)}</th>`;
 
     // --- 2. Build Rows ---
     let rowCells = '';

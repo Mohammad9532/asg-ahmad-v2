@@ -1,9 +1,12 @@
+
+import { state } from './state.js';
+
 /**
  * overview.js
  * Handles the logic for the "Dashboard Overview" - the screen shown when no shop is selected.
  */
 
-window.renderOverview = function () {
+export function renderOverview() {
     const container = document.getElementById('dataTypeContentContainer');
     const tabsContainer = document.getElementById('dataTypeTabsContainer');
     const statusMessage = document.getElementById('statusMessage');
@@ -11,7 +14,7 @@ window.renderOverview = function () {
     if (!container) return;
 
     // Show status message if no shop selected
-    if (!window.state || !window.state.currentShop) {
+    if (!state || !state.currentShop) {
         if (tabsContainer) tabsContainer.classList.add('hidden');
         if (statusMessage) statusMessage.classList.remove('hidden');
         container.innerHTML = '';
@@ -19,12 +22,8 @@ window.renderOverview = function () {
     }
 
     // If shop is selected, this file might provide overall metrics
-};
+    // Note: render.js currently handles the main overview dashboard.
+}
 
-// Listen for custom events if needed
-document.addEventListener('DOMContentLoaded', () => {
-    // Initial check
-    if (typeof renderOverview === 'function') {
-        renderOverview();
-    }
-});
+// Attach to window for backward compatibility if needed, though mostly unused if render.js handles it.
+window.renderOverview = renderOverview;

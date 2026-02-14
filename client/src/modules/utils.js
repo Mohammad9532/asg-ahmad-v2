@@ -1,4 +1,6 @@
-function formatCurrency(amount) {
+import { state } from './state.js';
+
+export function formatCurrency(amount) {
     const num = Number(amount);
     if (isNaN(num)) return 'AED 0.00';
     const sign = num < 0 ? '-' : '';
@@ -8,8 +10,8 @@ function formatCurrency(amount) {
 /**
  * Generic data sorting function.
  */
-function sortArray(data, key, direction) {
-    const numericKeys = ['totalAmount', 'gross', 'canceled', 'net', 'delivery', 'expense', 'CASH', 'ADIB', 'ATM', 'count', 'total', 'amount'];
+export function sortArray(data, key, direction) {
+    const numericKeys = ['totalAmount', 'gross', 'cancelAmount', 'netAmount', 'delivery', 'expense', 'CASH', 'ADIB', 'ATM', 'count', 'total', 'amount'];
 
     data.sort((a, b) => {
         let aVal = a[key] || 0;
@@ -45,9 +47,9 @@ function sortArray(data, key, direction) {
 /**
  * Gets the sort icon HTML based on the current state.
  */
-function getSortIcon(key, tableId) {
-    // sortState is defined in state.js/main scope, assumed available globally
-    const currentSort = typeof sortState !== 'undefined' ? sortState[tableId] : null;
+export function getSortIcon(key, tableId) {
+    // sortState is defined in state.js
+    const currentSort = state.sortState ? state.sortState[tableId] : null;
     if (!currentSort || currentSort.key !== key) {
         // Default: show neutral up/down arrow icon
         return `<span class="sort-icon text-gray-400">▲▼</span>`;
@@ -59,7 +61,7 @@ function getSortIcon(key, tableId) {
 /**
  * Helper to check if a status string represents a canceled/deducted record.
  */
-function isCanceledStatus(status) {
+export function isCanceledStatus(status) {
     if (status === null || status === undefined) return false;
     const s = String(status).toLowerCase().trim();
     return s === 'cancel' || s === 'canceled' || s === 'cancelled' || s === 'deducted';
@@ -68,7 +70,7 @@ function isCanceledStatus(status) {
 /**
  * Calculates the total sum of amount for all canceled/deducted documents in an array.
  */
-function calculateCanceledSum(dataArray) {
+export function calculateCanceledSum(dataArray) {
     if (!Array.isArray(dataArray)) return 0;
     return dataArray
         .filter(doc => isCanceledStatus(doc.status))
@@ -78,9 +80,9 @@ function calculateCanceledSum(dataArray) {
 /**
  * Calculates the total amount of canceled items bookings data.
  */
-function getTotalCanceledAmount(shopPrefix) {
+export function getTotalCanceledAmount(shopPrefix) {
     // allResults defined in state.js
-    const bookingsData = allResults[`${shopPrefix}|bookings`];
+    const bookingsData = state.allResults[`${shopPrefix}|bookings`];
     let totalCanceled = 0;
 
     if (bookingsData?.filteredData) {
@@ -92,8 +94,8 @@ function getTotalCanceledAmount(shopPrefix) {
 /**
  * Calculates the total amount for the Gross Bookings.
  */
-function getTotalBookingsAmount(shopPrefix) {
-    const bookingsData = allResults[`${shopPrefix}|bookings`];
+export function getTotalBookingsAmount(shopPrefix) {
+    const bookingsData = state.allResults[`${shopPrefix}|bookings`];
     let totalBookings = 0;
 
     if (bookingsData?.filteredData) {

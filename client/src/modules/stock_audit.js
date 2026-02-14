@@ -1,3 +1,7 @@
+import { state } from './state.js';
+import { BASE_URL } from './config.js';
+import { formatCurrency } from './utils.js';
+
 // Stock Audit Logic
 
 // State management for the audit view
@@ -9,7 +13,7 @@ let currentAuditData = []; // Store fetched data for filtering (History/Archived
  * It fetches the pending stock data (Bookings - Deliveries) from the API and displays it.
  * @param {string} shop - The shop prefix (e.g., 'Naseem')
  */
-async function renderStockAuditView(shop) {
+export async function renderStockAuditView(shop) {
     const container = document.getElementById('dataTypeContentContainer');
 
     // Header with Tabs and Actions
@@ -65,8 +69,8 @@ async function loadAuditContent(shop) {
 
     // --- INSTANT PREVIEW CHECK ---
     const cacheKey = `${shop}|stock_audit|${currentAuditStatus}`;
-    if (typeof allResults !== 'undefined' && allResults[cacheKey]) {
-        currentAuditData = allResults[cacheKey];
+    if (state.allResults && state.allResults[cacheKey]) {
+        currentAuditData = state.allResults[cacheKey];
         if (currentAuditStatus === 'pending') renderPendingTable(shop, currentAuditData);
         else if (currentAuditStatus === 'verified') renderHistoryTable(shop, currentAuditData);
         else if (currentAuditStatus === 'archived') renderArchivedTable(shop, currentAuditData);
@@ -83,8 +87,8 @@ async function loadAuditContent(shop) {
         currentAuditData = await fetchStockAuditData(shop, currentAuditStatus);
 
         // --- CACHE FOR INSTANT RE-VISIT ---
-        if (typeof allResults !== 'undefined') {
-            allResults[cacheKey] = currentAuditData;
+        if (state.allResults) {
+            state.allResults[cacheKey] = currentAuditData;
         }
 
         if (currentAuditStatus === 'pending') {
@@ -157,9 +161,9 @@ async function archiveCurrentAudit(shop) {
         const result = await response.json();
 
         // --- CLEAR CACHE ON ARCHIVE ---
-        if (typeof allResults !== 'undefined') {
-            Object.keys(allResults).forEach(key => {
-                if (key.startsWith(`${shop}|stock_audit|`)) delete allResults[key];
+        if (state.allResults) {
+            Object.keys(state.allResults).forEach(key => {
+                if (key.startsWith(`${shop}|stock_audit|`)) delete state.allResults[key];
             });
         }
 
@@ -776,9 +780,9 @@ async function verifyStockAuditItem(shop, billNo, qty, amount) {
 
         // --- CLEAR CACHE ON VERIFICATION ---
         // We need to invalidate both pending and verified views
-        if (typeof allResults !== 'undefined') {
-            delete allResults[`${shop}|stock_audit|pending`];
-            delete allResults[`${shop}|stock_audit|verified`];
+        if (state.allResults) {
+            delete state.allResults[`${shop}|stock_audit|pending`];
+            delete state.allResults[`${shop}|stock_audit|verified`];
         }
 
         // Add success effect and remove
@@ -799,6 +803,14 @@ async function verifyStockAuditItem(shop, billNo, qty, amount) {
     }
 }
 
-function printAuditList() {
-    window.print();
-}
+// Attach functions to window for global access
+window.switchAuditTab = switchAuditTab;
+window.archiveCurrentAudit = archiveCurrentAudit;
+window.showBillDetails = showBillDetails;
+window.verifyStockAuditItem = verifyStockAuditItem;
+window.closeBillDetails = closeBillDetails;
+window.openArchiveBatch = openArchiveBatch;
+window.closeArchiveBatch = closeArchiveBatch;
+window.filterHistoryTable = filterHistoryTable;
+window.filterArchivedTable = filterArchivedTable;
+window.loadAuditContent = loadAuditContent; // Used in Retry button

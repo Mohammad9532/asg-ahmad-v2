@@ -406,7 +406,7 @@ const createEmployeeSummaryRoute = (ExpenseModel) => async (req, res) => {
         ];
 
         const summary = await ExpenseModel.aggregate(pipeline);
-        res.json(summary);
+        res.json({ employees: summary });
     } catch (err) {
         console.error("Employee Summary Error:", err);
         res.status(500).json({ error: "Failed to fetch employee summary." });
@@ -522,31 +522,87 @@ const createDailyLedgerRoute = (BookingModel, DeliveryModel, ExpenseModel) => as
         let totalDailyDelivery = 0;
         const deliveryMap = {};
 
+        // Fetch All Daily Entries for the Table
+        const entries = [];
+
+        // Add Cash Deliveries as Income/Credit
         dayDeliveries.forEach(d => {
             const amt = d.amount || 0;
             totalDailyDelivery += amt;
+
             let category = 'CASH';
+            let isCash = true;
             if (d.amountType) {
                 const typeRaw = String(d.amountType).toUpperCase().trim();
-                if (typeRaw.includes('CARD') || typeRaw.includes('VISA') || typeRaw.includes('MASTER') || typeRaw.includes('ADIB')) category = 'ADIB';
-                else if (typeRaw.includes('ATM')) category = 'ATM';
+                if (typeRaw.includes('CARD') || typeRaw.includes('VISA') || typeRaw.includes('MASTER') || typeRaw.includes('ADIB')) {
+                    category = 'ADIB';
+                    isCash = false;
+                } else if (typeRaw.includes('ATM')) {
+                    category = 'ATM';
+                    isCash = false;
+                }
             }
+
             if (!deliveryMap[category]) deliveryMap[category] = 0;
             deliveryMap[category] += amt;
-            if (category === 'CASH') totalDailyCash += amt;
+
+            if (isCash) {
+                totalDailyCash += amt;
+                entries.push({
+                    type: 'credit',
+                    category: category,
+                    description: `Delivery - ${d.billNo || 'No Bill'}`,
+                    amount: amt,
+                    billNo: d.billNo,
+                    status: d.status
+                });
+            }
         });
+
+        // Add Bookings as Income/Credit (Order Bookings)
+        const bookings = await BookingModel.find(dayFilter).lean();
+        bookings.forEach(b => {
+            entries.push({
+                type: 'credit',
+                category: 'ORDER',
+                description: `Booking - ${b.billNo || 'No Bill'} (${b.name || 'No Name'})`,
+                amount: b.amount || 0,
+                billNo: b.billNo,
+                status: b.status
+            });
+        });
+
+        // Add Expenses as Debit
+        const expenses = await ExpenseModel.find(dayFilter).lean();
+        expenses.forEach(e => {
+            entries.push({
+                type: 'debit',
+                category: e.cat || 'General',
+                description: e.description || e.name || 'Expense',
+                amount: e.amount || 0,
+                status: e.status
+            });
+        });
+
+        // Add Booking placeholders if any (optional, usually ledger is cash-flow focused)
+        // For this app, ledger seems to be cash box focused.
 
         const closingBalance = (selectedDate < startFrom) ? 0 : (openingBalance + totalDailyCash - totalExpense + adjAmount);
 
         res.json({
             openingBalance,
+            entries, // Added entries list
             deliveryBreakdown: deliveryMap,
             totalDelivery: totalDailyDelivery,
             totalCashDelivery: totalDailyCash,
             totalExpense,
             closingBalance,
             grossBooking,
-            adjustment: todayAdjustment || { amount: 0, note: "" },
+            adjustments: { // Renamed from adjustment to match dailyLedger.js
+                short: adjAmount < 0 ? Math.abs(adjAmount) : 0,
+                extra: adjAmount > 0 ? adjAmount : 0,
+                note: todayAdjustment ? todayAdjustment.note : ""
+            },
             hasSettings: !!settings,
             startDate: settings ? settings.startDate : null
         });

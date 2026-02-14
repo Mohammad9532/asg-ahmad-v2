@@ -1,6 +1,12 @@
+
+import { state } from './state.js';
+import { SHOP_PREFIXES } from './config.js';
+import { fetchEndpoint } from './api.js';
+import { showLoading } from './ui.js';
+
 // --- MISSING BILLS / AUDIT LOGIC ---
 
-function openMissingBillsModal() {
+export function openMissingBillsModal() {
     const modal = document.getElementById('missingBillsModal');
     // Render shop selection checkboxes each time modal opens
     renderShopSelection();
@@ -8,14 +14,14 @@ function openMissingBillsModal() {
     document.body.style.overflow = 'hidden';
 }
 
-function closeMissingBillsModal() {
+export function closeMissingBillsModal() {
     const modal = document.getElementById('missingBillsModal');
     modal.classList.add('hidden');
     document.body.style.overflow = '';
     document.getElementById('missingResults').innerHTML = '';
 }
 
-function autoSetRange() {
+export function autoSetRange() {
     let min = Infinity;
     let max = -Infinity;
     let hasData = false;
@@ -29,7 +35,7 @@ function autoSetRange() {
     // Iterate selected shops to find min/max
     shopsToScan.forEach(shop => {
         const key = `${shop}|bookings`;
-        const data = allResults[key];
+        const data = state.allResults[key];
         if (data && data.filteredData) {
             data.filteredData.forEach(doc => {
                 const raw = tryExtractBillValue(doc);
@@ -164,7 +170,7 @@ function renderShopSelection() {
     `).join('');
 }
 
-async function scanMissingBills(e) {
+export async function scanMissingBills(e) {
     if (e) e.preventDefault();
     const start = parseInt(document.getElementById('missingStart').value || '1', 10);
     const end = parseInt(document.getElementById('missingEnd').value || '5000', 10);
@@ -187,7 +193,7 @@ async function scanMissingBills(e) {
     const shopResults = {};
     selectedShops.forEach(shop => {
         const key = `${shop}|bookings`;
-        const bookingData = allResults[key];
+        const bookingData = state.allResults[key];
 
         // Use a generic logic to collect numbers: Map<number, count>
         const numberCounts = new Map();
@@ -278,9 +284,9 @@ async function scanMissingBills(e) {
     resultsContainer.innerHTML = html;
 }
 
-function downloadMissing(shop, start, end) {
+export function downloadMissing(shop, start, end) {
     const key = `${shop}|bookings`;
-    const bookingData = allResults[key];
+    const bookingData = state.allResults[key];
     const normalize = !!document.getElementById('normalizeBill')?.checked;
 
     const numberCounts = createNumberCountsMap(bookingData ? bookingData.filteredData : [], normalize);
@@ -312,9 +318,9 @@ function createNumberCountsMap(filteredData, normalize) {
     return numberCounts;
 }
 
-function copyMissing(shop, start, end) {
+export function copyMissing(shop, start, end) {
     const key = `${shop}|bookings`;
-    const bookingData = allResults[key];
+    const bookingData = state.allResults[key];
     const normalize = !!document.getElementById('normalizeBill')?.checked;
 
     const numberCounts = createNumberCountsMap(bookingData ? bookingData.filteredData : [], normalize);
@@ -342,22 +348,22 @@ function copyMissing(shop, start, end) {
     });
 }
 
-async function fetchSingleShop(shop) {
+export async function fetchSingleShop(shop) {
     try {
-        if (typeof showLoading === 'function') showLoading(true);
+        showLoading(true);
         // Fetch only bookings for this shop and update cache
-        await fetchEndpoint(shop, 'bookings', dateRange.start, dateRange.end);
+        await fetchEndpoint(shop, 'bookings', state.dateRange.start, state.dateRange.end);
         // After fetching, re-scan to update the results
         scanMissingBills();
     } catch (err) {
         console.error('Error fetching single shop bookings', err);
         alert('Failed to fetch bookings for ' + shop);
     } finally {
-        if (typeof showLoading === 'function') showLoading(false);
+        showLoading(false);
     }
 }
 
-function downloadAllMissingCSV() {
+export function downloadAllMissingCSV() {
     const start = parseInt(document.getElementById('missingStart').value || '1', 10);
     const end = parseInt(document.getElementById('missingEnd').value || '5000', 10);
     if (isNaN(start) || isNaN(end) || start < 1 || end < start) {
@@ -376,7 +382,7 @@ function downloadAllMissingCSV() {
 
     selectedShops.forEach(shop => {
         const key = `${shop}|bookings`;
-        const bookingData = allResults[key];
+        const bookingData = state.allResults[key];
 
         if (!(bookingData && Array.isArray(bookingData.filteredData))) {
             return;
@@ -406,3 +412,15 @@ function downloadAllMissingCSV() {
     a.click();
     document.body.removeChild(a);
 }
+
+
+// Global Attachments for HTML Access
+window.openMissingBillsModal = openMissingBillsModal;
+window.closeMissingBillsModal = closeMissingBillsModal;
+window.autoSetRange = autoSetRange;
+window.scanMissingBills = scanMissingBills;
+window.downloadAllMissingCSV = downloadAllMissingCSV;
+window.copyMissing = copyMissing;
+window.downloadMissing = downloadMissing;
+window.fetchSingleShop = fetchSingleShop;
+window.shopSelectionContainer = renderShopSelection; // Or just ensure it runs on modal open (it does)

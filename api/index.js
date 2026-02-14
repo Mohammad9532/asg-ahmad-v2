@@ -23,6 +23,7 @@ const MONGO_URI = process.env.MONGO_URI;
 // --- Middlewares ---
 app.use(express.json());
 app.use(cors());
+app.use(require('compression')()); // Enable Gzip/Brotli
 
 // --- Request Logger ---
 app.use((req, res, next) => {
@@ -53,22 +54,37 @@ mongoose.connect(MONGO_URI)
         process.exit(1);
     });
 
+// --- Static File Serving (SPA Support) ---
+// Serve from '../dist' (where Vite builds) or '../client' (dev fallback)
+const staticPath = path.join(__dirname, '../dist');
+const devPath = path.join(__dirname, '../client');
+
+// Serve static assets
+app.use(express.static(staticPath));
+app.use(express.static(devPath));
+
+// Fallback: serve index.html for any non-API routes (SPA support)
+app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+        // Try dist first, then client
+        const distIndex = path.resolve(staticPath, 'index.html');
+        const clientIndex = path.resolve(devPath, 'index.html');
+
+        const fs = require('fs');
+        if (fs.existsSync(distIndex)) {
+            return res.sendFile(distIndex);
+        } else if (fs.existsSync(clientIndex)) {
+            return res.sendFile(clientIndex);
+        }
+    }
+    next();
+});
+
 // --- Export app for Vercel ---
 module.exports = app;
 
 // --- Server Start Listener (for local dev) ---
 if (require.main === module) {
-    // Serve static files locally from the 'client' directory
-    app.use(express.static(path.join(__dirname, '../client')));
-
-    // Fallback: serve index.html for any non-API routes (SPA support)
-    app.use((req, res, next) => {
-        if (req.method === 'GET' && !req.path.startsWith('/api')) {
-            return res.sendFile(path.resolve(__dirname, '../client', 'index.html'));
-        }
-        next();
-    });
-
     // DEBUG: Global Error Handler
     app.use((err, req, res, next) => {
         console.error('Express Error Handler:', err);

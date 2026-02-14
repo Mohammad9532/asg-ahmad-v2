@@ -1,3 +1,8 @@
+
+import { SHOP_PREFIXES, BASE_URL } from './config.js';
+import { formatCurrency } from './utils.js';
+import { createEntry, fetchAllData } from './api.js';
+
 // Global state for Add Entry
 let currentEntryType = 'booking';
 let hasNewEntries = false; // Track if updates occurred
@@ -20,7 +25,7 @@ const EXPENSE_MAPPING = {
 
 // --- Modal Control ---
 
-function openAddEntryModal() {
+export function openAddEntryModal() {
     hasNewEntries = false; // Reset flag on open
     const modal = document.getElementById('addEntryModal');
     modal.classList.remove('hidden');
@@ -53,11 +58,7 @@ function openAddEntryModal() {
     const shopSelect = document.getElementById('entryShop');
     shopSelect.innerHTML = '';
 
-    // Use the global SHOP_PREFIXES array from config.js
-    const shops = typeof SHOP_PREFIXES !== 'undefined' ? SHOP_PREFIXES : [
-        'Albarieklamaa', 'Algaidamadam', 'Gaidamnasir', 'Gaidatailor',
-        'Galaxybranch', 'Galaxyzakhir', 'Gawanimadam', 'Naseem', 'Staralgawani'
-    ];
+    const shops = SHOP_PREFIXES; // Use imported constant
 
     shops.forEach(shop => {
         const option = document.createElement('option');
@@ -91,7 +92,7 @@ function openAddEntryModal() {
     };
 }
 
-function closeAddEntryModal() {
+export function closeAddEntryModal() {
     document.getElementById('addEntryModal').classList.add('hidden');
     document.getElementById('addEntryForm').reset();
 
@@ -99,8 +100,9 @@ function closeAddEntryModal() {
     clearEntryImage();
 
     // Only refresh if data was actually changed
-    if (hasNewEntries && window.fetchAllData) {
-        window.fetchAllData();
+    // Use imported fetchAllData directly
+    if (hasNewEntries) {
+        fetchAllData();
     }
 }
 
@@ -108,7 +110,7 @@ function closeAddEntryModal() {
 let entryImageZoom = 1;
 let isImageViewerInitialized = false;
 
-function toggleSideBySideMode() {
+export function toggleSideBySideMode() {
     const toggle = document.getElementById('sideBySideToggle');
     const isEnabled = toggle.checked;
     localStorage.setItem('sideBySideMode', isEnabled);
@@ -180,7 +182,7 @@ function handleGlobalPaste(e) {
     }
 }
 
-function handleImageFile(file) {
+export function handleImageFile(file) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const preview = document.getElementById('entryImagePreview');
@@ -203,7 +205,7 @@ function handleImageFile(file) {
     reader.readAsDataURL(file);
 }
 
-function clearEntryImage() {
+export function clearEntryImage() {
     const preview = document.getElementById('entryImagePreview');
     const placeholder = document.getElementById('imagePlaceholder');
     const clearBtn = document.getElementById('clearImageBtn');
@@ -220,7 +222,7 @@ function clearEntryImage() {
     }
 }
 
-function zoomImage(delta) {
+export function zoomImage(delta) {
     entryImageZoom += delta;
     if (entryImageZoom < 0.1) entryImageZoom = 0.1;
     if (entryImageZoom > 5) entryImageZoom = 5;
@@ -258,7 +260,7 @@ function setupDailyTotalsListeners() {
 
 let loadTotalsDebounceTimer = null;
 
-async function loadDailyTotals() {
+export async function loadDailyTotals() {
     // Basic debounce to prevent rapid switching spam
     if (loadTotalsDebounceTimer) clearTimeout(loadTotalsDebounceTimer);
 
@@ -346,7 +348,7 @@ async function loadDailyTotals() {
 
 function animateValuePulse(element, newValue, colorTheme = 'indigo') {
     if (!element) return;
-    const formatted = typeof formatCurrency !== 'undefined' ? formatCurrency(newValue) : `AED ${parseFloat(newValue).toFixed(2)}`;
+    const formatted = formatCurrency(newValue);
 
     // Apply theme-based color classes
     const colorClass = {
@@ -366,7 +368,7 @@ function animateValuePulse(element, newValue, colorTheme = 'indigo') {
 
 // --- Dynamic Form Fields ---
 
-function switchEntryType(type) {
+export function switchEntryType(type) {
     currentEntryType = type;
 
     // Hide preview on switch to avoid confusion
@@ -570,7 +572,7 @@ function switchEntryType(type) {
     }
 }
 
-function updateExpenseCategories(deptSelect) {
+export function updateExpenseCategories(deptSelect) {
     const deptValue = deptSelect.value;
     const catSelect = deptSelect.closest('form').querySelector('[name="cat"]');
     if (!catSelect) return;
@@ -589,7 +591,7 @@ function updateExpenseCategories(deptSelect) {
     });
 }
 
-function toggleAdvance() {
+export function toggleAdvance() {
     const isChecked = document.getElementById('advanceCheck').checked;
     const field = document.getElementById('advanceAmountField');
     const typeField = document.getElementById('bookingAmountTypeField');
@@ -609,7 +611,7 @@ function toggleAdvance() {
     }
 }
 
-function toggleOtherAmounts() {
+export function toggleOtherAmounts() {
     const isChecked = document.getElementById('otherAmountsCheck').checked;
     const billInput = document.getElementById('delBillNoInput');
 
@@ -632,7 +634,7 @@ function toggleOtherAmounts() {
 
 // --- Form Submission ---
 
-async function handleAddEntrySubmit(event) {
+export async function handleAddEntrySubmit(event) {
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
@@ -789,7 +791,7 @@ async function handleAddEntrySubmit(event) {
     }
 }
 
-function showToast(message) {
+export function showToast(message) {
     // Create toast element
     const toast = document.createElement('div');
     toast.className = 'fixed bottom-6 right-6 bg-teal-600 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 z-[60]';
@@ -816,7 +818,7 @@ function showToast(message) {
     }, 2000);
 }
 
-function handleBookingStatusChange(selectElem) {
+export function handleBookingStatusChange(selectElem) {
     if (selectElem.value === 'cancel') {
         const form = document.getElementById('addEntryForm');
 
@@ -836,7 +838,7 @@ function handleBookingStatusChange(selectElem) {
 
 // --- Employee Autofill Logic ---
 
-async function fetchEmployees(shop) {
+export async function fetchEmployees(shop) {
     if (!shop) return;
 
     // Check Cache first? Or always fetch fresh to get latest?
@@ -876,7 +878,7 @@ function updateEmployeeDatalist(shop) {
 }
 
 
-function handleNameInput(input) {
+export function handleNameInput(input) {
     const val = input.value.trim().toLowerCase();
     // Prevent premature jump for very short names (e.g., typing 'M' when meaning 'Mess')
     // We only trigger autofill and jump if length >= 3
@@ -912,3 +914,17 @@ function handleNameInput(input) {
         }
     }
 }
+
+// Make accessible globally for HTML event handlers
+window.openAddEntryModal = openAddEntryModal;
+window.closeAddEntryModal = closeAddEntryModal;
+window.switchEntryType = switchEntryType;
+window.toggleAdvance = toggleAdvance;
+window.toggleOtherAmounts = toggleOtherAmounts;
+window.handleAddEntrySubmit = handleAddEntrySubmit;
+window.handleBookingStatusChange = handleBookingStatusChange;
+window.updateExpenseCategories = updateExpenseCategories;
+window.toggleSideBySideMode = toggleSideBySideMode;
+window.clearEntryImage = clearEntryImage;
+window.zoomImage = zoomImage;
+window.handleNameInput = handleNameInput;

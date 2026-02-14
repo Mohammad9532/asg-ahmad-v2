@@ -1,9 +1,12 @@
+import { SHOP_PREFIXES, ISLAMIC_CYCLES, BASE_URL } from './config.js';
+import { formatCurrency } from './utils.js';
+
 // --- COMPARE & TARGET DASHBOARD LOGIC ---
 
 let compareActiveShop = ''; // State for the shop selector in Compare tab
 let compareActiveCycleId = ''; // State for the focus cycle (e.g., '2024-2025')
 
-async function renderCompareDashboard(container) {
+export async function renderCompareDashboard(container) {
     if (!container) return;
 
     // Default to the first shop if no state
@@ -91,15 +94,16 @@ async function renderCompareDashboard(container) {
     await loadCompareData(compareActiveShop);
 }
 
-async function updateCompareShop(shop) {
+// Ensure these functions are globally available for the onchange handlers
+window.updateCompareShop = async function (shop) {
     compareActiveShop = shop;
     await loadCompareData(shop);
-}
+};
 
-async function updateCompareCycle(cycleId) {
+window.updateCompareCycle = async function (cycleId) {
     compareActiveCycleId = cycleId;
     await loadCompareData(compareActiveShop);
-}
+};
 
 async function loadCompareData(shop) {
     const contentDiv = document.getElementById('compareContent');
@@ -377,13 +381,8 @@ function renderComparisonTable(data, container, shop, focusCycleId) {
     container.innerHTML = html;
 }
 
-// Format Helper
-function formatCurrency(amount) {
-    if (amount === undefined || amount === null) return 'AED 0';
-    return amount.toLocaleString('en-AE', { style: 'currency', currency: 'AED', maximumFractionDigits: 0 });
-}
-
-async function saveTarget(shop, year, month, amount) {
+// Ensure globally accessible for input onchange
+window.saveTarget = async function (shop, year, month, amount) {
     const token = localStorage.getItem('authToken');
     const val = parseFloat(amount);
 
@@ -400,5 +399,4 @@ async function saveTarget(shop, year, month, amount) {
             loadCompareData(shop);
         }
     } catch (e) { console.error(e); }
-}
-
+};

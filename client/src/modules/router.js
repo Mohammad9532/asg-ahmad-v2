@@ -1,3 +1,10 @@
+
+import { state } from './state.js';
+import { SHOP_PREFIXES } from './config.js';
+import { renderShopTabs, renderDataTypeTabs } from './ui.js';
+import { fetchShopData, fetchAllData } from './api.js';
+import { renderContent } from './render.js';
+
 // --- ROUTING LOGIC ---
 
 window.addEventListener('popstate', handleRouting);
@@ -6,7 +13,7 @@ window.addEventListener('popstate', handleRouting);
  * Main entry point for URL-based navigation.
  * Parses the current pathname and updates the application state.
  */
-async function handleRouting() {
+export async function handleRouting() {
     const path = window.location.pathname;
     const segments = path.split('/').filter(Boolean);
 
@@ -21,29 +28,28 @@ async function handleRouting() {
             shop = 'COMPARE';
         } else if (seg === 'CUSTOMERS') {
             shop = 'CUSTOMERS';
-        } else if (typeof SHOP_PREFIXES !== 'undefined') {
+        } else {
             // Case-insensitive lookup to find the canonical prefix
             const found = SHOP_PREFIXES.find(s => s.toUpperCase() === seg);
             if (found) shop = found;
         }
     } else if (segments.length >= 2) {
         const seg1 = segments[0].toUpperCase();
-        if (typeof SHOP_PREFIXES !== 'undefined') {
-            const found = SHOP_PREFIXES.find(s => s.toUpperCase() === seg1);
-            if (found) {
-                shop = found;
-                type = segments[1].toLowerCase();
-            }
+        const found = SHOP_PREFIXES.find(s => s.toUpperCase() === seg1);
+        if (found) {
+            shop = found;
+            type = segments[1].toLowerCase();
+            if (type === 'employees') type = 'employee'; // Normalize
         }
     }
 
     // Update Global State
-    if (typeof activeShop !== 'undefined' && activeShop !== shop) {
-        activeShop = shop;
+    if (state.activeShop !== shop) {
+        state.activeShop = shop;
     }
 
-    if (typeof activeDataType !== 'undefined') {
-        activeDataType = type;
+    if (state.activeDataType !== type) {
+        state.activeDataType = type;
     }
 
     // Synchronize UI and Data
@@ -55,35 +61,33 @@ async function handleRouting() {
  */
 async function syncViewWithURL() {
     // 1. Update Tabs & Sidebar active states
-    if (typeof renderShopTabs === 'function') renderShopTabs();
-    if (typeof renderDataTypeTabs === 'function') renderDataTypeTabs(activeShop);
+    renderShopTabs();
+    renderDataTypeTabs(state.activeShop);
 
     // 2. Automatic Data Fetching
-    const isSpecial = activeShop === 'OVERVIEW' || activeShop === 'COMPARE' || activeShop === 'CUSTOMERS';
+    const isSpecial = state.activeShop === 'OVERVIEW' || state.activeShop === 'COMPARE' || state.activeShop === 'CUSTOMERS';
 
     if (!isSpecial) {
         // If shop data isn't loaded, fetch it
-        if (!allResults[`${activeShop}|FULL_LOADED`] && typeof fetchShopData === 'function') {
-            await fetchShopData(activeShop);
+        if (!state.allResults[`${state.activeShop}|FULL_LOADED`]) {
+            await fetchShopData(state.activeShop);
         }
     } else {
         // Use GLOBAL|LOADED flag for reliability
-        if (!allResults['GLOBAL|LOADED'] && typeof fetchAllData === 'function') {
+        if (!state.allResults['GLOBAL|LOADED']) {
             await fetchAllData();
         }
     }
 
     // 3. Final Render
-    if (typeof renderContent === 'function') {
-        renderContent(activeShop, activeDataType);
-    }
+    renderContent(state.activeShop, state.activeDataType);
 }
 
 /**
  * Programmatic navigation helper.
  * Updates the URL and triggers the router.
  */
-function navigateTo(shop, type = 'dashboard') {
+export function navigateTo(shop, type = 'dashboard') {
     let path = '/';
 
     if (shop === 'OVERVIEW') path = '/globaloverview';
