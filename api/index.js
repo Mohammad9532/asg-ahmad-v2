@@ -83,21 +83,30 @@ mountingPrefixes.forEach(prefix => {
     const detectedName = uriNames.find(name => !!process.env[name]);
     const finalUri = process.env[detectedName];
 
-    app.get(`${prefix}/health`, (req, res) => res.json({
-        status: 'ok',
-        dbConnected: isDbConnected,
-        dbState: mongoose.connection.readyState,
-        dbName: mongoose.connection.name, // The actual database name!
-        modelCount: Object.keys(mongoose.models).length,
-        models: Object.keys(mongoose.models),
-        dbError: dbErrorMessage,
-        dbCode: dbErrorCode,
-        detectedUriName: detectedName || 'NONE',
-        hasUri: !!finalUri,
-        uriType: finalUri ? finalUri.split(':')[0] : null,
-        environment: process.env.VERCEL ? 'vercel' : 'local',
-        timestamp: new Date().toISOString()
-    }));
+    app.get(`${prefix}/health`, async (req, res) => {
+        let sampleCount = 0;
+        try {
+            // Probe one known collection to see if data exists
+            if (isDbConnected) {
+                const coll = mongoose.connection.db.collection('gaidatailorbookings');
+                sampleCount = await coll.countDocuments();
+            }
+        } catch (e) { }
+
+        res.json({
+            status: 'ok',
+            dbConnected: isDbConnected,
+            dbState: mongoose.connection.readyState,
+            dbName: mongoose.connection.name,
+            sampleDataFound: sampleCount > 0,
+            sampleCount: sampleCount,
+            modelCount: Object.keys(mongoose.models).length,
+            detectedUriName: detectedName || 'NONE',
+            hasUri: !!finalUri,
+            environment: process.env.VERCEL ? 'vercel' : 'local',
+            timestamp: new Date().toISOString()
+        });
+    });
 });
 
 // --- API 404 Handler ---
