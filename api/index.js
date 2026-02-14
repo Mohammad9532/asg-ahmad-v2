@@ -81,8 +81,11 @@ mountingPrefixes.forEach(prefix => {
     app.get(`${prefix}/health`, (req, res) => res.json({
         status: 'ok',
         dbConnected: isDbConnected,
+        dbState: mongoose.connection.readyState, // 0: disc, 1: conn, 2: connecting, 3: disconnecting
         dbError: dbErrorMessage,
         dbCode: dbErrorCode,
+        hasUri: !!MONGO_URI,
+        uriType: MONGO_URI ? MONGO_URI.split(':')[0] : null,
         environment: process.env.VERCEL ? 'vercel' : 'local',
         timestamp: new Date().toISOString()
     }));
