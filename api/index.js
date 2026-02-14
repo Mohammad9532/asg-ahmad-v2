@@ -44,15 +44,28 @@ app.use('/api', globalRoutes);    // Handles /api/global/summary
 app.use('/api', shopRoutes);      // Handles dynamic shop routes: /api/:shop/bookings/summary etc.
 
 // --- Database Connection ---
+let isDbConnected = false;
 mongoose.connect(MONGO_URI)
     .then(() => {
         console.log('✅ MongoDB connected successfully!');
+        isDbConnected = true;
         seedAdminUser();
     })
     .catch(err => {
-        console.error('❌ MongoDB connection error. Check your .env file.', err.message);
-        process.exit(1);
+        console.error('❌ MongoDB connection error:', err.message);
+        // Do not exit process, allows server to serve static files/errors
     });
+
+// Middleware to check DB connection
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api') && !req.path.includes('health') && !isDbConnected) {
+        return res.status(503).json({
+            error: "Database Connection Error",
+            message: "The server is unable to connect to the database. Please check MONGO_URI environment variable on Vercel."
+        });
+    }
+    next();
+});
 
 // --- Static File Serving (SPA Support) ---
 // Serve from '../dist' (where Vite builds) or '../client' (dev fallback)
