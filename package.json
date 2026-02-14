@@ -11,7 +11,7 @@
     "client": "vite",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "start": "node api/index.js",
-    "build": "vite build",
+    "build": "npx vite build",
     "preview": "vite preview",
     "build:css": "npx tailwindcss -i ./client/css/tailwind-input.css -o ./client/css/main.css --minify"
   },
@@ -29,12 +29,12 @@
     "groq-sdk": "^0.37.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.19.2",
-    "node-cache": "^5.1.2",
-    "vite": "^7.3.1"
+    "node-cache": "^5.1.2"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
     "nodemon": "^3.1.11",
-    "tailwindcss": "^4.1.18"
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.1"
   }
 }
