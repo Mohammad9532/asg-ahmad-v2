@@ -32,16 +32,28 @@ app.use((req, res, next) => {
 });
 
 // --- Routes Mounting ---
-app.use('/api/auth', authRoutes);
-app.use('/api', ledgerRoutes);
-app.use('/api', analyticsRoutes);
-app.use('/api', aiRoutes);
-app.use('/api', globalRoutes);
-app.use('/api', shopRoutes);
+// Robust mounting for Vercel: Handle both /api and stripped paths
+const mountingPrefixes = process.env.VERCEL ? ['', '/api'] : ['/api'];
+
+mountingPrefixes.forEach(prefix => {
+    app.use(`${prefix}/auth`, authRoutes);
+    app.use(prefix, ledgerRoutes);
+    app.use(prefix, analyticsRoutes);
+    app.use(prefix, aiRoutes);
+    app.use(prefix, globalRoutes);
+    app.use(prefix, shopRoutes);
+
+    // Health check at both root and /api
+    app.get(`${prefix}/health`, (req, res) => res.json({
+        status: 'ok',
+        environment: process.env.VERCEL ? 'vercel' : 'local',
+        timestamp: new Date().toISOString()
+    }));
+});
 
 // --- API 404 Handler (JSON) ---
 app.use('/api', (req, res) => {
-    res.status(404).json({ error: "API Route Not Found", path: req.path });
+    res.status(404).json({ error: "API Route Not Found", path: req.path, method: req.method });
 });
 
 // --- Database Connection ---
