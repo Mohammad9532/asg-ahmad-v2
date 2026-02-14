@@ -32,16 +32,35 @@ app.use((req, res, next) => {
 });
 
 // --- Routes Mounting ---
-// Path: /api/health (Unprotected)
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+// Robust mounting: Some platforms strip /api prefix, some don't.
+// We mount at both to be safe during migration/deployment.
+const apiRoutes = [
+    { path: '/auth', router: authRoutes },
+    { path: '', router: ledgerRoutes },
+    { path: '', router: analyticsRoutes },
+    { path: '', router: aiRoutes },
+    { path: '', router: globalRoutes },
+    { path: '', router: shopRoutes }
+];
 
-// Mount all modular routes under /api
-app.use('/api/auth', authRoutes); // Health check is also here under /api/auth/health
-app.use('/api', ledgerRoutes);    // Handles /api/:shop/ledger/settings etc.
-app.use('/api', analyticsRoutes); // Handles /api/targets and /api/analytics/compare
-app.use('/api', aiRoutes);        // Handles /api/ai/chat
-app.use('/api', globalRoutes);    // Handles /api/global/summary
-app.use('/api', shopRoutes);      // Handles dynamic shop routes: /api/:shop/bookings/summary etc.
+apiRoutes.forEach(({ path: subPath, router: r }) => {
+    app.use(`/api${subPath}`, r);
+    // Only mount at root if it's not conflicting with static paths or if on Vercel
+    if (process.env.VERCEL) {
+        app.use(subPath || '/', r);
+    }
+});
+
+// --- API 404 Handler (JSON) ---
+app.use('/api', (req, res) => {
+    console.warn(`[404] API Route Not Found: ${req.method} ${req.url}`);
+    res.status(404).json({
+        error: "API Route Not Found",
+        path: req.path,
+        method: req.method,
+        suggestion: "Verify the endpoint exists in api/index.js"
+    });
+});
 
 // --- Database Connection ---
 let isDbConnected = false;
