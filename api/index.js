@@ -9,12 +9,12 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-const { authRoutes, seedAdminUser } = require('./routes/authRoutes');
-const ledgerRoutes = require('./routes/ledgerRoutes');
-const analyticsRoutes = require('./routes/analyticsRoutes');
-const shopRoutes = require('./routes/shopRoutes');
-const aiRoutes = require('./routes/aiRoutes');
-const globalRoutes = require('./routes/globalRoutes');
+const { authRoutes, seedAdminUser } = require('./_lib/routes/authRoutes');
+const ledgerRoutes = require('./_lib/routes/ledgerRoutes');
+const analyticsRoutes = require('./_lib/routes/analyticsRoutes');
+const shopRoutes = require('./_lib/routes/shopRoutes');
+const aiRoutes = require('./_lib/routes/aiRoutes');
+const globalRoutes = require('./_lib/routes/globalRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +24,7 @@ const MONGO_URI = process.env.MONGO_URI;
 app.use(express.json());
 app.use(cors());
 app.use(require('compression')()); // Enable Gzip/Brotli
+const { cacheMiddleware } = require('./_lib/middleware/cache');
 
 // --- Request Logger ---
 app.use((req, res, next) => {
