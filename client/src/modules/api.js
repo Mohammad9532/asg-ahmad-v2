@@ -152,8 +152,6 @@ export async function fetchShopData(shopPrefix) {
 
     // Mark as fully loaded
     state.allResults[`${shopPrefix}|FULL_LOADED`] = true;
-
-    renderContent(state.activeShop, state.activeDataType);
 }
 
 /**
@@ -216,7 +214,6 @@ export async function fetchAllData() {
 
         renderShopTabs();
         renderDataTypeTabs(state.activeShop);
-        renderContent(state.activeShop, state.activeDataType);
 
     } catch (err) {
         logError("Fetch Operation Failed: " + err.message);

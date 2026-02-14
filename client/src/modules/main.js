@@ -46,7 +46,7 @@ window.updatePeriodOptions = updatePeriodOptions;
 window.applyFiscalPeriod = applyFiscalPeriod;
 
 // Init Application
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     // 1. Init UI Components
     initDarkMode();
     initFiscalYearDropdown();
@@ -55,6 +55,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const savedRange = localStorage.getItem('selectedRangeType') || 'thisMonth';
 
     // If it's a fiscal or custom period, restore exact dates. Otherwise use preset.
+    // We pass true for skipFetch to prevent redundant network calls during initial load
     if (savedRange === 'fiscal' || savedRange === 'custom') {
         const savedStart = localStorage.getItem('startDate');
         const savedEnd = localStorage.getItem('endDate');
@@ -64,16 +65,15 @@ window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('endDate').value = savedEnd;
             state.dateRange.start = savedStart;
             state.dateRange.end = savedEnd;
-            window.fetchAllData();
         } else {
-            setDateRange('thisMonth');
+            setDateRange('thisMonth', true);
         }
     } else {
-        setDateRange(savedRange);
+        setDateRange(savedRange, true);
     }
 
-    // 3. Handle Initial Routing
-    handleRouting();
+    // 3. Handle Initial Routing (This will trigger the initial fetchAllData)
+    await handleRouting();
 
     // 4. Attach specific listeners that aren't inline
     const fetchBtn = document.getElementById('fetchButton');

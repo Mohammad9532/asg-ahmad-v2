@@ -153,7 +153,7 @@ export function setActiveDataType(dataType) {
 
 // --- DATE & FISCAL YEAR CONTROLS ---
 
-export function setDateRange(rangeType) {
+export function setDateRange(rangeType, skipFetch = false) {
     const today = new Date();
     let start = new Date();
     let end = new Date();
@@ -190,8 +190,7 @@ export function setDateRange(rangeType) {
     localStorage.setItem('endDate', formatDate(end));
 
     // Auto fetch if range changed
-    // Auto fetch if range changed
-    if (typeof window.fetchAllData === 'function') {
+    if (!skipFetch && typeof window.fetchAllData === 'function') {
         window.fetchAllData();
     }
 }
@@ -241,7 +240,7 @@ export function initFiscalYearDropdown() {
     }
 }
 
-export function updatePeriodOptions() {
+export function updatePeriodOptions(skipFetch = false) {
     const yearId = document.getElementById('fiscalYearSelect').value;
 
     // Save selection
@@ -280,11 +279,11 @@ export function updatePeriodOptions() {
     // Default to Full Year
     if (periodSelect.options.length > 1) {
         periodSelect.value = periodSelect.options[1].value;
-        applyFiscalPeriod();
+        applyFiscalPeriod(skipFetch);
     }
 }
 
-export function applyFiscalPeriod() {
+export function applyFiscalPeriod(skipFetch = false) {
     const periodSelect = document.getElementById('fiscalPeriodSelect');
     const val = periodSelect.value;
     if (!val) return;
@@ -301,7 +300,7 @@ export function applyFiscalPeriod() {
     state.dateRange.start = range.start;
     state.dateRange.end = range.end;
 
-    if (typeof window.fetchAllData === 'function') {
+    if (!skipFetch && typeof window.fetchAllData === 'function') {
         window.fetchAllData();
     }
 }
