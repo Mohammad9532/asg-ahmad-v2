@@ -22,6 +22,8 @@ const MONGO_URI = process.env.MONGO_URI;
 
 // --- Database Connection & Initialisation ---
 let isDbConnected = false;
+let dbErrorCode = null;
+let dbErrorMessage = null;
 
 // Remove the global disable to avoid "Cannot call users.findOne() before connection" errors.
 // Mongoose will now buffer commands until connected, but we've set a strict 5s timeout below.
@@ -34,12 +36,17 @@ if (!MONGO_URI) {
         .then(() => {
             console.log('✅ MongoDB connected successfully!');
             isDbConnected = true;
+            dbErrorCode = null;
+            dbErrorMessage = null;
             if (typeof seedAdminUser === 'function') {
                 seedAdminUser();
             }
         })
         .catch(err => {
             console.error('❌ MongoDB connection error:', err.message);
+            isDbConnected = false;
+            dbErrorCode = err.name || 'ConnectionError';
+            dbErrorMessage = err.message;
         });
 
     // Explicit listeners for state tracking
@@ -74,6 +81,8 @@ mountingPrefixes.forEach(prefix => {
     app.get(`${prefix}/health`, (req, res) => res.json({
         status: 'ok',
         dbConnected: isDbConnected,
+        dbError: dbErrorMessage,
+        dbCode: dbErrorCode,
         environment: process.env.VERCEL ? 'vercel' : 'local',
         timestamp: new Date().toISOString()
     }));
