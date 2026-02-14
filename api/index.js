@@ -18,7 +18,7 @@ const globalRoutes = require('./_lib/routes/globalRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || process.env.DATABASE_URL || process.env.MONGO_URL;
 
 // --- Database Connection & Initialisation ---
 let isDbConnected = false;
@@ -78,14 +78,20 @@ mountingPrefixes.forEach(prefix => {
     app.use(prefix, globalRoutes);
     app.use(prefix, shopRoutes);
 
+    // Auto-detect URI name
+    const uriNames = ['MONGO_URI', 'MONGODB_URI', 'DATABASE_URL', 'MONGO_URL'];
+    const detectedName = uriNames.find(name => !!process.env[name]);
+    const finalUri = process.env[detectedName];
+
     app.get(`${prefix}/health`, (req, res) => res.json({
         status: 'ok',
         dbConnected: isDbConnected,
-        dbState: mongoose.connection.readyState, // 0: disc, 1: conn, 2: connecting, 3: disconnecting
+        dbState: mongoose.connection.readyState,
         dbError: dbErrorMessage,
         dbCode: dbErrorCode,
-        hasUri: !!MONGO_URI,
-        uriType: MONGO_URI ? MONGO_URI.split(':')[0] : null,
+        detectedUriName: detectedName || 'NONE',
+        hasUri: !!finalUri,
+        uriType: finalUri ? finalUri.split(':')[0] : null,
         environment: process.env.VERCEL ? 'vercel' : 'local',
         timestamp: new Date().toISOString()
     }));
