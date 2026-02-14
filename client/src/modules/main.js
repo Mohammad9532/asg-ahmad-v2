@@ -47,6 +47,14 @@ window.applyFiscalPeriod = applyFiscalPeriod;
 
 // Init Application
 window.addEventListener('DOMContentLoaded', async () => {
+    // 0. Auth Guard: Immediately check if token exists
+    const token = localStorage.getItem('authToken');
+    const isValidToken = token && token !== 'undefined' && token !== 'null';
+    if (!isValidToken) {
+        window.location.replace('login.html');
+        return;
+    }
+
     // 1. Init UI Components
     initDarkMode();
     initFiscalYearDropdown();

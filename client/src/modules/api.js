@@ -15,9 +15,16 @@ function logError(message) {
 }
 
 export const logout = () => {
-    // Basic logout implementation until properly imported likely from main or auth module
     localStorage.removeItem('authToken');
-    window.location.href = 'login.html';
+    localStorage.removeItem('username');
+    // Use replace to prevent back-button loops
+    window.location.replace('login.html');
+};
+
+const getAuthToken = () => {
+    const token = localStorage.getItem('authToken');
+    if (!token || token === 'undefined' || token === 'null') return null;
+    return token;
 };
 
 
@@ -25,9 +32,9 @@ export const logout = () => {
  * Creates a new entry manually.
  */
 export async function createEntry(shop, type, data) {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     if (!token) {
-        window.location.href = 'login.html';
+        logout();
         return;
     }
 
@@ -62,7 +69,7 @@ export async function fetchEndpoint(shopPrefix, dataType, start, end) {
     try {
         const response = await fetch(url, {
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${getAuthToken()}`
             }
         });
 
@@ -96,7 +103,7 @@ export async function fetchGlobalSummary(start, end) {
     const url = `${BASE_URL}/api/global/summary?start=${start}&end=${end}`;
     try {
         const response = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            headers: { 'Authorization': `Bearer ${getAuthToken()}` }
         });
 
         if (response.status === 401 || response.status === 403) {
