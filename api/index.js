@@ -32,34 +32,16 @@ app.use((req, res, next) => {
 });
 
 // --- Routes Mounting ---
-// Robust mounting: Some platforms strip /api prefix, some don't.
-// We mount at both to be safe during migration/deployment.
-const apiRoutes = [
-    { path: '/auth', router: authRoutes },
-    { path: '', router: ledgerRoutes },
-    { path: '', router: analyticsRoutes },
-    { path: '', router: aiRoutes },
-    { path: '', router: globalRoutes },
-    { path: '', router: shopRoutes }
-];
-
-apiRoutes.forEach(({ path: subPath, router: r }) => {
-    app.use(`/api${subPath}`, r);
-    // Only mount at root if it's not conflicting with static paths or if on Vercel
-    if (process.env.VERCEL) {
-        app.use(subPath || '/', r);
-    }
-});
+app.use('/api/auth', authRoutes);
+app.use('/api', ledgerRoutes);
+app.use('/api', analyticsRoutes);
+app.use('/api', aiRoutes);
+app.use('/api', globalRoutes);
+app.use('/api', shopRoutes);
 
 // --- API 404 Handler (JSON) ---
 app.use('/api', (req, res) => {
-    console.warn(`[404] API Route Not Found: ${req.method} ${req.url}`);
-    res.status(404).json({
-        error: "API Route Not Found",
-        path: req.path,
-        method: req.method,
-        suggestion: "Verify the endpoint exists in api/index.js"
-    });
+    res.status(404).json({ error: "API Route Not Found", path: req.path });
 });
 
 // --- Database Connection ---
@@ -86,31 +68,25 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- Static File Serving (SPA Support) ---
-// Serve from '../dist' (where Vite builds) or '../client' (dev fallback)
-const staticPath = path.join(__dirname, '../dist');
-const devPath = path.join(__dirname, '../client');
+// --- Static File Serving (Local Dev Fallback Only) ---
+if (!process.env.VERCEL) {
+    const staticPath = path.join(__dirname, '../dist');
+    const devPath = path.join(__dirname, '../client');
+    app.use(express.static(staticPath));
+    app.use(express.static(devPath));
 
-// Serve static assets
-app.use(express.static(staticPath));
-app.use(express.static(devPath));
-
-// Fallback: serve index.html for any non-API routes (SPA support)
-app.use((req, res, next) => {
-    if (req.method === 'GET' && !req.path.startsWith('/api')) {
-        // Try dist first, then client
-        const distIndex = path.resolve(staticPath, 'index.html');
-        const clientIndex = path.resolve(devPath, 'index.html');
-
-        const fs = require('fs');
-        if (fs.existsSync(distIndex)) {
-            return res.sendFile(distIndex);
-        } else if (fs.existsSync(clientIndex)) {
-            return res.sendFile(clientIndex);
+    // SPA Fallback for local dev
+    app.use((req, res, next) => {
+        if (req.method === 'GET' && !req.path.startsWith('/api')) {
+            const distIndex = path.resolve(staticPath, 'index.html');
+            const clientIndex = path.resolve(devPath, 'index.html');
+            const fs = require('fs');
+            if (fs.existsSync(distIndex)) return res.sendFile(distIndex);
+            if (fs.existsSync(clientIndex)) return res.sendFile(clientIndex);
         }
-    }
-    next();
-});
+        next();
+    });
+}
 
 // --- Export app for Vercel ---
 module.exports = app;
