@@ -23,8 +23,8 @@ const MONGO_URI = process.env.MONGO_URI;
 // --- Database Connection & Initialisation ---
 let isDbConnected = false;
 
-// Disable buffering so we get immediate errors if not connected
-mongoose.set('bufferCommands', false);
+// Remove the global disable to avoid "Cannot call users.findOne() before connection" errors.
+// Mongoose will now buffer commands until connected, but we've set a strict 5s timeout below.
 
 if (!MONGO_URI) {
     console.error('❌ MONGO_URI is not defined in environment variables!');
@@ -67,12 +67,10 @@ app.use((req, res, next) => {
 // Middleware to check DB connection - MUST be before routes!
 app.use((req, res, next) => {
     const isHealthCheck = req.path.includes('health');
-    const isAuthLogin = req.path.includes('/auth/login');
 
-    // We allow health checks and login attempts to hit the routes 
-    // but routes requiring DB will still fail inside if not connected.
-    // However, it's safer to block non-essential routes if DB is down.
-    if (req.path.startsWith('/api') && !isHealthCheck && !isAuthLogin && !isDbConnected) {
+    // If not connected and it's an API route (that isn't health), block it.
+    // We now block login too if DB isn't ready because it WILL fail without DB.
+    if (req.path.startsWith('/api') && !isHealthCheck && !isDbConnected) {
         console.warn(`[DB_STATUS] Connection pending... block request to ${req.url}`);
         return res.status(503).json({
             error: "Database Connection Error",
