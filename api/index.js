@@ -23,10 +23,18 @@ const MONGO_URI = process.env.MONGO_URI;
 // --- Database Connection & Initialisation ---
 let isDbConnected = false;
 
+// Disable buffering so we get immediate errors if not connected
+mongoose.set('bufferCommands', false);
+
 if (!MONGO_URI) {
     console.error('❌ MONGO_URI is not defined in environment variables!');
 } else {
-    mongoose.connect(MONGO_URI)
+    console.log('[DB] Connecting to MongoDB...');
+    mongoose.connect(MONGO_URI, {
+        serverSelectionTimeoutMS: 5000, // Fail fast (5s) instead of 30s
+        socketTimeoutMS: 45000,
+        family: 4 // Use IPv4
+    })
         .then(() => {
             console.log('✅ MongoDB connected successfully!');
             isDbConnected = true;
@@ -37,6 +45,11 @@ if (!MONGO_URI) {
         .catch(err => {
             console.error('❌ MongoDB connection error:', err.message);
         });
+
+    // Explicit listeners for state tracking
+    mongoose.connection.on('connected', () => { isDbConnected = true; });
+    mongoose.connection.on('disconnected', () => { isDbConnected = false; console.warn('⚠️ MongoDB disconnected'); });
+    mongoose.connection.on('error', (err) => { console.error('🔴 MongoDB Runtime Error:', err); });
 }
 
 // --- Middlewares ---
