@@ -1,10 +1,15 @@
 // --- GLOBAL STATE ---
 export const state = {
-    allResults: {}, // Cache for all fetched API responses
-    activeShop: 'OVERVIEW', // Default to Overview
+    user: {
+        username: localStorage.getItem('username') || null,
+        role: localStorage.getItem('userRole') || 'admin', // Default to admin for safety with existing sessions
+        shop: localStorage.getItem('userShop') || null
+    },
+    allResults: {},
+    activeShop: 'OVERVIEW',
     activeDataType: 'bookings',
     dateRange: {},
-    sortState: {}, // Key: tableId, Value: {key: 'columnName', dir: 'asc'|'desc'}
-    searchState: {}, // Key: tableId, Value: query string
-    pageState: {}, // Key: tableId, Value: currentPage number
+    sortState: {},
+    searchState: {},
+    pageState: {},
 };

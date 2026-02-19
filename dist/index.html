@@ -26,8 +26,9 @@
             document.body.appendChild(errorDiv);
         };
     </script>
-  <script type="module" crossorigin src="/assets/main-BMt2DTIA.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/main-Q7IvEsbJ.css">
+  <script type="module" crossorigin src="/assets/main-BU4EmZUG.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/main-B-vQZnTg.css">
+  <link rel="stylesheet" crossorigin href="/assets/main-yMalmlEO.css">
 </head>
 
 <body
@@ -117,15 +118,21 @@
         <div class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 relative">
             <!-- Mobile Header -->
             <header
-                class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:hidden z-30 flex-shrink-0">
-                <button onclick="toggleSidebar()" class="text-slate-500 hover:text-indigo-600 dark:text-slate-300">
+                class="h-16 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:hidden z-30 flex-shrink-0 sticky top-0 shadow-sm">
+                <button onclick="toggleSidebar()"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
-                <h1 class="text-lg font-bold text-slate-800 dark:text-white">Shop Dashboard</h1>
-                <div class="w-6"></div> <!-- Spacer -->
+                <div class="flex items-center gap-2">
+                    <div
+                        class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-indigo-500/30">
+                        B</div>
+                    <h1 class="text-base font-bold text-slate-800 dark:text-white">Dashboard Summary</h1>
+                </div>
+                <div class="w-10"></div> <!-- Spacer to center the title -->
             </header>
 
             <!-- Scrollable Content Area -->

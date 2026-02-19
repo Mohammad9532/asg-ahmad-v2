@@ -352,10 +352,10 @@ const createEmployeeListRoute = (ExpenseModel) => async (req, res) => {
             { "$sort": { "date": -1 } },
             {
                 "$group": {
-                    "_id": { "$toLower": "$name" },
-                    "originalName": { "$first": "$name" },
-                    "dept": { "$first": "$dept" },
-                    "cat": { "$first": "$cat" }
+                    "_id": { "$toLower": { "$trim": { "input": "$name" } } },
+                    "originalName": { "$first": { "$trim": { "input": "$name" } } },
+                    "dept": { "$first": { "$trim": { "input": "$dept" } } },
+                    "cat": { "$first": { "$trim": { "input": "$cat" } } }
                 }
             },
             {

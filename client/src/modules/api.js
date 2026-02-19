@@ -17,6 +17,8 @@ function logError(message) {
 export const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('username');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userShop');
     // Use replace to prevent back-button loops
     window.location.replace('login.html');
 };
@@ -198,19 +200,31 @@ export async function fetchAllData() {
     showLoading(true);
 
     try {
-        // 3. Selective Fetching (Optimization)
+        // 3. Selective Fetching (Optimization & Security)
+        const isShopRole = state.user.role === 'shop';
+
         if (state.activeShop === 'OVERVIEW' || state.activeShop === 'COMPARE') {
-            // Global overview needs metrics for all shops
-            await fetchGlobalSummary(state.dateRange.start, state.dateRange.end);
+            if (isShopRole) {
+                // Shop role cannot see overview, redirect to their shop if they land here
+                console.warn("[AUTH] Shop user attempted to access OVERVIEW. Redirecting...");
+            } else {
+                // Global overview needs metrics for all shops
+                await fetchGlobalSummary(state.dateRange.start, state.dateRange.end);
+            }
         } else if (state.activeShop === 'CUSTOMERS') {
-            // Customer view needs detailed records from all shops to aggregate
-            const { SHOP_PREFIXES } = await import('./config.js');
-            const fetchPromises = SHOP_PREFIXES.map(shop =>
-                fetchEndpoint(shop, 'bookings', state.dateRange.start, state.dateRange.end)
-            );
-            await Promise.all(fetchPromises);
+            if (isShopRole) {
+                // Fetch ONLY their shop's bookings for customer view
+                await fetchEndpoint(state.user.shop, 'bookings', state.dateRange.start, state.dateRange.end)
+            } else {
+                // Customer view needs detailed records from all shops to aggregate
+                const { SHOP_PREFIXES } = await import('./config.js');
+                const fetchPromises = SHOP_PREFIXES.map(shop =>
+                    fetchEndpoint(shop, 'bookings', state.dateRange.start, state.dateRange.end)
+                );
+                await Promise.all(fetchPromises);
+            }
         } else {
-            // ACTIVE SHOP VIEW: Skip 44 other shops!
+            // ACTIVE SHOP VIEW
             await fetchShopData(state.activeShop);
         }
 

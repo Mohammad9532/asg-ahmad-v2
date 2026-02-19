@@ -15,6 +15,37 @@ const authenticateToken = (req, res, next) => {
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) return res.status(403).json({ error: "Invalid Token" });
         req.user = user;
+
+        // RBAC Enforcement
+        if (user.role === 'admin') return next();
+
+        if (user.role === 'shop') {
+            const path = req.path.toLowerCase();
+            const segments = path.split('/').filter(Boolean);
+
+            // Block Global Access
+            if (segments.includes('global')) {
+                return res.status(403).json({ error: "Access Denied. Shop role cannot access global data." });
+            }
+
+            // Verify Shop Access (Expected path: /api/:shop/...)
+            // Normal segments: ['auth', 'login'] or ['Gaidatailor', 'bookings', 'summary']
+            if (segments.length > 0) {
+                const requestedShop = segments[0]; // In /api/Gaidatailor, Segments[0] is often the shop if mounting logic is right
+
+                // Let's be safer: find any segment that matches a shop prefix but doesn't match the user's shop
+                const userShop = user.shop ? user.shop.toLowerCase() : null;
+
+                // If it's a shop route but doesn't match the user's shop, block it.
+                // Note: Index 0 might be the shop name if the route is /:shop/...
+                if (userShop && requestedShop !== 'health' && requestedShop !== 'auth') {
+                    if (requestedShop !== userShop) {
+                        console.warn(`[AUTH] Blocked ${user.username} from accessing ${requestedShop}`);
+                        return res.status(403).json({ error: `Access Denied. You are only authorized for ${user.shop}.` });
+                    }
+                }
+            }
+        }
         next();
     });
 };

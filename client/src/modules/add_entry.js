@@ -1,7 +1,7 @@
-
 import { SHOP_PREFIXES, BASE_URL } from './config.js';
 import { formatCurrency } from './utils.js';
 import { createEntry, fetchAllData } from './api.js';
+import { state } from './state.js';
 
 // Global state for Add Entry
 let currentEntryType = 'booking';
@@ -56,21 +56,32 @@ export function openAddEntryModal() {
 
     // Populate Shop Dropdown
     const shopSelect = document.getElementById('entryShop');
-    shopSelect.innerHTML = '';
+    if (shopSelect) {
+        shopSelect.innerHTML = '';
 
-    const shops = SHOP_PREFIXES; // Use imported constant
+        const isAdmin = state.user && state.user.role === 'admin';
+        const userShop = state.user ? state.user.shop : null;
 
-    shops.forEach(shop => {
-        const option = document.createElement('option');
-        option.value = shop.toLowerCase(); // Use lowercase for API
-        option.textContent = shop;
-        shopSelect.appendChild(option);
-    });
+        const shops = isAdmin
+            ? SHOP_PREFIXES
+            : SHOP_PREFIXES.filter(s => s.toLowerCase() === (userShop || '').toLowerCase());
 
-    // Fetch Employees Filtered by CURRENT shop (initially first one or default)
-    // We'll update this whenever shop changes too (listener needed?)
-    // For now, let's attach a listener to shop select
-    shopSelect.addEventListener('change', () => fetchEmployees(shopSelect.value));
+        shops.forEach(shop => {
+            const option = document.createElement('option');
+            option.value = shop.toLowerCase(); // Use lowercase for API
+            option.textContent = shop;
+            shopSelect.appendChild(option);
+        });
+
+        // Lock for shop workers
+        if (!isAdmin && userShop) {
+            shopSelect.disabled = true;
+            shopSelect.classList.add('bg-slate-100', 'cursor-not-allowed', 'dark:bg-slate-800');
+        } else {
+            shopSelect.disabled = false;
+            shopSelect.classList.remove('bg-slate-100', 'cursor-not-allowed', 'dark:bg-slate-800');
+        }
+    }
 
     // Initial fetch for the first/default shop
     if (shopSelect.value) {
@@ -689,10 +700,15 @@ export async function handleAddEntrySubmit(event) {
         const apiType = currentEntryType === 'booking' ? 'bookings' : currentEntryType;
 
         if (currentEntryType === 'expense' && payload.name) {
-            payload.name = payload.name.toLowerCase();
+            payload.name = payload.name.trim().toLowerCase();
         }
 
         await createEntry(shop, apiType, payload);
+
+        // Refresh employee list if it's a new expense
+        if (currentEntryType === 'expense') {
+            fetchEmployees(shop);
+        }
 
         // Success Feedback
         showToast('Entry Added Successfully!');
@@ -887,8 +903,8 @@ export function handleNameInput(input) {
     const shop = document.getElementById('entryShop').value;
     const employees = EMPLOYEE_CACHE[shop] || [];
 
-    // Find exact match (case insensitive)
-    const match = employees.find(e => e.name.toLowerCase() === val);
+    // Find exact match (case insensitive, trimmed)
+    const match = employees.find(e => (e.name || '').trim().toLowerCase() === val);
 
     if (match) {
         const form = input.closest('form');
@@ -898,13 +914,14 @@ export function handleNameInput(input) {
 
         // 1. Set Department
         if (deptSelect && match.dept) {
-            deptSelect.value = match.dept.toLowerCase();
+            const matchDept = String(match.dept).trim().toLowerCase();
+            deptSelect.value = matchDept;
             // Trigger category update
             updateExpenseCategories(deptSelect);
 
             // 2. Set Category (after options populate)
             if (catSelect && match.cat) {
-                catSelect.value = match.cat.toLowerCase();
+                catSelect.value = String(match.cat).trim().toLowerCase();
             }
         }
 
@@ -928,3 +945,11 @@ window.toggleSideBySideMode = toggleSideBySideMode;
 window.clearEntryImage = clearEntryImage;
 window.zoomImage = zoomImage;
 window.handleNameInput = handleNameInput;
+
+// Initialize Global Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    const shopSelect = document.getElementById('entryShop');
+    if (shopSelect) {
+        shopSelect.addEventListener('change', () => fetchEmployees(shopSelect.value));
+    }
+});

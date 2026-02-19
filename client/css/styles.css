@@ -21,6 +21,7 @@
         .dark .custom-scroll::-webkit-scrollbar-thumb {
             background-color: #475569;
         }
+
         .dark .custom-scroll::-webkit-scrollbar-track {
             background: #1e293b;
         }
@@ -118,24 +119,27 @@
 
         /* --- PRINT STYLES --- */
         @media print {
+
             /* Hide non-printable elements */
-            nav, 
-            #shopTabsContainer, 
-            #dataTypeTabsContainer, 
-            #loadingIndicator, 
-            #errorLog, 
+            nav,
+            #shopTabsContainer,
+            #dataTypeTabsContainer,
+            #loadingIndicator,
+            #errorLog,
             .stat-card:hover,
             button,
             .fixed,
             #aiChatModal,
-            .px-6.pb-6, /* Missing Bills Control container */
+            .px-6.pb-6,
+            /* Missing Bills Control container */
             #missingBillsModal,
             .tabs-scroll-container {
                 display: none !important;
             }
 
             /* Expand content to full width */
-            body, main {
+            body,
+            main {
                 background: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
@@ -144,10 +148,10 @@
             }
 
             /* Remove scrolling constraints for tables */
-            .custom-scroll, 
-            div[id$="_detailed"], 
-            div[id$="_daily_bookings"], 
-            div[id$="_daily_deliveries"], 
+            .custom-scroll,
+            div[id$="_detailed"],
+            div[id$="_daily_bookings"],
+            div[id$="_daily_deliveries"],
             div[id$="_daily_expenses"],
             #dataTypeContentContainer div {
                 max-height: none !important;
@@ -168,7 +172,10 @@
                 page-break-inside: avoid;
             }
 
-            h1, h2, h3, h4 {
+            h1,
+            h2,
+            h3,
+            h4 {
                 page-break-after: avoid;
             }
 

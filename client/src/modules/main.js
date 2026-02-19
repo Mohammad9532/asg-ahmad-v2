@@ -93,4 +93,38 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', logout);
     }
+
+    // 5. Role-Based UI Cleanup
+    cleanupUIForRole();
 });
+
+function cleanupUIForRole() {
+    const isAdmin = state.user && state.user.role === 'admin';
+    if (isAdmin) return;
+
+    console.log("[AUTH] Trimming UI for Shop Role...");
+
+    // List of elements to hide for shop workers
+    const adminOnlyElements = [
+        'aiChatModal',
+        'aiChatTrigger', // If exists
+        'scanMissingBtn',
+        'downloadAllBtn',
+        'openMissingBillsModalBtn' // Custom ID check
+    ];
+
+    adminOnlyElements.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    });
+
+    // Handle "Analyze Health" button specifically (no ID in HTML, let's find it by text)
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        if (btn.textContent.includes('Analyze Health') || btn.textContent.includes('Find Missing Bills')) {
+            btn.remove();
+        }
+    });
+
+    // Also hide the floating AI Trigger if any (None found in HTML but safe to logic out)
+}

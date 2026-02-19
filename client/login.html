@@ -137,8 +137,11 @@
                     if (response.ok) {
                         localStorage.setItem('authToken', data.token);
                         localStorage.setItem('username', data.username);
+                        localStorage.setItem('userRole', data.role || 'admin');
+                        localStorage.setItem('userShop', data.shop || '');
+
                         setTimeout(() => {
-                            window.location.href = 'index.html';
+                            window.location.replace('index.html');
                         }, 100);
                     } else {
                         // Use the detailed message from our new backend diagnostics if available

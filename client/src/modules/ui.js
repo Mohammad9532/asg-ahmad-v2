@@ -58,17 +58,20 @@ export function updateDarkModeIcon(isDark) {
 }
 
 export function renderShopTabs() {
-    // Note: We now target the Sidebar List
     const container = document.getElementById('sidebarShopList');
     if (!container) return;
 
-    // Helper for active class
+    const isAdmin = state.user.role === 'admin';
+    const userShop = state.user.shop;
+
     const getItemClass = (isActive) => isActive
         ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-r-4 border-indigo-600 dark:border-indigo-400'
         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 border-r-4 border-transparent';
 
-    container.innerHTML = `
-        <div class="space-y-1">
+    let html = '<div class="space-y-1">';
+
+    if (isAdmin) {
+        html += `
             <button onclick="setActiveShop('OVERVIEW')"
                 class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(state.activeShop === 'OVERVIEW')}">
                 🌍 Global Overview
@@ -77,21 +80,30 @@ export function renderShopTabs() {
                 class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(state.activeShop === 'COMPARE')}">
                 🎯 Targets & Compare
             </button>
-            <button onclick="setActiveShop('CUSTOMERS')"
-                class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(state.activeShop === 'CUSTOMERS')}">
-                👥 Customers
-            </button>
-            
-            <div class="my-2 border-t border-slate-100 dark:border-slate-700"></div>
-            
-            ${SHOP_PREFIXES.map(shop => `
-                <button onclick="setActiveShop('${shop}')"
-                    class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(shop === state.activeShop)}">
-                    🏪 ${shop}
-                </button>
-            `).join('')}
-        </div>
+        `;
+    }
+
+    html += `
+        <button onclick="setActiveShop('CUSTOMERS')"
+            class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(state.activeShop === 'CUSTOMERS')}">
+            👥 Customers
+        </button>
+        <div class="my-2 border-t border-slate-100 dark:border-slate-700"></div>
     `;
+
+    const visibleShops = isAdmin
+        ? SHOP_PREFIXES
+        : SHOP_PREFIXES.filter(s => s.toLowerCase() === (userShop || '').toLowerCase());
+
+    html += visibleShops.map(shop => `
+        <button onclick="setActiveShop('${shop}')"
+            class="w-full text-left px-4 py-3 text-sm font-medium transition-colors ${getItemClass(shop === state.activeShop)}">
+            🏪 ${shop}
+        </button>
+    `).join('');
+
+    html += '</div>';
+    container.innerHTML = html;
 }
 
 export async function setActiveShop(shop) {

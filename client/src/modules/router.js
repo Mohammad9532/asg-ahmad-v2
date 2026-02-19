@@ -43,6 +43,21 @@ export async function handleRouting() {
         }
     }
 
+    // --- RBAC Guard ---
+    const isAdmin = state.user && state.user.role === 'admin';
+    const userShop = state.user ? state.user.shop : null;
+
+    if (!isAdmin && userShop) {
+        // Shop role can only see their shop and the Customers list
+        const isSelfShop = shop.toLowerCase() === userShop.toLowerCase();
+        const isAuthorized = isSelfShop || shop === 'CUSTOMERS';
+
+        if (!isAuthorized) {
+            console.warn(`[AUTH] Restricted user attempted access to ${shop}. Redirecting to ${userShop}.`);
+            shop = userShop;
+        }
+    }
+
     // Update Global State
     if (state.activeShop !== shop) {
         state.activeShop = shop;
