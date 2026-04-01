@@ -1,10 +1,11 @@
-
 import { state } from './state.js';
 import { SHOP_PREFIXES } from './config.js';
 import { formatCurrency, calculateCanceledSum, isCanceledStatus, sortArray, getSortIcon } from './utils.js';
 import { renderMonthlySummary } from './render_monthly.js';
 import { renderStockAuditView } from './stock_audit.js';
+import { renderExcessDeliveryView } from './excess_delivery.js';
 import { renderDailyLedger } from './dailyLedger.js';
+import { renderShopCompareBookings } from './compare_bookings.js';
 import { renderCompareDashboard } from './compare.js';
 import { aggregateCustomers } from './customers.js';
 import { renderStandardTable, renderDailyNetBookingTable, renderDailyCategoryTrendTable } from './render_tables.js';
@@ -36,9 +37,9 @@ export function renderContent(shopPrefix, dataType) {
     // 2. It's a shop view and full shop data is loaded (except for ledger/audit which fetch own data)
     const canRenderInstantly = (isSpecial && isGlobalLoaded) || (!isSpecial && isShopLoaded);
 
-    // Note: Daily Ledger and Stock Audit currently fetch their own data, 
+    // Note: Daily Ledger, Stock Audit, and Excess Delivery currently fetch their own data, 
     // we'll handle their caching internally in their files.
-    const isInternalFetchView = dataType === 'daily_ledger' || dataType === 'stock_audit';
+    const isInternalFetchView = dataType === 'daily_ledger' || dataType === 'stock_audit' || dataType === 'excess_delivery';
 
     if (canRenderInstantly && !isInternalFetchView) {
         if (statusMessage) statusMessage.classList.add('hidden');
@@ -161,9 +162,15 @@ function renderContentSync(shopPrefix, dataType, container, statusMessage, dataT
     } else if (dataType === 'stock_audit') {
         // Defined in stock_audit.js
         renderStockAuditView(shopPrefix);
+    } else if (dataType === 'excess_delivery') {
+        // Defined in excess_delivery.js
+        renderExcessDeliveryView(shopPrefix);
     } else if (dataType === 'daily_ledger') {
         // Defined in dailyLedger.js
         renderDailyLedger(shopPrefix);
+    } else if (dataType === 'compare_bookings') {
+        // Defined in compare_bookings.js
+        renderShopCompareBookings(shopPrefix);
     } else {
         // Fallback for other potential types, renders standard table
         renderStandardTable(shopPrefix, data, dataType);
@@ -171,7 +178,7 @@ function renderContentSync(shopPrefix, dataType, container, statusMessage, dataT
 }
 
 function isValidDataTypeForShop(dt) {
-    return ['dashboard', 'bookings', 'delivery', 'expense', 'employees', 'monthly_summary', 'stock_audit', 'daily_ledger'].includes(dt);
+    return ['dashboard', 'bookings', 'delivery', 'expense', 'employees', 'monthly_summary', 'stock_audit', 'daily_ledger', 'compare_bookings', 'excess_delivery'].includes(dt);
 }
 
 // --- DASHBOARD RENDERERS ---
@@ -193,8 +200,20 @@ function renderShopDashboard(shop, container) {
     }
 
     let shopExp = 0;
+    let shopProfitPayout = 0;
     if (exp && exp.filteredData) {
-        shopExp = exp.filteredData.reduce((s, d) => s + (d.amount || 0), 0);
+        exp.filteredData.forEach(d => {
+            const amt = d.amount || 0;
+            if ((d.dept || '').toLowerCase().trim() === 'profit') {
+                shopProfitPayout += amt;
+            } else {
+                shopExp += amt;
+            }
+        });
+    } else if (exp) {
+        // Fallback for summary-only data
+        shopExp = exp.totalAmount || 0;
+        shopProfitPayout = exp.profitPayout || 0;
     }
 
     let shopDel = 0;
@@ -292,6 +311,12 @@ function renderShopDashboard(shop, container) {
                     <p class="text-xs text-emerald-600 mb-1">(Accrual Del - Exp)</p>
                     <p class="text-xl font-bold text-emerald-900">${formatCurrency(profit)}</p>
                 </div>
+                <!-- 6a. Total Profit Generated (New) -->
+                <div class="bg-emerald-600 p-4 rounded-xl shadow-md border border-emerald-700 text-white">
+                    <h3 class="text-xs font-semibold text-emerald-100 uppercase">Total Net Profit</h3>
+                    <p class="text-xs text-emerald-200 mb-1">(Est. Profit + Payouts)</p>
+                    <p class="text-xl font-bold">${formatCurrency(profit + shopProfitPayout)}</p>
+                </div>
                 <!-- 7. Old Collection -->
                 <div class="bg-cyan-50 p-4 rounded-xl shadow-sm border border-cyan-100">
                     <h3 class="text-xs font-semibold text-cyan-800 uppercase">Old Booking Coll.</h3>
@@ -310,13 +335,23 @@ function renderShopDashboard(shop, container) {
                     <p class="text-xs text-indigo-600 mb-1">(Total Del - Exp)</p>
                     <p class="text-xl font-bold text-indigo-900">${formatCurrency(totalBalance)}</p>
                 </div>
-                <!-- 10. Stock Available -->
+                <!-- 10. Profit Payouts (Interactive) -->
+                <div class="bg-red-50 p-4 rounded-xl shadow-sm border border-red-100 cursor-pointer hover:shadow-md transition-all group" 
+                     onclick="viewProfitDetails('${shop}')">
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xs font-semibold text-red-800 uppercase tracking-tighter">Profit Payout</h3>
+                        <svg class="w-4 h-4 text-red-400 group-hover:text-red-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <p class="text-xs text-red-600 mb-1">(Dept: Profit)</p>
+                    <p class="text-xl font-bold text-red-900">${formatCurrency(shopProfitPayout)}</p>
+                </div>
+                <!-- 11. Stock Available -->
                 <div class="bg-teal-50 p-4 rounded-xl shadow-sm border border-teal-100">
                     <h3 class="text-xs font-semibold text-teal-800 uppercase">Stock Available</h3>
                     <p class="text-xs text-teal-600 mb-1">(Net - Accrual Del)</p>
                     <p class="text-xl font-bold text-teal-900">${formatCurrency(stock)}</p>
                 </div>
-                <!-- 10. Stock Percentage -->
+                <!-- 12. Stock Percentage -->
                 <div class="bg-purple-50 p-4 rounded-xl shadow-sm border border-purple-100">
                     <h3 class="text-xs font-semibold text-purple-800 uppercase">Stock %</h3>
                     <p class="text-xs text-purple-600 mb-1">(Uncollected %)</p>
@@ -404,7 +439,7 @@ function renderShopDashboard(shop, container) {
 function renderOverviewDashboard(container) {
     // 1. Calculate Aggregates
     let totalGrossBooking = 0, totalCancelBooking = 0, totalNetBooking = 0;
-    let totalBookingDeliveries = 0, totalMiscDeliveries = 0, totalAccrualDeliveries = 0, totalExpenses = 0;
+    let totalBookingDeliveries = 0, totalMiscDeliveries = 0, totalAccrualDeliveries = 0, totalExpenses = 0, totalProfitPayouts = 0;
     let totalDeliveries = 0; // Total of all deliveries (booking + misc)
     const shopPerformance = [];
 
@@ -476,10 +511,28 @@ function renderOverviewDashboard(container) {
         const shopAccDel = accData ? (accData.totalAccrualAmount || 0) : 0;
         totalAccrualDeliveries += shopAccDel;
 
-        // Expenses
+        // Expenses (Split: Operational vs Profit)
         const exp = getMetric('expense');
-        const shopExp = exp ? (exp.totalAmount || 0) : 0;
+        let shopExp = 0;
+        let shopProfitPayout = 0;
+
+        if (exp) {
+            if (exp.filteredData && exp.filteredData.length > 0) {
+                exp.filteredData.forEach(d => {
+                    const amt = d.amount || 0;
+                    if ((d.dept || '').toLowerCase().trim() === 'profit') {
+                        shopProfitPayout += amt;
+                    } else {
+                        shopExp += amt;
+                    }
+                });
+            } else {
+                shopExp = exp.totalAmount || 0;
+                shopProfitPayout = exp.profitPayout || 0;
+            }
+        }
         totalExpenses += shopExp;
+        totalProfitPayouts += shopProfitPayout;
 
         // Lifetime Data
         const lifeData = getMetric('lifetime');
@@ -530,22 +583,25 @@ function renderOverviewDashboard(container) {
                     <h3 class="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Total Net Booking</h3>
                     <p class="text-xl font-extrabold text-indigo-900 mt-1">${formatCurrency(totalNetBooking)}</p>
                 </div>
-                    <!-- 4. Deliveries Accrual -->
+
+                <!-- 4. Stock Accrual -->
+                <div class="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl shadow-sm border border-amber-200">
+                    <h3 class="text-xs font-semibold text-amber-800 uppercase tracking-wider">Stock Available</h3>
+                    <p class="text-xs text-amber-600 mb-1">(Net - Accrual Del)</p>
+                    <p class="text-xl font-extrabold text-amber-900">${formatCurrency(stockAvailable)}</p>
+                </div>
+                <!-- 5. Stock % -->
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl shadow-sm border border-purple-200">
+                    <h3 class="text-xs font-semibold text-purple-800 uppercase tracking-wider">Stock %</h3>
+                    <p class="text-xs text-purple-600 mb-1">(Uncollected %)</p>
+                    <p class="text-xl font-extrabold text-purple-900">${totalStockPercent.toFixed(1)}%</p>
+                </div>
+
+                <!-- 6. Deliveries Accrual -->
                 <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl shadow-sm border border-blue-200">
                     <h3 class="text-xs font-semibold text-blue-800 uppercase tracking-wider">Del (Accrual)</h3>
+                    <p class="text-xs text-blue-600 mb-1">(Current Year Coll.)</p>
                     <p class="text-xl font-extrabold text-blue-900 mt-1">${formatCurrency(totalAccrualDeliveries)}</p>
-                </div>
-                    <!-- 5. Expenses -->
-                <div class="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-xl shadow-sm border border-pink-200">
-                    <h3 class="text-xs font-semibold text-pink-800 uppercase tracking-wider">Total Expenses</h3>
-                    <p class="text-xl font-extrabold text-pink-900 mt-1">${formatCurrency(totalExpenses)}</p>
-                </div>
-                
-                <!-- 6. Profit -->
-                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl shadow-sm border border-emerald-200">
-                    <h3 class="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Estimate Profit</h3>
-                    <p class="text-xs text-emerald-600 mb-1">(Accrual Del - Exp)</p>
-                    <p class="text-xl font-extrabold text-emerald-900">${formatCurrency(estimateProfit)}</p>
                 </div>
                 <!-- 7. Old Collection -->
                 <div class="bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 rounded-xl shadow-sm border border-cyan-200">
@@ -559,23 +615,41 @@ function renderOverviewDashboard(container) {
                     <p class="text-xs text-amber-600 mb-1">(Rent, Advance, etc.)</p>
                     <p class="text-xl font-extrabold text-amber-900">${formatCurrency(totalMiscDeliveries)}</p>
                 </div>
-                <!-- 9. Total Balance -->
+
+                <!-- 9. Expenses -->
+                <div class="bg-gradient-to-br from-pink-50 to-pink-100 p-4 rounded-xl shadow-sm border border-pink-200">
+                    <h3 class="text-xs font-semibold text-pink-800 uppercase tracking-wider">Total Expenses</h3>
+                    <p class="text-xl font-extrabold text-pink-900 mt-1">${formatCurrency(totalExpenses)}</p>
+                </div>
+                
+                <!-- 10. Profit -->
+                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl shadow-sm border border-emerald-200">
+                    <h3 class="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Est. Profit</h3>
+                    <p class="text-xs text-emerald-600 mb-1">(Accrual Del - Exp)</p>
+                    <p class="text-xl font-extrabold text-emerald-900">${formatCurrency(estimateProfit)}</p>
+                </div>
+                <!-- 11. Profit Payouts (Interactive) -->
+                <div class="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-xl shadow-sm border border-red-200 cursor-pointer hover:shadow-md transition-all group" 
+                     onclick="openGlobalProfitModal()">
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xs font-semibold text-red-800 uppercase tracking-wider">Profit Payouts</h3>
+                        <svg class="w-4 h-4 text-red-400 group-hover:text-red-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <p class="text-xs text-red-600 mb-1">(Total Distributed)</p>
+                    <p class="text-xl font-extrabold text-red-900 mt-1">${formatCurrency(totalProfitPayouts)}</p>
+                </div>
+                <!-- 12. Total Profit (New) -->
+                <div class="bg-gradient-to-br from-emerald-600 to-emerald-700 p-4 rounded-xl shadow-lg border border-emerald-800 text-white">
+                    <h3 class="text-xs font-semibold text-emerald-100 uppercase tracking-wider">Total Net Profit</h3>
+                    <p class="text-xs text-emerald-200 mb-1">(Profit + Payouts)</p>
+                    <p class="text-xl font-extrabold">${formatCurrency(estimateProfit + totalProfitPayouts)}</p>
+                </div>
+
+                <!-- 13. Total Balance -->
                     <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-xl shadow-sm border border-indigo-200">
                     <h3 class="text-xs font-semibold text-indigo-800 uppercase tracking-wider">Total Balance</h3>
                     <p class="text-xs text-indigo-600 mb-1">(Total Del - Exp)</p>
                     <p class="text-xl font-extrabold text-indigo-900">${formatCurrency(totalBalanceGlobal)}</p>
-                </div>
-                    <!-- 10. Stock Accrual -->
-                <div class="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl shadow-sm border border-amber-200">
-                    <h3 class="text-xs font-semibold text-amber-800 uppercase tracking-wider">Stock Available</h3>
-                    <p class="text-xs text-amber-600 mb-1">(Net - Accrual Del)</p>
-                    <p class="text-xl font-extrabold text-amber-900">${formatCurrency(stockAvailable)}</p>
-                </div>
-                <!-- 11. Stock Percent -->
-                <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl shadow-sm border border-purple-200">
-                    <h3 class="text-xs font-semibold text-purple-800 uppercase tracking-wider">Stock %</h3>
-                    <p class="text-xs text-purple-600 mb-1">(Uncollected %)</p>
-                    <p class="text-xl font-extrabold text-purple-900">${totalStockPercent.toFixed(1)}%</p>
                 </div>
             </div>
 
@@ -855,65 +929,262 @@ function renderExpenseByTypeDetails(shopPrefix, expenseData, container) {
     if (!container) container = document.getElementById('dataTypeContentContainer');
     if (!container) return;
 
-    if (expenseData.filteredData.length === 0) {
+    if (!expenseData || !expenseData.filteredData || expenseData.filteredData.length === 0) {
         container.innerHTML = '<p class="text-center text-gray-500 mt-8">No expense data found in the selected date range.</p>';
         return;
     }
+
+    // --- 1. FILTER STATE MANAGEMENT ---
+    if (typeof window.expenseFilterState === 'undefined') {
+        window.expenseFilterState = { dept: 'All', cat: 'All' };
+    }
+
+    // --- 2. BUILD MAPPINGS FOR DROPDOWNS ---
+    const depts = new Set(['All']);
+    const catMap = { 'All': new Set(['All']) }; // Dept -> Set of Categories
+
+    expenseData.filteredData.forEach(doc => {
+        const d = doc.dept || 'Uncategorized';
+        const c = doc.cat || 'Uncategorized';
+
+        depts.add(d);
+        if (!catMap[d]) catMap[d] = new Set(['All']);
+        catMap[d].add(c);
+        catMap['All'].add(c);
+    });
+
+    // Reset Category filter if changing Departments makes it invalid
+    if (window.expenseFilterState.dept !== 'All' &&
+        window.expenseFilterState.cat !== 'All' &&
+        catMap[window.expenseFilterState.dept] &&
+        !catMap[window.expenseFilterState.dept].has(window.expenseFilterState.cat)) {
+        window.expenseFilterState.cat = 'All';
+    }
+
+    const currentDept = window.expenseFilterState.dept;
+    const currentCat = window.expenseFilterState.cat;
+
+    window.setExpenseDeptFilter = (dept) => {
+        window.expenseFilterState.dept = dept;
+        window.expenseFilterState.cat = 'All';
+        renderExpenseByTypeDetails(shopPrefix, expenseData, container);
+    };
+
+    window.setExpenseCatFilter = (cat) => {
+        window.expenseFilterState.cat = cat;
+        renderExpenseByTypeDetails(shopPrefix, expenseData, container);
+    };
+
+    // --- 3. FILTER THE DATA ---
+    const filteredSubset = expenseData.filteredData.filter(doc => {
+        const d = doc.dept || 'Uncategorized';
+        const c = doc.cat || 'Uncategorized';
+        const matchDept = currentDept === 'All' || currentDept === d;
+        const matchCat = currentCat === 'All' || currentCat === c;
+        return matchDept && matchCat;
+    });
+
+    // --- 4. CALCULATE METRICS & CHART DATA USING SUBSET ---
+    let totalExpense = 0;
+    const chartDataMap = {}; // Use Category for chart if filtering by Dept, otherwise Dept
+    const breakdownKey = currentDept === 'All' ? 'dept' : 'cat';
 
     const tableId = `${shopPrefix}_daily_expense`;
     const categoriesSet = new Set();
     const dailyAggregatesMap = new Map();
 
-    expenseData.filteredData.forEach(doc => {
+    filteredSubset.forEach(doc => {
+        const amt = doc.amount || 0;
+        totalExpense += amt;
+
+        // Chart aggregation
+        const bKey = doc[breakdownKey] || 'Uncategorized';
+        chartDataMap[bKey] = (chartDataMap[bKey] || 0) + amt;
+
+        // Daily table aggregation
         const dateStr = new Date(doc.date).toISOString().split('T')[0];
-        const cat = doc.dept || 'Uncategorized';
-        categoriesSet.add(cat);
-        const amount = doc.amount || 0;
+        const dispCat = currentDept === 'All' ? (doc.dept || 'Uncategorized') : (doc.cat || 'Uncategorized');
+        categoriesSet.add(dispCat);
 
         if (!dailyAggregatesMap.has(dateStr)) {
             dailyAggregatesMap.set(dateStr, { dateStr, total: 0, count: 0, breakdown: {} });
         }
         const day = dailyAggregatesMap.get(dateStr);
-        day.total += amount;
+        day.total += amt;
         day.count += 1;
-        day.breakdown[cat] = (day.breakdown[cat] || 0) + amount;
+        day.breakdown[dispCat] = (day.breakdown[dispCat] || 0) + amt;
     });
 
-    const categories = Array.from(categoriesSet).sort();
+    // Highest Category
+    let highestCatName = 'N/A';
+    let highestCatAmount = 0;
+    Object.entries(chartDataMap).forEach(([k, v]) => {
+        if (v > highestCatAmount) {
+            highestCatAmount = v;
+            highestCatName = k;
+        }
+    });
+
+    // Chart Data Arrays
+    const chartLabels = Object.keys(chartDataMap);
+    const chartValues = Object.values(chartDataMap);
+
+    // Sort logic for trend table
+    const trendCategories = Array.from(categoriesSet).sort();
     let dailyData = Array.from(dailyAggregatesMap.values());
     const currentSort = state.sortState[tableId];
     if (currentSort) dailyData = sortArray(dailyData, currentSort.key, currentSort.dir);
     else dailyData = sortArray(dailyData, 'dateStr', 'asc');
 
-    const breakdown = expenseData.categoryTotals || {};
-    const total = expenseData.totalAmount || 0;
+    // Mock full object for record table
+    const mockExpenseData = { ...expenseData, filteredData: filteredSubset };
+
+    // --- 5. RENDER HTML ---
+    const deptOptionsHtml = Array.from(depts).map(d =>
+        `<option value="${d}" ${currentDept === d ? 'selected' : ''}>${d}</option>`
+    ).join('');
+
+    const availableCategories = Array.from(catMap[currentDept] || catMap['All']);
+    const catOptionsHtml = availableCategories.map(c =>
+        `<option value="${c}" ${currentCat === c ? 'selected' : ''}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
+    ).join('');
 
     let finalHtml = `
-        <div class="space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="stat-card bg-red-50 p-6 rounded-xl border border-red-100">
-                    <p class="text-xs font-bold text-red-600 uppercase mb-2">Total Expense</p>
-                    <p class="text-3xl font-black text-red-700">${formatCurrency(total)}</p>
+        <div class="space-y-6 max-w-7xl mx-auto">
+            
+            <!-- Controls Bar -->
+            <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 gap-4">
+                <h2 class="text-xl font-bold text-slate-800">Expense Analysis</h2>
+                <div class="flex gap-3">
+                    <select onchange="window.setExpenseDeptFilter(this.value)" class="px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer hover:bg-white transition-colors">
+                        ${deptOptionsHtml}
+                    </select>
+                    <select onchange="window.setExpenseCatFilter(this.value)" class="px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer hover:bg-white transition-colors">
+                        ${catOptionsHtml}
+                    </select>
                 </div>
-                ${Object.entries(breakdown).slice(0, 3).map(([key, val]) => `
-                    <div class="stat-card bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <p class="text-xs font-bold text-slate-500 uppercase mb-2">${key}</p>
-                        <p class="text-xl font-bold text-slate-700">${formatCurrency(val)}</p>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Left: Stat Cards -->
+                <div class="flex flex-col gap-4">
+                    <div class="bg-red-50 p-6 rounded-xl border border-red-100 shadow-sm relative overflow-hidden">
+                        <div class="absolute -right-4 -bottom-4 opacity-5">
+                            <svg class="w-32 h-32" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path></svg>
+                        </div>
+                        <p class="text-xs font-bold text-red-600 uppercase mb-2 tracking-wider">Total Filtered Expense</p>
+                        <p class="text-4xl font-black text-red-700">${formatCurrency(totalExpense)}</p>
                     </div>
-                `).join('')}
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
+                            Highest Drain
+                            <svg class="w-4 h-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        </p>
+                        <p class="text-2xl font-bold text-slate-800">${highestCatName}</p>
+                        <p class="text-sm text-slate-500 mt-1">${formatCurrency(highestCatAmount)}</p>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-bold text-slate-500 uppercase mb-2 flex justify-between items-center">
+                            Transaction Count
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                        </p>
+                        <p class="text-2xl font-bold text-slate-800">${filteredSubset.length}</p>
+                        <p class="text-sm text-slate-500 mt-1">Receipts recorded</p>
+                    </div>
+                </div>
+
+                <!-- Right: Chart -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow border border-slate-200 flex flex-col items-center justify-center">
+                    <h4 class="font-bold text-slate-700 mb-4 text-sm w-full text-left uppercase tracking-wider">Expense Distribution (${currentDept === 'All' ? 'By Department' : 'By Category'})</h4>
+                    <div class="relative w-full h-72 flex justify-center">
+                        ${chartValues.length > 0 ? '<canvas id="expenseDoughnutChart"></canvas>' : '<p class="text-slate-400 my-auto pb-8 italic">No data to chart</p>'}
+                    </div>
+                </div>
             </div>
-            <div>
-                <h3 class="text-xl font-bold mb-4">Daily Expense Trend (By Department)</h3>
-                ${renderDailyCategoryTrendTable(dailyData, categories, 'Expenses', tableId)}
+
+            <!-- Tables -->
+            <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800">Daily Trend (${currentDept === 'All' ? 'By Department' : 'By Category'})</h3>
+                </div>
+                <div class="p-4">
+                    ${filteredSubset.length > 0 ? renderDailyCategoryTrendTable(dailyData, trendCategories, 'Expenses', tableId) : '<p class="text-center text-slate-400 py-6">No trends available</p>'}
+                </div>
             </div>
-            <div>
-                <h3 class="text-xl font-bold mb-4">All Expense Records</h3>
-                ${renderStandardTable(shopPrefix, expenseData, 'expense', false)}
+
+            <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800">Filtered Expense Records</h3>
+                </div>
+                <!-- Need to wrap Standard Table as it sometimes assumes container is full width string -->
+                <div class="p-0">
+                    ${filteredSubset.length > 0 ? renderStandardTable(shopPrefix, mockExpenseData, 'expense', false) : '<p class="text-center text-slate-400 py-6">No records match filters</p>'}
+                </div>
             </div>
         </div>
     `;
 
     container.innerHTML = finalHtml;
+
+    // --- 6. RENDER CHART ---
+    if (chartValues.length > 0) {
+        if (window.chartInstances && window.chartInstances.expenseTrend) {
+            window.chartInstances.expenseTrend.destroy();
+        }
+
+        const ctx = document.getElementById('expenseDoughnutChart').getContext('2d');
+
+        // Generate pleasing distinct colors
+        const colors = [
+            '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+            '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+            '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'
+        ];
+        const bgColors = chartLabels.map((_, i) => Object.keys(chartDataMap).length <= colors.length ? colors[i] : `hsl(${(i * 137.5) % 360}, 70%, 50%)`);
+
+        window.chartInstances.expenseTrend = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    data: chartValues,
+                    backgroundColor: bgColors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { boxWidth: 12, padding: 15, font: { size: 11, family: 'Inter' } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED' }).format(context.parsed);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    }
 }
 
 function renderEmployeeSection(shopPrefix, container) {
@@ -946,40 +1217,124 @@ Between ${state.dateRange.start} and ${state.dateRange.end}</p>
         return;
     }
 
-    const employees = data.employees;
+    const employees = data.employees || [];
 
-    // Calculate Summary Stats
-    const totalEmployees = employees.length;
+    // State for the filters
+    if (typeof window.employeeFilterState === 'undefined') {
+        window.employeeFilterState = {
+            dept: 'All', // 'All', 'Piece Expense', 'Shop Expenses', etc.
+            cat: 'All'   // 'All', 'salary', 'stitching', etc.
+        };
+    }
+
+    // Extract unique departments and categories for the dropdowns
+    const depts = new Set(['All']);
+    const catMap = { 'All': new Set(['All']) }; // Map Dept -> Set of Categories
+
+    employees.forEach(emp => {
+        const d = emp.dept || 'Uncategorized';
+        const c = emp.cat || 'Uncategorized';
+
+        depts.add(d);
+
+        if (!catMap[d]) catMap[d] = new Set(['All']);
+        catMap[d].add(c);
+        catMap['All'].add(c); // For when Dept is 'All'
+    });
+
+    // Reset Category filter if the new Department doesn't have it
+    if (window.employeeFilterState.dept !== 'All' &&
+        window.employeeFilterState.cat !== 'All' &&
+        catMap[window.employeeFilterState.dept] &&
+        !catMap[window.employeeFilterState.dept].has(window.employeeFilterState.cat)) {
+        window.employeeFilterState.cat = 'All';
+    }
+
+    // Handlers
+    window.setEmployeeDeptFilter = (dept) => {
+        window.employeeFilterState.dept = dept;
+        window.employeeFilterState.cat = 'All'; // Reset category when dept changes
+        renderEmployeeSection(shopPrefix, container);
+    };
+
+    window.setEmployeeCatFilter = (cat) => {
+        window.employeeFilterState.cat = cat;
+        renderEmployeeSection(shopPrefix, container);
+    };
+
+    // Filter Logic
+    const filteredEmployees = employees.filter(emp => {
+        const d = emp.dept || 'Uncategorized';
+        const c = emp.cat || 'Uncategorized';
+
+        const matchDept = window.employeeFilterState.dept === 'All' || window.employeeFilterState.dept === d;
+        const matchCat = window.employeeFilterState.cat === 'All' || window.employeeFilterState.cat === c;
+
+        return matchDept && matchCat;
+    });
+
+    // Build Dropdown HTML
+    const deptOptionsHtml = Array.from(depts).map(d =>
+        `<option value="${d}" ${window.employeeFilterState.dept === d ? 'selected' : ''}>${d}</option>`
+    ).join('');
+
+    const availableCategories = Array.from(catMap[window.employeeFilterState.dept] || catMap['All']);
+    const catOptionsHtml = availableCategories.map(c =>
+        `<option value="${c}" ${window.employeeFilterState.cat === c ? 'selected' : ''}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
+    ).join('');
+
+    if (filteredEmployees.length === 0 && employees.length > 0) {
+        container.innerHTML = `
+            <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">Directory</h3>
+                <div class="flex gap-2">
+                    <select onchange="setEmployeeDeptFilter(this.value)" class="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500">
+                        ${deptOptionsHtml}
+                    </select>
+                    <select onchange="setEmployeeCatFilter(this.value)" class="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500">
+                        ${catOptionsHtml}
+                    </select>
+                </div>
+            </div>
+            <div class="text-center py-10 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <p class="text-slate-500 font-medium whitespace-pre-wrap">No records found matching these filters.</p>
+                <button onclick="setEmployeeDeptFilter('All')" class="mt-4 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100">Clear Filters</button>
+            </div>`;
+        return;
+    }
+
+    // Calculate Summary Stats based on FILTERED list
+    const totalEmployees = filteredEmployees.length;
     let totalSalaries = 0;
     let activeCount = 0;
 
-    const cardsHtml = employees.map(emp => {
+    const cardsHtml = filteredEmployees.map(emp => {
         const salary = emp.total || 0;
         totalSalaries += salary;
         const status = emp.status || 'active';
         if (status === 'active') activeCount++;
 
         return `
-        <div class="employee-card bg-white rounded-xl shadow border border-slate-200 p-4 hover:shadow-md transition-shadow relative group cursor-pointer" 
+        <div class="employee-card bg-white dark:bg-slate-800 rounded-xl shadow border border-slate-200 dark:border-slate-700 p-4 hover:shadow-md transition-shadow relative group cursor-pointer" 
              data-name="${emp.name.toLowerCase()}"
              onclick="viewEmployeeHistory('${shopPrefix}', '${emp.name}')">
             <div class="flex items-center space-x-4">
-               <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
+               <div class="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-lg">
                     ${emp.name.charAt(0).toUpperCase()}
                </div>
                <div>
-                   <h4 class="font-bold text-slate-800">${emp.name}</h4>
-                   <p class="text-xs text-slate-500">${emp.designation || 'Staff Member'}</p>
+                   <h4 class="font-bold text-slate-800 dark:text-slate-200">${emp.name}</h4>
+                   <p class="text-xs text-slate-500 dark:text-slate-400">${emp.designation || (emp.dept ? emp.cat + ' / ' + emp.dept : 'General')}</p>
                </div>
             </div>
-            <div class="mt-4 border-t border-slate-100 pt-3">
+            <div class="mt-4 border-t border-slate-100 dark:border-slate-700 pt-3">
                  <div class="flex justify-between text-sm mb-1">
-                    <span class="text-slate-500">Period Earnings</span>
-                    <span class="font-semibold text-slate-700">${formatCurrency(salary)}</span>
+                    <span class="text-slate-500 dark:text-slate-400">Period Total</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">${formatCurrency(salary)}</span>
                  </div>
                  <div class="flex justify-between text-sm">
-                    <span class="text-slate-500">Records</span>
-                    <span class="font-semibold text-slate-700">${emp.count || 0} entries</span>
+                    <span class="text-slate-500 dark:text-slate-400">Records</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">${emp.count || 0} entries</span>
                  </div>
             </div>
         </div>
@@ -988,26 +1343,45 @@ Between ${state.dateRange.start} and ${state.dateRange.end}</p>
 
     container.innerHTML = `
         <div class="space-y-6">
+            <!-- Filter Controls -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-white">Directory</h3>
+                <div class="flex flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Dept:</span>
+                        <select onchange="setEmployeeDeptFilter(this.value)" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm">
+                            ${deptOptionsHtml}
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">Cat:</span>
+                        <select onchange="setEmployeeCatFilter(this.value)" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm">
+                            ${catOptionsHtml}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <!-- Summary Header -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                 <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                     <p class="text-xs text-indigo-600 uppercase font-semibold">Total Staff</p>
-                     <p class="text-2xl font-bold text-indigo-900">${totalEmployees}</p>
+                 <div class="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+                     <p class="text-xs text-indigo-600 dark:text-indigo-400 uppercase font-semibold">Filtered Listed</p>
+                     <p class="text-2xl font-bold text-indigo-900 dark:text-indigo-100">${totalEmployees}</p>
                  </div>
-                 <div class="bg-green-50 p-4 rounded-xl border border-green-100">
-                     <p class="text-xs text-green-600 uppercase font-semibold">Active Now</p>
-                     <p class="text-2xl font-bold text-green-900">${activeCount}</p>
+                 <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800/30">
+                     <p class="text-xs text-green-600 dark:text-green-400 uppercase font-semibold">Active Now</p>
+                     <p class="text-2xl font-bold text-green-900 dark:text-green-100">${activeCount}</p>
                  </div>
-                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                     <p class="text-xs text-slate-500 uppercase font-semibold">Total Payroll (Basic)</p>
-                     <p class="text-2xl font-bold text-slate-700">${formatCurrency(totalSalaries)}</p>
+                 <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                     <p class="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold">Filtered Amount</p>
+                     <p class="text-2xl font-bold text-slate-700 dark:text-slate-200">${formatCurrency(totalSalaries)}</p>
                  </div>
             </div>
 
             <!-- Search Bar -->
             <div class="relative">
-                 <input type="text" placeholder="Search employees..." 
-                    class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                 <input type="text" placeholder="Search filtered directory..." 
+                    class="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition-colors shadow-sm"
                     oninput="filterEmployeeGrid(this.value)">
                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1023,17 +1397,19 @@ Between ${state.dateRange.start} and ${state.dateRange.end}</p>
         </div>
     `;
 
-    // Expose filter function to global scope for the oninput handler
-    // Actually we imported `filterEmployeeGrid` from UI.
-    // Wait, the `oninput = "filterEmployeeGrid(this.value)"` assumes global function.
-    // We should attach it to window in UI.js or duplicate logic here.
-    // Since we imported UI logic, `ui.js` has `filterEmployeeGrid`.
     if (typeof window.filterEmployeeGrid === 'undefined') {
-        // It should be attached in ui.js or main.js. 
-        // Assuming main.js handles linking, or I should reference it if I can.
-        // But in module HTML, string handlers need global access.
-        // I'll make sure main.js or ui.js attaches it.
-        // For now, I'll rely on it being global.
+        window.filterEmployeeGrid = (searchTerm) => {
+            const term = searchTerm.toLowerCase();
+            const cards = document.querySelectorAll('#employeeGrid .employee-card');
+            cards.forEach(card => {
+                const name = card.getAttribute('data-name') || '';
+                if (name.includes(term)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        };
     }
 }
 
@@ -1179,6 +1555,516 @@ function renderLegendHTML(methods, total) {
 
 // Helper functions (inline replacement of utils needed if not imported, but we imported them)
 
+/**
+ * Shows detailed breakdown for Profit Payouts in a modal.
+ */
+export function viewProfitDetails(shop) {
+    const exp = state.allResults[`${shop}|expense`];
+    if (!exp || !exp.filteredData) return;
+
+    const profitData = exp.filteredData.filter(d => (d.dept || '').toLowerCase().trim() === 'profit');
+
+    // Group by category
+    const breakdown = profitData.reduce((acc, d) => {
+        const cat = d.cat ? d.cat.toLowerCase().trim() : 'general';
+        if (!acc[cat]) acc[cat] = { total: 0, entries: [] };
+        acc[cat].total += d.amount || 0;
+        acc[cat].entries.push(d);
+        return acc;
+    }, {});
+
+    showProfitModal(`${shop} Profit Payouts`, breakdown);
+}
+
+/**
+ * Shows Global Profit breakdown (Shop -> Category)
+ */
+/**
+ * Shows Global Profit breakdown (Category -> Entries from all shops)
+ */
+export function viewGlobalProfitDetails() {
+    const categoryBreakdown = {};
+    let total = 0;
+
+    SHOP_PREFIXES.forEach(shop => {
+        const exp = state.allResults[`${shop}|expense`];
+        if (!exp || !exp.filteredData) return;
+
+        const shopProfit = exp.filteredData.filter(d => (d.dept || '').toLowerCase().trim() === 'profit');
+        if (shopProfit.length === 0) return;
+
+        shopProfit.forEach(d => {
+            const cat = d.cat ? d.cat.toLowerCase().trim() : 'general';
+            if (!categoryBreakdown[cat]) categoryBreakdown[cat] = { total: 0, entries: [] };
+
+            categoryBreakdown[cat].total += d.amount || 0;
+            // Add shop name to the entry for display
+            categoryBreakdown[cat].entries.push({ ...d, _shopName: shop });
+
+            total += d.amount || 0;
+        });
+    });
+
+    showGlobalProfitModal(categoryBreakdown, total);
+}
+
+function showProfitModal(title, breakdown) {
+    let modal = document.getElementById('detailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'detailsModal';
+        modal.className = 'fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[110] flex items-center justify-center p-4 transition-all duration-300';
+        modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+        document.body.appendChild(modal);
+    }
+
+    const sortedCats = Object.keys(breakdown).sort((a, b) => breakdown[b].total - breakdown[a].total);
+    const grandTotal = Object.values(breakdown).reduce((acc, curr) => acc + curr.total, 0);
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-900/5">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-rose-500 to-red-600 p-6 text-white shrink-0 relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-bold tracking-tight">${title}</h3>
+                        <p class="text-rose-100 text-sm font-medium mt-1">Total Distribution</p>
+                        <p class="text-3xl font-black mt-1 tracking-tight">${formatCurrency(grandTotal)}</p>
+                    </div>
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" 
+                            class="bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto custom-scroll space-y-6 bg-slate-50/50 flex-1 min-h-0">
+                ${sortedCats.map(cat => `
+                    <div class="bg-white rounded-2xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
+                        <!-- Category Header -->
+                        <div class="px-5 py-4 flex justify-between items-center bg-slate-50/80 border-b border-slate-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                                <span class="text-sm font-bold text-slate-700 uppercase tracking-wider">${cat}</span>
+                            </div>
+                            <span class="text-lg font-bold text-slate-800">${formatCurrency(breakdown[cat].total)}</span>
+                        </div>
+                        
+                        <!-- Entries List -->
+                        <div class="divide-y divide-slate-50">
+                            ${breakdown[cat].entries.map(e => `
+                                <div class="px-5 py-3 hover:bg-slate-50/50 transition-colors flex justify-between items-center group">
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                                            ${e.name || e.description || 'Payout'}
+                                        </span>
+                                        <span class="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                                            ${new Date(e.date).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <span class="font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-md text-sm group-hover:bg-rose-100 transition-colors">
+                                        ${formatCurrency(e.amount)}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+                
+                ${sortedCats.length === 0 ? `
+                    <div class="flex flex-col items-center justify-center py-12 text-center">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <p class="text-slate-500 font-medium">No profit payouts recorded yet.</p>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Footer -->
+             <div class="bg-white border-t border-slate-100 p-4 text-center shrink-0">
+                <p class="text-xs text-slate-400">Generated on ${new Date().toLocaleDateString()}</p>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+}
+
+function showGlobalProfitModal(breakdown, total) {
+    let modal = document.getElementById('detailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'detailsModal';
+        modal.className = 'fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[110] flex items-center justify-center p-4 transition-all duration-300';
+        modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+        document.body.appendChild(modal);
+    }
+
+    const sortedCats = Object.keys(breakdown).sort((a, b) => breakdown[b].total - breakdown[a].total);
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-900/5">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-6 text-white shrink-0 relative overflow-hidden">
+                 <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-bold tracking-tight">Global Profit Distribution</h3>
+                        <p class="text-indigo-100 text-sm font-medium mt-1">Total Across All Shops (Category Wise)</p>
+                        <p class="text-4xl font-black mt-2 tracking-tight">${formatCurrency(total)}</p>
+                    </div>
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" 
+                             class="bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid Content -->
+            <div class="p-6 overflow-y-auto custom-scroll bg-slate-50/50 flex-1 min-h-0">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    ${sortedCats.map(cat => `
+                        <div class="bg-white rounded-2xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow">
+                            <!-- Category Header -->
+                            <div class="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+                                    <h4 class="font-bold text-slate-800 text-lg uppercase tracking-tight">${cat}</h4>
+                                </div>
+                                <span class="bg-purple-50 text-purple-700 text-sm font-bold px-2 py-1 rounded-md border border-purple-100">
+                                    ${formatCurrency(breakdown[cat].total)}
+                                </span>
+                            </div>
+                            
+                            <!-- Detailed Entries List -->
+                            <div class="divide-y divide-slate-50 flex-1 overflow-y-auto custom-scroll max-h-[300px]">
+                                ${breakdown[cat].entries.sort((a, b) => new Date(b.date) - new Date(a.date)).map(e => `
+                                    <div class="px-5 py-3 hover:bg-slate-50/50 transition-colors flex justify-between items-center group">
+                                        <div class="flex flex-col gap-0.5">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter">
+                                                    ${e._shopName}
+                                                </span>
+                                                <span class="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                                                    ${new Date(e.date).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors truncate max-w-[180px]" title="${e.name || e.description || 'Payout'}">
+                                                ${e.name || e.description || 'Payout'}
+                                            </span>
+                                        </div>
+                                        <span class="font-bold text-slate-700 text-sm">
+                                            ${formatCurrency(e.amount)}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                                ${breakdown[cat].entries.length === 0 ? '<p class="text-xs text-slate-400 italic text-center py-4">No entries</p>' : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+             <!-- Footer -->
+             <div class="bg-white border-t border-slate-100 p-4 text-center shrink-0">
+                <p class="text-xs text-slate-400">Aggregated View</p>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+}
+
+export async function openOwnerReportModal() {
+    const shopPrefix = state.activeShop;
+    if (!shopPrefix || shopPrefix === 'OVERVIEW' || shopPrefix === 'COMPARE' || shopPrefix === 'CUSTOMERS') {
+        alert("Please select a specific shop from the sidebar to view the Owner Report.");
+        return;
+    }
+
+    const modal = document.getElementById('ownerReportModal');
+    const contentArea = document.getElementById('ownerReportContentArea');
+    const loadingObj = document.getElementById('ownerReportLoading');
+    const shopNameEl = document.getElementById('ownerReportShopName');
+    const dateRangeEl = document.getElementById('ownerReportDateRange');
+
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.classList.remove('opacity-0'), 10);
+
+    // Set Header
+    shopNameEl.textContent = shopPrefix.toUpperCase() + " SUMMARY REPORT";
+    const startDateRaw = document.getElementById('startDate').value;
+    const endDateRaw = document.getElementById('endDate').value;
+    dateRangeEl.textContent = `${startDateRaw} to ${endDateRaw}`;
+
+    contentArea.innerHTML = '';
+    loadingObj.classList.remove('hidden');
+    loadingObj.classList.add('flex');
+
+    try {
+        const bk = state.allResults[`${shopPrefix}|bookings`];
+        const del = state.allResults[`${shopPrefix}|delivery`];
+        const exp = state.allResults[`${shopPrefix}|expense`];
+
+        if (!bk || !del || !exp) {
+            alert("Ensure all shop data (Bookings, Deliveries, Expenses) is loaded before proceeding.");
+            closeOwnerReportModal();
+            return;
+        }
+
+        // --- YoY Booking Calculation ---
+        const [sy, sm, sd] = startDateRaw.split('-').map(Number);
+        const [ey, em, ed] = endDateRaw.split('-').map(Number);
+        const prevStartPattern = `${sy - 1}-${String(sm).padStart(2, '0')}-${String(sd).padStart(2, '0')}`;
+        const prevEndPattern = `${ey - 1}-${String(em).padStart(2, '0')}-${String(ed).padStart(2, '0')}`;
+
+        const { fetchHistoricalBookings } = await import('./api.js');
+        await fetchHistoricalBookings(shopPrefix, prevStartPattern, prevEndPattern);
+
+        const hist = state.allResults[`${shopPrefix}|historical_bookings`];
+
+        let currentGross = 0, currentCanceled = 0;
+        (bk.filteredData || []).forEach(b => {
+            const amt = b.amount || 0;
+            currentGross += amt;
+            if (isCanceledStatus(b.status)) currentCanceled += amt;
+        });
+        const currentNet = currentGross - currentCanceled;
+
+        let prevGross = 0, prevCanceled = 0;
+        if (hist && hist.filteredData) {
+            hist.filteredData.forEach(b => {
+                const amt = b.amount || 0;
+                prevGross += amt;
+                if (isCanceledStatus(b.status)) prevCanceled += amt;
+            });
+        }
+        const prevNet = prevGross - prevCanceled;
+
+        const netBookingDiff = currentNet - prevNet;
+        const netBookingTrendColor = netBookingDiff >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100';
+        const netBookingTrendIcon = netBookingDiff >= 0
+            ? `<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>`
+            : `<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>`;
+
+        // --- Delivery Breakdown ---
+        let totalDelivery = 0;
+        const deliveryBreakdown = { CASH: 0, ADIB: 0, ATM: 0 };
+        (del.filteredData || []).forEach(d => {
+            const amt = d.amount || 0;
+            totalDelivery += amt;
+            let type = d.amountType ? d.amountType.toUpperCase().trim() : 'CASH';
+            if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
+            if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+            deliveryBreakdown[type] += amt;
+        });
+
+        // --- Expense Breakdown ---
+        let totalExpense = 0;
+        const expenseCategories = {};
+        (exp.filteredData || []).forEach(e => {
+            const amt = e.amount || 0;
+            const cat = e.cat ? e.cat.trim() : 'Uncategorized';
+            if (!expenseCategories[cat]) expenseCategories[cat] = 0;
+            expenseCategories[cat] += amt;
+            totalExpense += amt;
+        });
+        const sortedExpCats = Object.keys(expenseCategories).sort((a, b) => expenseCategories[b] - expenseCategories[a]);
+
+        // --- Construct HTML ---
+        contentArea.innerHTML = `
+            <!-- Booking Section -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-indigo-900 tracking-tight flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        Total Booking
+                    </h3>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">Gross (${formatCurrency(currentGross)}) - Cancelled (${formatCurrency(currentCanceled)})</p>
+                        <p class="text-4xl font-black text-indigo-800 tracking-tight">${formatCurrency(currentNet)}</p>
+                    </div>
+                    <div class="flex items-center px-3 py-2 rounded-lg border ${netBookingTrendColor} shadow-sm backdrop-blur-sm">
+                        ${netBookingTrendIcon}
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold uppercase">Vs Prev Year (${sy - 1})</span>
+                            <span class="text-sm font-black">${netBookingDiff >= 0 ? '+' : ''}${formatCurrency(netBookingDiff)} (${formatCurrency(prevNet)})</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Section -->
+             <div class="bg-teal-50 border border-teal-100 rounded-xl p-6 shadow-sm">
+                 <h3 class="text-xl font-bold text-teal-900 tracking-tight flex items-center mb-4">
+                    <svg class="w-6 h-6 mr-2 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    Total Delivery
+                 </h3>
+                 <p class="text-4xl font-black text-teal-800 tracking-tight mb-4">${formatCurrency(totalDelivery)}</p>
+                 <div class="grid grid-cols-3 gap-2 sm:gap-4">
+                     <div class="bg-white/60 p-3 rounded-lg border border-teal-200 shadow-sm text-center">
+                         <p class="text-xs font-bold text-teal-600 uppercase mb-1">CASH</p>
+                         <p class="text-lg font-bold text-teal-900">${formatCurrency(deliveryBreakdown.CASH)}</p>
+                     </div>
+                     <div class="bg-white/60 p-3 rounded-lg border border-teal-200 shadow-sm text-center">
+                         <p class="text-xs font-bold text-teal-600 uppercase mb-1">ADIB</p>
+                         <p class="text-lg font-bold text-teal-900">${formatCurrency(deliveryBreakdown.ADIB)}</p>
+                     </div>
+                     <div class="bg-white/60 p-3 rounded-lg border border-teal-200 shadow-sm text-center">
+                         <p class="text-xs font-bold text-teal-600 uppercase mb-1">ATM</p>
+                         <p class="text-lg font-bold text-teal-900">${formatCurrency(deliveryBreakdown.ATM)}</p>
+                     </div>
+                 </div>
+             </div>
+
+             <!-- Expenses Section -->
+             <div class="bg-rose-50 border border-rose-100 rounded-xl p-6 shadow-sm">
+                 <div class="flex items-end justify-between mb-4 border-b border-rose-200 pb-4">
+                    <h3 class="text-xl font-bold text-rose-900 tracking-tight flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>
+                        Total Expenses
+                    </h3>
+                    <p class="text-3xl font-black text-rose-800 tracking-tight">${formatCurrency(totalExpense)}</p>
+                 </div>
+                 
+                 <div class="space-y-2">
+                     <h4 class="text-xs font-bold text-rose-500 uppercase tracking-widest mb-3">Category Breakdown</h4>
+                     ${sortedExpCats.length > 0 ? sortedExpCats.map(cat => `
+                         <div class="flex justify-between items-center py-2 px-3 bg-white/60 rounded border border-rose-100 shadow-sm">
+                             <span class="font-bold text-rose-900 text-sm uppercase">${cat}</span>
+                             <span class="font-bold text-rose-700">${formatCurrency(expenseCategories[cat])}</span>
+                         </div>
+                     `).join('') : '<p class="text-xs text-rose-400 italic">No expenses recorded for this period.</p>'}
+                 </div>
+             </div>
+        `;
+
+    } catch (err) {
+        console.error("Owner Report Modal error: ", err);
+        alert("An error occurred while building the report. Check the console.");
+    } finally {
+        loadingObj.classList.remove('flex');
+        loadingObj.classList.add('hidden');
+    }
+}
+
+export function closeOwnerReportModal() {
+    const modal = document.getElementById('ownerReportModal');
+    if (modal) {
+        modal.classList.add('opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+}
+
+/**
+ * Generates an instant, highly optimized PDF specifically for the modal's contents.
+ * Bypasses html2pdf/html2canvas limitations with modern CSS (oklch) by using native browser printing.
+ */
+export async function printOwnerReport() {
+    const printArea = document.getElementById('ownerReportPrintArea');
+    const shopName = document.getElementById('ownerReportShopName').textContent;
+    const dateRange = document.getElementById('ownerReportDateRange').textContent;
+
+    if (!printArea) return;
+
+    // Give visual feedback on the button
+    const btn = document.querySelector('button[onclick="printOwnerReport()"]');
+    let originalContent = "Save PDF";
+    if (btn) {
+        originalContent = btn.innerHTML;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Preparing...`;
+        btn.disabled = true;
+    }
+
+    try {
+        // Collect all styles from the parent document to ensure Tailwind works
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+            .map(node => node.outerHTML)
+            .join('\n');
+
+        // Create a hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed'; // fixed avoids scrolling issues
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>${shopName} - Owner Report</title>
+                    ${styles}
+                    <style>
+                        @page { size: auto; margin: 10mm; }
+                        body { 
+                            background-color: white !important; 
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important; 
+                            padding: 24px;
+                            font-family: 'Inter', sans-serif;
+                        }
+                        /* Override scrolling constraints inside iframe */
+                        .custom-scroll { overflow: visible !important; max-height: none !important; }
+                        /* Header specific for print */
+                        .print-header { border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px; }
+                        .print-header h1 { font-size: 24px; font-weight: bold; color: #1e293b; margin: 0; }
+                        .print-header p { font-size: 14px; color: #64748b; margin: 4px 0 0 0; }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <h1>${shopName}</h1>
+                        <p>${dateRange}</p>
+                    </div>
+                    <div class="max-w-3xl mx-auto">
+                        ${printArea.innerHTML}
+                    </div>
+                </body>
+            </html>
+        `);
+        doc.close();
+
+        // Wait a tiny bit for browser to parse styles and render DOM
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Use the native print dialog
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+
+        // Clean up after print dialog context yields
+        setTimeout(() => {
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+        }, 3000);
+
+    } catch (err) {
+        console.error("Failed to sequence print dialog: ", err);
+        alert("Failed to open print dialog.");
+    } finally {
+        if (btn) {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+        }
+    }
+}
+
+window.viewProfitDetails = viewProfitDetails;
+window.viewGlobalProfitDetails = viewGlobalProfitDetails;
+window.openOwnerReportModal = openOwnerReportModal;
+window.closeOwnerReportModal = closeOwnerReportModal;
+window.printOwnerReport = printOwnerReport;
+
 // Attach global functions
-window.renderContent = renderContent;
 

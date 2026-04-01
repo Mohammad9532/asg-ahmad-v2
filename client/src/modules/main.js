@@ -15,11 +15,11 @@ import {
     applyFiscalPeriod
 } from './ui.js';
 import { handleRouting, navigateTo } from './router.js';
-import { fetchAllData, fetchShopData, logout } from './api.js';
+import { fetchAllData, fetchShopData, logout, openGlobalProfitModal } from './api.js';
 import { handlePageChange } from './render_tables.js';
 
 // Import modules with side effects (window attachments)
-import './add_entry.js';
+import { handleDeliveryBillNoInput } from './add_entry.js';
 import './stock_audit.js';
 import './dailyLedger.js';
 import './customers.js';
@@ -29,6 +29,7 @@ import './compare.js';
 import './overview.js';
 import './audit.js';
 import './aiChat.js';
+import { openEditModal, closeEditModal, handleEditSubmit } from './edit_entry.js';
 
 // Attach global functions used in HTML event handlers
 window.handleSort = handleSort;
@@ -41,9 +42,15 @@ window.setActiveDataType = setActiveDataType;
 window.filterEmployeeGrid = filterEmployeeGrid;
 window.fetchAllData = fetchAllData;
 window.fetchShopData = fetchShopData;
+window.openGlobalProfitModal = openGlobalProfitModal;
 window.logout = logout;
 window.updatePeriodOptions = updatePeriodOptions;
 window.applyFiscalPeriod = applyFiscalPeriod;
+window.setDateRange = setDateRange;
+window.handleDeliveryBillNoInput = handleDeliveryBillNoInput;
+window.openEditModal = openEditModal;
+window.closeEditModal = closeEditModal;
+window.handleEditSubmit = handleEditSubmit;
 
 // Init Application
 window.addEventListener('DOMContentLoaded', async () => {

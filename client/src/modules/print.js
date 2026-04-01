@@ -25,46 +25,11 @@ export async function downloadPDF() {
     const dateStr = `Period: ${document.getElementById('startDate').value} to ${document.getElementById('endDate').value}`;
     const reportType = state.activeDataType.replace('_', ' ').toUpperCase();
 
-    header.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px;">
-            <div>
-                <h1 style="margin: 0; color: #1e293b; font-size: 28px; font-weight: 900; letter-spacing: -0.5px;">beingReal <span style="color: #0d9488;">Accounts</span></h1>
-                <p style="margin: 0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Professional Shop Data Report</p>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-weight: 800; color: #1e293b; font-size: 18px;">${shopName}</p>
-                <p style="margin: 0; font-size: 12px; color: #64748b; font-weight: 500;">${dateStr}</p>
-                <p style="margin: 0; font-size: 11px; color: #94a3b8; margin-top: 4px;">Generated on ${new Date().toLocaleDateString()}</p>
-            </div>
-        </div>
-        <div style="display: inline-block; background-color: #0d9488; color: white; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 12px; text-transform: uppercase;">${reportType}</div>
-    `;
-
-    pdfContent.insertBefore(header, pdfContent.firstChild);
-
-    // 4. Ensure charts are rendered/visible (html2pdf captures what's currently there)
-    // We might need a small delay or to ensure charts are images. 
-    // html2pdf handles canvases by default.
-
-    // 5. PDF Options
-    const opt = {
-        margin: [0.5, 0.5],
-        filename: `${shopName.replace(/\s+/g, '_')}_${reportType.replace(/\s+/g, '_')}_Report.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            letterRendering: true
-        },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-
-    // 6. Show loading state on the button
+    // 3. Show loading state on the button
     const btn = document.querySelector('button[onclick="downloadPDF()"]');
+    let originalContent = "Download Report";
     if (btn) {
-        const originalContent = btn.innerHTML;
+        originalContent = btn.innerHTML;
         btn.innerHTML = `
             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -73,24 +38,100 @@ export async function downloadPDF() {
             Generating PDF...
         `;
         btn.disabled = true;
+    }
 
-        try {
-            // 7. Generate!
-            await html2pdf().set(opt).from(pdfContent).save();
-        } catch (error) {
-            console.error('PDF Generation failed:', error);
-            alert('Failed to generate PDF. Please try again.');
-        } finally {
-            // 8. Restore button state
+    try {
+        // Collect all styles from the parent document to ensure Tailwind works
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+            .map(node => node.outerHTML)
+            .join('\n');
+
+        // Create a hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed'; // fixed avoids scrolling issues
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>${shopName} - ${reportType} Report</title>
+                    ${styles}
+                    <style>
+                        @page { size: auto; margin: 10mm; }
+                        body { 
+                            background-color: white !important; 
+                            -webkit-print-color-adjust: exact !important; 
+                            print-color-adjust: exact !important; 
+                            padding: 24px;
+                            font-family: 'Inter', sans-serif;
+                        }
+                        /* Override scrolling constraints inside iframe */
+                        .custom-scroll { overflow: visible !important; max-height: none !important; }
+                        
+                        /* Header specific for print */
+                        .print-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0d9488; padding-bottom: 15px; margin-bottom: 20px; }
+                        .print-header h1 { margin: 0; color: #1e293b; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
+                        .print-header h1 span { color: #0d9488; }
+                        .print-header p { margin: 0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+                        .print-header-right { text-align: right; }
+                        .print-header-right p { margin: 0; font-weight: 800; color: #1e293b; font-size: 18px; text-transform: none; }
+                        .print-header-right .dates { margin: 0; font-size: 12px; color: #64748b; font-weight: 500; text-transform: none; }
+                        .print-header-right .gen { margin: 0; font-size: 11px; color: #94a3b8; margin-top: 4px; text-transform: none; }
+                        .report-badge { display: inline-block; background-color: #0d9488; color: white; padding: 4px 12px; border-radius: 4px; font-weight: 700; font-size: 12px; text-transform: uppercase; margin-bottom: 20px;}
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <div>
+                            <h1>beingReal <span>Accounts</span></h1>
+                            <p>Professional Shop Data Report</p>
+                        </div>
+                        <div class="print-header-right">
+                            <p>${shopName}</p>
+                            <p class="dates">${dateStr}</p>
+                            <p class="gen">Generated on ${new Date().toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div class="report-badge">${reportType}</div>
+                    
+                    <div>
+                        ${pdfContent.innerHTML}
+                    </div>
+                </body>
+            </html>
+        `);
+        doc.close();
+
+        // Wait a tiny bit for browser to parse styles and render DOM
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Use the native print dialog
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+
+        // Clean up after print dialog context yields
+        setTimeout(() => {
+            if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+            }
+        }, 3000);
+
+    } catch (err) {
+        console.error("Failed to sequence print dialog: ", err);
+        alert("Failed to open print dialog.");
+    } finally {
+        if (btn) {
             btn.innerHTML = originalContent;
             btn.disabled = false;
-        }
-    } else {
-        // Fallback if triggered programmatically
-        try {
-            await html2pdf().set(opt).from(pdfContent).save();
-        } catch (error) {
-            console.error('PDF Generation failed:', error);
         }
     }
 }

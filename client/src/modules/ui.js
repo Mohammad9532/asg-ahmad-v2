@@ -137,12 +137,14 @@ export function renderDataTypeTabs(shopPrefix) {
     const tabDefinitions = [
         { type: 'dashboard', label: '📊 Dashboard' },
         { type: 'bookings', label: 'Net Bookings' },
+        { type: 'compare_bookings', label: 'Vs Compare' },
         { type: 'delivery', label: 'Deliveries' },
         { type: 'expense', label: 'Expenses' },
         { type: 'employee', label: '👥 Employees' },
         { type: 'daily_ledger', label: 'Daily Ledger' },
         { type: 'monthly_summary', label: 'Monthly' },
         { type: 'stock_audit', label: '✅ Stock Audit' },
+        { type: 'excess_delivery', label: '📈 Excess Delivery' },
     ];
 
     container.innerHTML = `<div class="flex flex-nowrap overflow-x-auto tabs-scroll-container pb-4 font-sans">${tabDefinitions.map(tab => `

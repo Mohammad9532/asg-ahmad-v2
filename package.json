@@ -9,11 +9,12 @@
   "scripts": {
     "server": "nodemon api/index.js",
     "client": "vite",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\" \"npm run watch:css\"",
     "start": "node api/index.js",
     "build": "npx vite build",
     "preview": "vite preview",
-    "build:css": "npx tailwindcss -i ./client/css/tailwind-input.css -o ./client/css/main.css --minify"
+    "build:css": "npx tailwindcss -i ./client/css/tailwind-input.css -o ./client/css/main.css --minify",
+    "watch:css": "npx tailwindcss -i ./client/css/tailwind-input.css -o ./client/css/main.css --watch"
   },
   "keywords": [],
   "author": "",

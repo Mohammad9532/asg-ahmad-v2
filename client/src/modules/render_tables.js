@@ -56,8 +56,8 @@ export function renderStandardTable(shopPrefix, data, dataType, showCanceledIndi
         'dept': 'Department',
     };
 
-    // Get all unique keys for headers, prioritize the map keys
-    let allKeys = new Set(Object.keys(headerMap));
+    // Get all unique keys from data (do not preload headerMap to avoid empty columns)
+    let allKeys = new Set();
     filteredData.slice(0, 100).forEach(doc => Object.keys(doc).forEach(key => allKeys.add(key)));
 
     // Filter out internal MongoDB keys
@@ -65,13 +65,23 @@ export function renderStandardTable(shopPrefix, data, dataType, showCanceledIndi
         !['_id', '__v', 'createdAt', 'updatedAt', 'countryCode', 'phone', 'qty', 'modelName'].includes(key)
     );
 
+    // Sort relevantKeys to maintain a logical order (e.g., date, billNo, name, amount...)
+    const preferredOrder = Object.keys(headerMap);
+    relevantKeys.sort((a, b) => {
+        let idxA = preferredOrder.indexOf(a);
+        let idxB = preferredOrder.indexOf(b);
+        if (idxA === -1) idxA = 999;
+        if (idxB === -1) idxB = 999;
+        return idxA - idxB;
+    });
+
     // Generate header row with sort handlers
     const headerRow = relevantKeys.map(key => {
         const headerText = headerMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
         return `<th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('${key}', '${tableId}')">
             ${headerText} ${getSortIcon(key, tableId)}
         </th>`;
-    }).join('');
+    }).join('') + `<th scope="col" class="px-6 py-3 text-right">Actions</th>`;
 
     // Generate data rows for PAGINATED data
     const rows = paginatedData.map(doc => {
@@ -94,7 +104,12 @@ export function renderStandardTable(shopPrefix, data, dataType, showCanceledIndi
             return `<td class="px-6 py-4">${value || '-'}</td>`;
         }).join('');
 
-        return `<tr class="bg-white border-b hover:bg-gray-50 transition-colors ${isCanceled ? 'bg-red-50' : ''}">${cellData}</tr>`;
+        const encodedDoc = encodeURIComponent(JSON.stringify(doc).replace(/'/g, "\\'"));
+        const actionHtml = `<td class="px-6 py-4 text-right">
+            <button onclick="openEditModal('${encodedDoc}', '${dataType}', '${shopPrefix}')" class="text-indigo-600 hover:text-indigo-900 font-medium text-sm border border-indigo-200 bg-indigo-50 px-3 py-1 rounded-lg">Edit</button>
+        </td>`;
+
+        return `<tr class="bg-white border-b hover:bg-gray-50 transition-colors ${isCanceled ? 'bg-red-50' : ''}">${cellData}${actionHtml}</tr>`;
     }).join('');
 
     // Generate Pagination Controls

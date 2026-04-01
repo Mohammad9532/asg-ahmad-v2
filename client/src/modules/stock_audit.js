@@ -273,23 +273,7 @@ function renderPendingTable(shop, data) {
 
     html += `</tbody></table></div></div>`;
 
-    // Append Modal Container if not exists
-    if (!document.getElementById('billDetailsModal')) {
-        const modal = document.createElement('div');
-        modal.id = 'billDetailsModal';
-        modal.className = 'fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm';
-        modal.innerHTML = `
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all scale-95" id="billDetailsContent">
-                <!-- Dynamic Content Load Here -->
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        // Close on background click
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeBillDetails();
-        });
-    }
+    html += `</tbody></table></div></div>`;
 
     container.innerHTML = html;
 }
@@ -298,6 +282,24 @@ function renderPendingTable(shop, data) {
  * Show Bill Details Modal
  */
 async function showBillDetails(shop, billNo) {
+    // Append Modal Container if not exists
+    if (!document.getElementById('billDetailsModal')) {
+        const modalDom = document.createElement('div');
+        modalDom.id = 'billDetailsModal';
+        modalDom.className = 'fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm';
+        modalDom.innerHTML = `
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all scale-95" id="billDetailsContent">
+                <!-- Dynamic Content Load Here -->
+            </div>
+        `;
+        document.body.appendChild(modalDom);
+
+        // Close on background click
+        modalDom.addEventListener('click', (e) => {
+            if (e.target === modalDom) closeBillDetails();
+        });
+    }
+
     const modal = document.getElementById('billDetailsModal');
     const content = document.getElementById('billDetailsContent');
 
@@ -335,19 +337,25 @@ async function showBillDetails(shop, billNo) {
 
         let deliveryRows = '';
         if (deliveries.length === 0) {
-            deliveryRows = `<tr><td colspan="4" class="px-4 py-4 text-center text-slate-400 italic">No deliveries recorded yet.</td></tr>`;
+            deliveryRows = `<tr><td colspan="5" class="px-4 py-4 text-center text-slate-400 italic">No deliveries recorded yet.</td></tr>`;
         } else {
             deliveries.forEach((d, idx) => {
+                const encodedDel = encodeURIComponent(JSON.stringify(d).replace(/'/g, "\\'"));
                 deliveryRows += `
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-4 py-3 text-slate-600">${idx + 1}</td>
                         <td class="px-4 py-3 font-mono text-slate-700 font-bold">${d.amountType || 'Cash/Card'}</td>
                         <td class="px-4 py-3 text-slate-500">${new Date(d.date).toLocaleDateString()}</td>
                         <td class="px-4 py-3 text-right font-bold text-teal-700">${formatCurrency(d.amount)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <button onclick="window.openEditModal('${encodedDel}', 'delivery', '${shop}')" class="text-indigo-600 hover:text-indigo-900 font-medium text-xs border border-indigo-200 bg-indigo-50 px-2 py-1 rounded">Edit</button>
+                        </td>
                     </tr>
                 `;
             });
         }
+
+        const encodedBooking = encodeURIComponent(JSON.stringify(booking).replace(/'/g, "\\'"));
 
         content.innerHTML = `
             <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
@@ -366,8 +374,9 @@ async function showBillDetails(shop, billNo) {
             
             <div class="p-6">
                 <!-- Booking Info -->
-                <div class="bg-indigo-50 rounded-xl p-5 mb-6 border border-indigo-100">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+                <div class="bg-indigo-50 rounded-xl p-5 mb-6 border border-indigo-100 relative">
+                    <button onclick="window.openEditModal('${encodedBooking}', 'bookings', '${shop}')" class="absolute top-4 right-4 text-indigo-600 hover:text-indigo-900 border border-indigo-200 bg-white px-3 py-1 rounded shadow-sm text-xs font-semibold">Edit Booking</button>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2 mt-4">
                         <div>
                             <p class="text-xs text-indigo-400 uppercase font-bold tracking-wider mb-1">Date</p>
                             <p class="font-semibold text-indigo-900">${new Date(booking.date).toLocaleDateString()}</p>
@@ -416,6 +425,7 @@ async function showBillDetails(shop, billNo) {
                                 <th class="px-4 py-2">Type</th>
                                 <th class="px-4 py-2">Date</th>
                                 <th class="px-4 py-2 text-right">Amount</th>
+                                <th class="px-4 py-2 text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
