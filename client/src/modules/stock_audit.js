@@ -67,8 +67,14 @@ async function switchAuditTab(shop, status) {
 async function loadAuditContent(shop) {
     const content = document.getElementById('auditContent');
 
+    const startObj = document.getElementById('startDate');
+    const endObj = document.getElementById('endDate');
+    const dateRangeStr = (startObj && endObj && startObj.value && endObj.value)
+        ? `${startObj.value}_${endObj.value}`
+        : 'all';
+
     // --- INSTANT PREVIEW CHECK ---
-    const cacheKey = `${shop}|stock_audit|${currentAuditStatus}`;
+    const cacheKey = `${shop}|stock_audit|${currentAuditStatus}|${dateRangeStr}`;
     if (state.allResults && state.allResults[cacheKey]) {
         currentAuditData = state.allResults[cacheKey];
         if (currentAuditStatus === 'pending') renderPendingTable(shop, currentAuditData);
@@ -114,7 +120,13 @@ async function loadAuditContent(shop) {
  * status: 'pending' | 'verified' | 'archived'
  */
 async function fetchStockAuditData(shop, status) {
-    const url = `${BASE_URL}/api/${shop}/stock_audit?status=${status}`;
+    const startObj = document.getElementById('startDate');
+    const endObj = document.getElementById('endDate');
+    let url = `${BASE_URL}/api/${shop}/stock_audit?status=${status}`;
+
+    if (startObj && endObj && startObj.value && endObj.value) {
+        url += `&start=${startObj.value}&end=${endObj.value}`;
+    }
 
     const token = localStorage.getItem('authToken');
     const headers = { 'Content-Type': 'application/json' };
@@ -273,23 +285,7 @@ function renderPendingTable(shop, data) {
 
     html += `</tbody></table></div></div>`;
 
-    // Append Modal Container if not exists
-    if (!document.getElementById('billDetailsModal')) {
-        const modal = document.createElement('div');
-        modal.id = 'billDetailsModal';
-        modal.className = 'fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm';
-        modal.innerHTML = `
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all scale-95" id="billDetailsContent">
-                <!-- Dynamic Content Load Here -->
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        // Close on background click
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeBillDetails();
-        });
-    }
+    html += `</tbody></table></div></div>`;
 
     container.innerHTML = html;
 }
@@ -298,6 +294,24 @@ function renderPendingTable(shop, data) {
  * Show Bill Details Modal
  */
 async function showBillDetails(shop, billNo) {
+    // Append Modal Container if not exists
+    if (!document.getElementById('billDetailsModal')) {
+        const modalDom = document.createElement('div');
+        modalDom.id = 'billDetailsModal';
+        modalDom.className = 'fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm';
+        modalDom.innerHTML = `
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all scale-95" id="billDetailsContent">
+                <!-- Dynamic Content Load Here -->
+            </div>
+        `;
+        document.body.appendChild(modalDom);
+
+        // Close on background click
+        modalDom.addEventListener('click', (e) => {
+            if (e.target === modalDom) closeBillDetails();
+        });
+    }
+
     const modal = document.getElementById('billDetailsModal');
     const content = document.getElementById('billDetailsContent');
 
@@ -335,19 +349,25 @@ async function showBillDetails(shop, billNo) {
 
         let deliveryRows = '';
         if (deliveries.length === 0) {
-            deliveryRows = `<tr><td colspan="4" class="px-4 py-4 text-center text-slate-400 italic">No deliveries recorded yet.</td></tr>`;
+            deliveryRows = `<tr><td colspan="5" class="px-4 py-4 text-center text-slate-400 italic">No deliveries recorded yet.</td></tr>`;
         } else {
             deliveries.forEach((d, idx) => {
+                const encodedDel = encodeURIComponent(JSON.stringify(d).replace(/'/g, "\\'"));
                 deliveryRows += `
                     <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
                         <td class="px-4 py-3 text-slate-600">${idx + 1}</td>
                         <td class="px-4 py-3 font-mono text-slate-700 font-bold">${d.amountType || 'Cash/Card'}</td>
                         <td class="px-4 py-3 text-slate-500">${new Date(d.date).toLocaleDateString()}</td>
                         <td class="px-4 py-3 text-right font-bold text-teal-700">${formatCurrency(d.amount)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <button onclick="window.openEditModal('${encodedDel}', 'delivery', '${shop}')" class="text-indigo-600 hover:text-indigo-900 font-medium text-xs border border-indigo-200 bg-indigo-50 px-2 py-1 rounded">Edit</button>
+                        </td>
                     </tr>
                 `;
             });
         }
+
+        const encodedBooking = encodeURIComponent(JSON.stringify(booking).replace(/'/g, "\\'"));
 
         content.innerHTML = `
             <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
@@ -366,8 +386,9 @@ async function showBillDetails(shop, billNo) {
             
             <div class="p-6">
                 <!-- Booking Info -->
-                <div class="bg-indigo-50 rounded-xl p-5 mb-6 border border-indigo-100">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+                <div class="bg-indigo-50 rounded-xl p-5 mb-6 border border-indigo-100 relative">
+                    <button onclick="window.openEditModal('${encodedBooking}', 'bookings', '${shop}')" class="absolute top-4 right-4 text-indigo-600 hover:text-indigo-900 border border-indigo-200 bg-white px-3 py-1 rounded shadow-sm text-xs font-semibold">Edit Booking</button>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2 mt-4">
                         <div>
                             <p class="text-xs text-indigo-400 uppercase font-bold tracking-wider mb-1">Date</p>
                             <p class="font-semibold text-indigo-900">${new Date(booking.date).toLocaleDateString()}</p>
@@ -416,6 +437,7 @@ async function showBillDetails(shop, billNo) {
                                 <th class="px-4 py-2">Type</th>
                                 <th class="px-4 py-2">Date</th>
                                 <th class="px-4 py-2 text-right">Amount</th>
+                                <th class="px-4 py-2 text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -459,14 +481,27 @@ function closeBillDetails() {
 function renderHistoryTable(shop, data) {
     const container = document.getElementById('auditContent');
 
+    const uniqueRemarks = Array.from(new Set(data.map(i => (i.remark || '').trim()).filter(r => r !== ''))).sort();
+
     let html = `
         <div class="mb-4">
-            <input type="text" 
-                id="historySearchInput" 
-                onkeyup="filterHistoryTable()" 
-                placeholder="Search by Bill No or Remarks..." 
-                class="w-full md:w-1/3 px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            >
+            <div class="w-full md:w-1/3 mb-2">
+                <input type="text" 
+                    id="historySearchInput" 
+                    onkeyup="filterHistoryTable()" 
+                    placeholder="Search by Bill No or Remarks..." 
+                    class="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+            </div>
+            <div class="flex gap-2 text-sm max-w-full overflow-x-auto pb-2 scrollbar-hide">
+                <button class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 whitespace-nowrap transition-colors" onclick="applyQuickFilter('', 'history')">All</button>
+                <button class="px-3 py-1 border border-teal-200 bg-teal-50 text-teal-700 rounded-full hover:bg-teal-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[clean]', 'history')">Clean (No Remarks & No Missing)</button>
+                <button class="px-3 py-1 border border-red-200 bg-red-50 text-red-700 rounded-full hover:bg-red-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[missing]', 'history')">With Missing Pcs</button>
+                <select class="px-3 py-1 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 focus:outline-none max-w-xs transition-colors cursor-pointer" onchange="applyQuickFilter(this.value, 'history')">
+                    <option value="">Filter by Existing Remark...</option>
+                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}">${r}</option>`).join('')}
+                </select>
+            </div>
         </div>
     `;
 
@@ -488,6 +523,7 @@ function renderHistoryTable(shop, data) {
                             <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-full">Remark</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Checked At</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-20">Status</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-24">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 text-sm">
@@ -502,14 +538,19 @@ function renderHistoryTable(shop, data) {
             ? `<span class="font-bold text-teal-700">${formatCurrency(item.amount)}</span>`
             : '<span class="text-slate-400 italic">-</span>';
 
-        // Helper to safely get string values for search
-        let searchTerms = `${item.billNo} ${item.remark || ''}`.toLowerCase();
-        if (item.missingPcs > 0) {
-            searchTerms += ` missing ${item.missingPcs}`;
+        let tags = "";
+        if (!item.remark && (!item.missingPcs || item.missingPcs === 0)) {
+            tags += " [clean]";
+        }
+        if (item.missingPcs && item.missingPcs > 0) {
+            tags += " [missing]";
         }
 
+        // Helper to safely get string values for search
+        let searchTerms = `${item.billNo} ${item.remark || ''} ${tags}`.toLowerCase();
+
         html += `
-            <tr class="hover:bg-slate-50 history-row" data-search="${searchTerms}">
+            <tr class="hover:bg-slate-50 history-row" data-search="${searchTerms}" data-amount="${item.amount || 0}">
                 <td class="px-6 py-4 font-mono font-bold text-slate-700">${item.billNo}</td>
                 <td class="px-6 py-4 text-center text-slate-600 font-semibold">${item.qty !== undefined && item.qty !== null ? item.qty : '-'}</td>
                  <td class="px-6 py-4 text-right">${amountDisplay}</td>
@@ -524,12 +565,41 @@ function renderHistoryTable(shop, data) {
                         Checked
                     </span>
                 </td>
+                <td class="px-6 py-4 text-center">
+                    <div class="flex justify-center space-x-3">
+                        <button onclick="editStockAuditItem('${shop}', '${item._id}', '${(item.remark || '').replace(/'/g, "\\'")}', ${item.missingPcs || 0}, ${item.qty || 0}, ${item.amount || 0})" 
+                            class="text-indigo-600 hover:text-indigo-800 transition-colors" title="Edit">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                        <button onclick="undoStockAuditItem('${shop}', '${item._id}')" 
+                            class="text-red-500 hover:text-red-700 transition-colors" title="Undo (Move to Pending)">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                        </button>
+                    </div>
+                </td>
             </tr>
         `;
     });
 
-    html += `</tbody></table></div></div>`;
+    html += `</tbody>
+                    <tfoot class="bg-indigo-50 border-t-2 border-indigo-200" id="historyFooter">
+                        <tr>
+                            <td colspan="2" class="px-6 py-3 font-bold text-slate-700 text-right">Filtered Total:</td>
+                            <td class="px-6 py-3 font-bold text-teal-700 text-right" id="historyTotalAmount">-</td>
+                            <td colspan="5" class="px-6 py-3 font-medium text-slate-500 text-sm" id="historyVisibleCount">-</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>`;
     container.innerHTML = html;
+
+    // Calculate initial totals
+    filterHistoryTable();
 }
 
 /**
@@ -634,23 +704,36 @@ function renderArchivedDetails(shop, allData, batchLabel) {
     const container = document.getElementById('auditContent');
     const filteredData = allData.filter(item => (item.batchLabel || 'Unnamed Audit') === batchLabel);
 
+    const uniqueRemarks = Array.from(new Set(filteredData.map(i => (i.remark || '').trim()).filter(r => r !== ''))).sort();
+
     // Add Search Filter & Back Button
     let html = `
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-            <button onclick="closeArchiveBatch()" class="flex items-center text-indigo-600 hover:text-indigo-800 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors">
-                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to Archives
-            </button>
-            <h3 class="text-xl font-bold text-slate-800">${batchLabel}</h3>
-            <div class="w-full md:w-1/3">
-                <input type="text" 
-                    id="archivedSearchInput" 
-                    onkeyup="filterArchivedTable()" 
-                    placeholder="Search in ${batchLabel}..." 
-                    class="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
+        <div class="mb-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-2">
+                <button onclick="closeArchiveBatch()" class="flex items-center text-indigo-600 hover:text-indigo-800 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Back to Archives
+                </button>
+                <h3 class="text-xl font-bold text-slate-800">${batchLabel}</h3>
+                <div class="w-full md:w-1/3">
+                    <input type="text" 
+                        id="archivedSearchInput" 
+                        onkeyup="filterArchivedTable()" 
+                        placeholder="Search in ${batchLabel}..." 
+                        class="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                </div>
+            </div>
+            <div class="flex gap-2 text-sm max-w-full overflow-x-auto pb-2 scrollbar-hide justify-end md:justify-end justify-start">
+                <button class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 whitespace-nowrap transition-colors" onclick="applyQuickFilter('', 'archived')">All</button>
+                <button class="px-3 py-1 border border-teal-200 bg-teal-50 text-teal-700 rounded-full hover:bg-teal-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[clean]', 'archived')">Clean</button>
+                <button class="px-3 py-1 border border-red-200 bg-red-50 text-red-700 rounded-full hover:bg-red-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[missing]', 'archived')">With Missing Pcs</button>
+                <select class="px-3 py-1 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 focus:outline-none max-w-xs transition-colors cursor-pointer" onchange="applyQuickFilter(this.value, 'archived')">
+                    <option value="">Filter by Existing Remark...</option>
+                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}">${r}</option>`).join('')}
+                </select>
             </div>
         </div>
     `;
@@ -681,11 +764,19 @@ function renderArchivedDetails(shop, allData, batchLabel) {
             ? `<span class="font-bold text-slate-700">${formatCurrency(item.amount)}</span>`
             : '<span class="text-slate-400 italic">-</span>';
 
+        let tags = "";
+        if (!item.remark && (!item.missingPcs || item.missingPcs === 0)) {
+            tags += " [clean]";
+        }
+        if (item.missingPcs && item.missingPcs > 0) {
+            tags += " [missing]";
+        }
+
         // Helper to safely get string values for search
-        const searchTerms = `${item.billNo} ${item.remark || ''}`.toLowerCase();
+        const searchTerms = `${item.billNo} ${item.remark || ''} ${tags}`.toLowerCase();
 
         html += `
-            <tr class="hover:bg-slate-50 archived-row" data-search="${searchTerms}">
+            <tr class="hover:bg-slate-50 archived-row" data-search="${searchTerms}" data-amount="${item.amount || 0}">
                 <td class="px-6 py-4 font-mono font-bold text-slate-700">${item.billNo}</td>
                 <td class="px-6 py-4 text-center text-slate-600 font-semibold">${item.qty !== undefined && item.qty !== null ? item.qty : '-'}</td>
                 <td class="px-6 py-4 text-right">${amountDisplay}</td>
@@ -699,8 +790,21 @@ function renderArchivedDetails(shop, allData, batchLabel) {
         `;
     });
 
-    html += `</tbody></table></div></div>`;
+    html += `</tbody>
+                    <tfoot class="bg-indigo-50 border-t-2 border-indigo-200">
+                        <tr>
+                            <td colspan="2" class="px-6 py-3 font-bold text-slate-700 text-right">Filtered Total:</td>
+                            <td class="px-6 py-3 font-bold text-slate-800 text-right" id="archivedTotalAmount">-</td>
+                            <td colspan="3" class="px-6 py-3 font-medium text-slate-500 text-sm" id="archivedVisibleCount">-</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>`;
     container.innerHTML = html;
+
+    // Calculate initial totals
+    filterArchivedTable();
 }
 
 function openArchiveBatch(batchLabel) {
@@ -718,34 +822,77 @@ function closeArchiveBatch() {
  */
 function filterHistoryTable() {
     const input = document.getElementById('historySearchInput');
-    const filter = input.value.toLowerCase();
+    const filter = input ? input.value.toLowerCase() : '';
     const rows = document.querySelectorAll('.history-row');
+
+    let totalAmount = 0;
+    let visibleCount = 0;
 
     rows.forEach(row => {
         const searchData = row.getAttribute('data-search');
         if (searchData && searchData.includes(filter)) {
             row.style.display = "";
+            visibleCount++;
+
+            const amountAttr = row.getAttribute('data-amount');
+            if (amountAttr) {
+                totalAmount += parseFloat(amountAttr) || 0;
+            }
         } else {
             row.style.display = "none";
         }
     });
+
+    const footerAmount = document.getElementById('historyTotalAmount');
+    if (footerAmount) footerAmount.textContent = formatCurrency(totalAmount);
+
+    const footerCount = document.getElementById('historyVisibleCount');
+    if (footerCount) footerCount.textContent = `${visibleCount} item(s)`;
 }
 
 function filterArchivedTable() {
     const input = document.getElementById('archivedSearchInput');
-    const filter = input.value.toLowerCase();
+    const filter = input ? input.value.toLowerCase() : '';
     const rows = document.querySelectorAll('.archived-row');
+
+    let totalAmount = 0;
+    let visibleCount = 0;
 
     rows.forEach(row => {
         const searchData = row.getAttribute('data-search');
         if (searchData && searchData.includes(filter)) {
             row.style.display = "";
+            visibleCount++;
+
+            const amountAttr = row.getAttribute('data-amount');
+            if (amountAttr) {
+                totalAmount += parseFloat(amountAttr) || 0;
+            }
         } else {
             row.style.display = "none";
         }
     });
+
+    const footerAmount = document.getElementById('archivedTotalAmount');
+    if (footerAmount) footerAmount.textContent = formatCurrency(totalAmount);
+
+    const footerCount = document.getElementById('archivedVisibleCount');
+    if (footerCount) footerCount.textContent = `${visibleCount} item(s)`;
 }
 
+function applyQuickFilter(term, type) {
+    const inputId = type === 'history' ? 'historySearchInput' : 'archivedSearchInput';
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    input.value = term;
+
+    if (type === 'history') {
+        filterHistoryTable();
+    } else {
+        filterArchivedTable();
+    }
+}
 
 /**
  * Verify Item (Send to Backend)
@@ -803,6 +950,123 @@ async function verifyStockAuditItem(shop, billNo, qty, amount) {
     }
 }
 
+async function undoStockAuditItem(shop, id) {
+    if (!confirm("Are you sure you want to undo this item? It will be moved back to Pending Stock.")) return;
+
+    try {
+        const url = `${BASE_URL}/api/${shop}/stock_audit/${id}`;
+        const token = localStorage.getItem('authToken');
+
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error(await response.text());
+
+        if (state.allResults) {
+            Object.keys(state.allResults).forEach(key => {
+                if (key.startsWith(`${shop}|stock_audit|`)) delete state.allResults[key];
+            });
+        }
+
+        loadAuditContent(shop);
+    } catch (err) {
+        console.error("Undo Error:", err);
+        alert("Failed to undo check.");
+    }
+}
+
+async function editStockAuditItem(shop, id, currentRemark, currentMissing, currentQty, currentAmount) {
+    const modalId = `auditEditModal_${id}`;
+    let modal = document.getElementById(modalId);
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden p-6 animate-fade-in-up">
+            <h3 class="text-xl font-bold text-indigo-900 mb-4">Edit Checked Stock Item</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Quantity</label>
+                        <input type="number" id="editQty_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value="${currentQty}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Amount</label>
+                        <input type="number" step="0.01" id="editAmount_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value="${currentAmount}">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Missing Pieces</label>
+                    <input type="number" id="editMissing_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value="${currentMissing}">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">Remark</label>
+                    <textarea id="editRemark_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" rows="3">${currentRemark}</textarea>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="cancelEditBtn_${id}" class="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button id="saveEditBtn_${id}" class="px-4 py-2 bg-indigo-600 text-white font-medium hover:bg-indigo-700 rounded-lg shadow-sm transition-colors">Save Changes</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById(`cancelEditBtn_${id}`).onclick = () => {
+        modal.remove();
+    };
+
+    document.getElementById(`saveEditBtn_${id}`).onclick = async () => {
+        const newQty = document.getElementById(`editQty_${id}`).value;
+        const newAmount = document.getElementById(`editAmount_${id}`).value;
+        const newMissing = document.getElementById(`editMissing_${id}`).value;
+        const newRemark = document.getElementById(`editRemark_${id}`).value;
+
+        try {
+            const btn = document.getElementById(`saveEditBtn_${id}`);
+            btn.innerHTML = 'Saving...';
+            btn.disabled = true;
+
+            const url = `${BASE_URL}/api/${shop}/stock_audit/${id}`;
+            const token = localStorage.getItem('authToken');
+
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    remark: newRemark,
+                    missingPcs: newMissing,
+                    qty: newQty,
+                    amount: newAmount
+                })
+            });
+            if (!response.ok) throw new Error(await response.text());
+
+            if (state.allResults) {
+                Object.keys(state.allResults).forEach(key => {
+                    if (key.startsWith(`${shop}|stock_audit|`)) delete state.allResults[key];
+                });
+            }
+
+            modal.remove();
+            loadAuditContent(shop);
+        } catch (err) {
+            console.error("Edit Error:", err);
+            alert("Failed to edit item.");
+            const btn = document.getElementById(`saveEditBtn_${id}`);
+            btn.innerHTML = 'Save Changes';
+            btn.disabled = false;
+        }
+    };
+}
+
 // Attach functions to window for global access
 window.switchAuditTab = switchAuditTab;
 window.archiveCurrentAudit = archiveCurrentAudit;
@@ -813,4 +1077,7 @@ window.openArchiveBatch = openArchiveBatch;
 window.closeArchiveBatch = closeArchiveBatch;
 window.filterHistoryTable = filterHistoryTable;
 window.filterArchivedTable = filterArchivedTable;
+window.applyQuickFilter = applyQuickFilter;
 window.loadAuditContent = loadAuditContent; // Used in Retry button
+window.undoStockAuditItem = undoStockAuditItem;
+window.editStockAuditItem = editStockAuditItem;

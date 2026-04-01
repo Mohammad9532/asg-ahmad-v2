@@ -26,6 +26,12 @@ const EXPENSE_MAPPING = {
 // --- Modal Control ---
 
 export function openAddEntryModal() {
+    const active = state.activeShop;
+    if (!active || active === 'OVERVIEW' || active === 'COMPARE' || active === 'CUSTOMERS') {
+        alert("Please select a specific shop from the sidebar to add entries. Global data entry is disabled to prevent mistakes.");
+        return;
+    }
+
     hasNewEntries = false; // Reset flag on open
     const modal = document.getElementById('addEntryModal');
     modal.classList.remove('hidden');
@@ -59,37 +65,21 @@ export function openAddEntryModal() {
     if (shopSelect) {
         shopSelect.innerHTML = '';
 
-        const isAdmin = state.user && state.user.role === 'admin';
-        const userShop = state.user ? state.user.shop : null;
+        const option = document.createElement('option');
+        option.value = active.toLowerCase(); // Use lowercase for API
+        option.textContent = active;
+        shopSelect.appendChild(option);
 
-        const shops = isAdmin
-            ? SHOP_PREFIXES
-            : SHOP_PREFIXES.filter(s => s.toLowerCase() === (userShop || '').toLowerCase());
-
-        shops.forEach(shop => {
-            const option = document.createElement('option');
-            option.value = shop.toLowerCase(); // Use lowercase for API
-            option.textContent = shop;
-            shopSelect.appendChild(option);
-        });
-
-        // Lock for shop workers
-        if (!isAdmin && userShop) {
-            shopSelect.disabled = true;
-            shopSelect.classList.add('bg-slate-100', 'cursor-not-allowed', 'dark:bg-slate-800');
-        } else {
-            shopSelect.disabled = false;
-            shopSelect.classList.remove('bg-slate-100', 'cursor-not-allowed', 'dark:bg-slate-800');
-        }
+        // ALWAYS Lock the shop dropdown to the current active shop
+        // This enforces "Shop Wise Data Entry" and prevents accidental global mistakes
+        shopSelect.disabled = true;
+        shopSelect.classList.add('bg-slate-100', 'cursor-not-allowed', 'dark:bg-slate-800');
     }
 
-    // Initial fetch for the first/default shop
-    if (shopSelect.value) {
+    // Initial fetch for the active shop
+    if (shopSelect && shopSelect.value) {
         fetchEmployees(shopSelect.value);
     }
-
-    // Default to currently selected shop if possible, else first one
-    // (Assuming there's a way to know current shop context, otherwise default)
 
     // Reset to default type
     switchEntryType('booking');
@@ -506,7 +496,8 @@ export function switchEntryType(type) {
                         Other Amount
                     </label>
                 </div>
-                <input type="text" name="billNo" id="delBillNoInput" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                <input type="text" name="billNo" id="delBillNoInput" oninput="handleDeliveryBillNoInput(this)" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                <div id="deliveryBalanceDisplay" class="text-xs mt-1 min-h-[16px] text-slate-500 font-medium"></div>
             </div>
 
             <div>
@@ -639,7 +630,82 @@ export function toggleOtherAmounts() {
         billInput.disabled = false;
         billInput.classList.remove('bg-slate-100', 'text-slate-500');
         billInput.focus();
+
+        // Reset balance display
+        const balanceDisplay = document.getElementById('deliveryBalanceDisplay');
+        if (balanceDisplay) balanceDisplay.innerHTML = '';
     }
+}
+
+// --- Instant Pending Balance for Delivery ---
+let billNoDebounceTimer = null;
+
+export async function handleDeliveryBillNoInput(input) {
+    const value = input.value.trim();
+    const display = document.getElementById('deliveryBalanceDisplay');
+    if (!display) return;
+
+    // Reset if cleared
+    if (value === '') {
+        display.innerHTML = '';
+        return;
+    }
+
+    // Wait 400ms before triggering API fetch
+    if (billNoDebounceTimer) clearTimeout(billNoDebounceTimer);
+
+    display.innerHTML = '<span class="text-slate-400">Loading balance...</span>';
+
+    billNoDebounceTimer = setTimeout(async () => {
+        const shop = document.getElementById('entryShop')?.value;
+        if (!shop) return;
+
+        try {
+            const token = localStorage.getItem('authToken');
+            const res = await fetch(`${BASE_URL}/api/${shop}/bill_details?billNo=${value}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!res.ok) {
+                display.innerHTML = '<span class="text-slate-400">Failed to load bill.</span>';
+                return;
+            }
+
+            const data = await res.json();
+
+            // Check if booking exists
+            if (!data.booking) {
+                display.innerHTML = '<span class="text-slate-400 font-normal">Bill not found.</span>';
+                return;
+            }
+
+            const bookingAmount = parseFloat(data.booking.amount || 0);
+
+            // Calculate total delivered so far
+            let deliveredAmount = 0;
+            if (data.deliveries && Array.isArray(data.deliveries)) {
+                deliveredAmount = data.deliveries.reduce((sum, del) => sum + parseFloat(del.amount || 0), 0);
+            }
+
+            const pending = bookingAmount - deliveredAmount;
+
+            // Format numbers
+            const fmt = (num) => new Intl.NumberFormat('en-AE').format(num);
+
+            let colorClass = 'text-green-600 dark:text-green-400';
+            if (pending > 0) {
+                colorClass = 'text-rose-600 dark:text-rose-400';
+            } else if (pending < 0) {
+                colorClass = 'text-yellow-600 dark:text-yellow-400'; // Overpaid
+            }
+
+            display.innerHTML = `Booking: <span class="font-bold">${fmt(bookingAmount)}</span> | Delivered: <span class="font-bold">${fmt(deliveredAmount)}</span> | <span class="${colorClass} ml-1">Pending: <span class="font-bold">${fmt(pending)}</span></span>`;
+
+        } catch (error) {
+            console.error("Instant balance lookup failed:", error);
+            display.innerHTML = '<span class="text-slate-400">Failed to load balance.</span>';
+        }
+    }, 400);
 }
 
 
@@ -737,6 +803,10 @@ export async function handleAddEntrySubmit(event) {
             preview.classList.remove('hidden');
         }
 
+        // --- SHOW BEAUTIFUL ENTRY RECEIPT MODAL ---
+        // const entryDate = payload.date || form.querySelector('[name="date"]').value;
+        // showEntryReceiptModal(shop, entryDate, payload, currentEntryType);
+
         // --- SMART RESET (Bulk Entry Optimization) ---
         // We do NOT close the modal. We only clear transaction-specific fields.
 
@@ -787,6 +857,10 @@ export async function handleAddEntrySubmit(event) {
 
             const remarksInput = document.getElementById('remarksInput');
             if (remarksInput) remarksInput.value = '';
+
+            // Clear Balance Display
+            const balanceDisplay = document.getElementById('deliveryBalanceDisplay');
+            if (balanceDisplay) balanceDisplay.innerHTML = '';
 
             // Focus appropriate field
             billInput.focus();
@@ -945,6 +1019,150 @@ window.toggleSideBySideMode = toggleSideBySideMode;
 window.clearEntryImage = clearEntryImage;
 window.zoomImage = zoomImage;
 window.handleNameInput = handleNameInput;
+window.closeEntryReceiptModal = closeEntryReceiptModal;
+window.printEntryReceipt = printEntryReceipt;
+
+// --- Entry Receipt Modal Logic ---
+
+async function showEntryReceiptModal(shop, dateStr, payload, type) {
+    const modal = document.getElementById('entryReceiptModal');
+    if (!modal) return;
+
+    // Set Header
+    const headerTitle = type.charAt(0).toUpperCase() + type.slice(1) + ' Info';
+    document.getElementById('receiptEntryTypeHeader').textContent = headerTitle.slice(1);
+    const firstLetter = document.querySelector('#receiptEntryTypeHeader').previousElementSibling;
+    firstLetter.textContent = headerTitle.charAt(0);
+
+    // Build Top Info based on type
+    const detailsContainer = document.getElementById('receiptEntryDetails');
+    let detailsHtml = '';
+
+    const addRow = (label, value) => {
+        if (value !== undefined && value !== '') {
+            detailsHtml += `<div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 font-medium tracking-wide">${label}</span>
+                <span class="text-blue-400 font-bold">${value}</span>
+            </div>`;
+        }
+    };
+
+    if (type === 'booking') {
+        addRow('Bill No:-', payload.billNo);
+        addRow('Name', payload.name);
+        addRow('Phone', payload.phone);
+        addRow('Date', dateStr.split('-').reverse().join('-'));
+        addRow('Quantity', payload.qty);
+        addRow('Amount', payload.amount);
+        if (payload.advance) addRow('Advance', payload.advance);
+        addRow('Piece Status', (payload.status || 'STOCK').toUpperCase());
+    } else if (type === 'delivery') {
+        addRow('Bill No:-', payload.billNo);
+        addRow('Date', dateStr.split('-').reverse().join('-'));
+        addRow('Amount', payload.amount);
+        addRow('Type', (payload.amountType || 'CASH').toUpperCase());
+        addRow('Remarks', payload.remarks);
+    } else if (type === 'expense') {
+        addRow('Name', payload.name);
+        addRow('Date', dateStr.split('-').reverse().join('-'));
+        addRow('Department', payload.dept);
+        addRow('Category', payload.cat);
+        addRow('Amount', payload.amount);
+    }
+    detailsContainer.innerHTML = detailsHtml;
+
+    // Fetch Daily Totals for Bottom Section
+    try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`${BASE_URL}/api/${shop}/daily_ledger?date=${dateStr}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        // 1. Booking Column
+        document.getElementById('rBookingDate').textContent = dateStr.split('-').reverse().join('-');
+        document.getElementById('rBookingStock').textContent = data.grossBooking || 0;
+
+        let totalAdvance = 0;
+        if (data.entries) {
+            data.entries.forEach(e => {
+                if (e.dataType === 'delivery' && e.raw && e.raw.amountType && String(e.raw.amountType).toLowerCase() !== 'other-amounts') {
+                    // A rough estimate for advance if not stored separately
+                    totalAdvance += (e.amount || 0);
+                }
+            });
+        }
+        document.getElementById('rBookingAdvance').textContent = totalAdvance;
+        document.getElementById('rBookingTotal').textContent = data.grossBooking || 0;
+
+        // 2. Delivery Column
+        document.getElementById('rDeliveryDate').textContent = dateStr.split('-').reverse().join('-');
+        document.getElementById('rDeliveryATM').textContent = (data.deliveryBreakdown && data.deliveryBreakdown['ATM']) || 0;
+        document.getElementById('rDeliveryADIB').textContent = (data.deliveryBreakdown && data.deliveryBreakdown['ADIB']) || 0;
+        document.getElementById('rDeliveryCASH').textContent = (data.deliveryBreakdown && data.deliveryBreakdown['CASH']) || 0;
+        document.getElementById('rDeliveryTotal').textContent = data.totalDelivery || 0;
+
+        // 3. Expense Column
+        document.getElementById('rExpenseDate').textContent = dateStr.split('-').reverse().join('-');
+
+        const expenseCategories = {};
+        if (data.entries) {
+            data.entries.forEach(e => {
+                if (e.dataType === 'expense') {
+                    const cat = e.category ? String(e.category).toUpperCase() : 'GENERAL';
+                    expenseCategories[cat] = (expenseCategories[cat] || 0) + (e.amount || 0);
+                }
+            });
+        }
+
+        const catContainer = document.getElementById('rExpenseCategories');
+        if (Object.keys(expenseCategories).length === 0) {
+            catContainer.innerHTML = `<div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400 uppercase">None</span><span class="text-gray-200 text-right">0</span></div>`;
+        } else {
+            catContainer.innerHTML = Object.entries(expenseCategories).map(([cat, amount]) => `
+                <div class="flex justify-between border-b border-gray-800 pb-2">
+                    <span class="text-gray-400 uppercase">${cat}</span>
+                    <span class="text-gray-200 text-right">${amount}</span>
+                </div>
+            `).join('');
+        }
+
+        let totalExp = Object.values(expenseCategories).reduce((a, b) => a + b, 0);
+        document.getElementById('rExpenseTotal').textContent = totalExp;
+
+    } catch (e) {
+        console.error("Failed to fetch receipt data", e);
+    }
+
+    // Show Modal
+    modal.classList.remove('hidden');
+    // slight delay for transition
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+    }, 10);
+}
+
+function closeEntryReceiptModal() {
+    const modal = document.getElementById('entryReceiptModal');
+    if (!modal) return;
+    modal.classList.add('opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+
+function printEntryReceipt() {
+    const printArea = document.getElementById('receiptPrintArea');
+    const opt = {
+        margin: 1,
+        filename: `Receipt_${new Date().getTime()}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0a0a0a' },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(printArea).save();
+}
 
 // Initialize Global Listeners
 document.addEventListener('DOMContentLoaded', () => {

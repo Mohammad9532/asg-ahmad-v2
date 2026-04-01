@@ -76,6 +76,90 @@ const createEntryRoute = (Model, type) => async (req, res) => {
 };
 
 /**
+ * Creates the Update Entry Route (PUT).
+ */
+const updateEntryRoute = (Model, type) => async (req, res) => {
+    try {
+        const { id } = req.params;
+        const entryData = req.body;
+
+        if (!entryData.date || entryData.amount === undefined) {
+            return res.status(400).json({ error: "Date and Amount are required." });
+        }
+
+        const existingDoc = await Model.findById(id);
+        if (!existingDoc) {
+            return res.status(404).json({ error: "Entry not found." });
+        }
+
+        if (type === 'bookings' && entryData.billNo && entryData.billNo !== 'other-amounts') {
+            const billNoTrimmed = String(entryData.billNo).trim();
+            if (existingDoc.billNo !== billNoTrimmed) {
+                const duplicateEntry = await Model.findOne({ billNo: billNoTrimmed });
+                if (duplicateEntry) {
+                    return res.status(400).json({ error: `Duplicate Bill No: ${billNoTrimmed} already exists for this shop.` });
+                }
+            }
+        }
+
+        let sanitisedObject = {};
+        const { billNo, amount, date, amountType, dept, cat, name, ...rest } = entryData;
+
+        if (type === 'expense') {
+            sanitisedObject = {
+                amount: amount !== undefined ? Number(amount) : undefined,
+                date: new Date(date),
+                dept: dept ? String(dept).toLowerCase() : undefined,
+                cat: cat ? String(cat).toLowerCase() : undefined,
+                name: name ? String(name).toLowerCase() : undefined,
+                ...rest
+            };
+        } else if (type === 'bookings') {
+            const { countryCode, phone, qty, status } = entryData;
+            sanitisedObject = {
+                billNo: billNo ? String(billNo).trim() : undefined,
+                name: name ? String(name) : undefined,
+                date: new Date(date),
+                countryCode: countryCode ? String(countryCode) : undefined,
+                phone: phone ? String(phone) : undefined,
+                qty: qty !== undefined ? Number(qty) : undefined,
+                amount: amount !== undefined ? Number(amount) : undefined,
+                status: status ? String(status).toLowerCase() : undefined,
+                ...rest
+            };
+        } else {
+            sanitisedObject = {
+                billNo: billNo ? String(billNo).trim() : undefined,
+                amount: amount !== undefined ? Number(amount) : undefined,
+                date: new Date(date),
+                amountType: amountType ? String(amountType).toLowerCase() : undefined,
+                ...rest
+            };
+        }
+
+        // Clean undefined manually so it doesn't overwrite with nulls if not provided in payload
+        Object.keys(sanitisedObject).forEach(key => {
+            if (sanitisedObject[key] === undefined) {
+                delete sanitisedObject[key];
+            } else if (sanitisedObject[key] === null || (typeof sanitisedObject[key] === 'string' && sanitisedObject[key].trim() === '')) {
+                // If it's explicitly cleared, set to null or empty string to overwrite existing db value
+                if (typeof sanitisedObject[key] === 'string') sanitisedObject[key] = '';
+                else sanitisedObject[key] = null;
+            }
+        });
+
+        sanitisedObject.noOfUpdates = (existingDoc.noOfUpdates || 0) + 1;
+
+        const updatedEntry = await Model.findByIdAndUpdate(id, { $set: sanitisedObject }, { new: true });
+        res.status(200).json(updatedEntry);
+
+    } catch (error) {
+        console.error("Update Entry Error:", error);
+        res.status(500).json({ error: "Failed to update entry. " + error.message });
+    }
+};
+
+/**
  * Creates the Summary Route (GET).
  */
 const createSummaryRoute = (Model) => async (req, res) => {
@@ -207,7 +291,7 @@ const createLifetimeSummaryRoute = (BookingModel, DeliveryModel) => async (req, 
  */
 const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async (req, res) => {
     try {
-        const { status } = req.query;
+        const { status, start, end } = req.query;
 
         if (status === 'verified') {
             const verifiedItems = await AuditModel.find({ status: 'Checked' }).sort({ checkedAt: -1 }).lean();
@@ -222,7 +306,15 @@ const createStockAuditRoute = (BookingModel, DeliveryModel, AuditModel) => async
         const checkedDocs = await AuditModel.find({ status: 'Checked' }).select('billNo').lean();
         const checkedBillNos = new Set(checkedDocs.map(d => String(d.billNo).trim()));
 
-        const bookings = await BookingModel.find({ billNo: { $exists: true, $ne: 'other-amounts' } }).lean();
+        const bookingsQuery = { billNo: { $exists: true, $ne: 'other-amounts' } };
+        if (start && end) {
+            bookingsQuery.date = {
+                $gte: new Date(start + 'T00:00:00.000Z'),
+                $lte: new Date(end + 'T23:59:59.999Z')
+            };
+        }
+
+        const bookings = await BookingModel.find(bookingsQuery).lean();
         const deliveries = await DeliveryModel.find({ billNo: { $exists: true } }).select('billNo amount').lean();
 
         const deliveryMap = {};
@@ -321,6 +413,53 @@ const createAuditArchiveRoute = (AuditModel) => async (req, res) => {
 };
 
 /**
+ * Creates the Audit Delete Route (Undo verify).
+ */
+const createAuditDeleteRoute = (AuditModel) => async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await AuditModel.findByIdAndDelete(id);
+
+        if (!result) return res.status(404).json({ error: "Audit item not found." });
+
+        res.json({ message: "Audit item successfully deleted/undone." });
+    } catch (err) {
+        console.error("Audit Delete Error:", err);
+        res.status(500).json({ error: "Failed to delete audit item." });
+    }
+};
+
+/**
+ * Creates the Audit Edit Route.
+ */
+const createAuditEditRoute = (AuditModel) => async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { remark, missingPcs, qty, amount } = req.body;
+
+        const updatedAudit = await AuditModel.findByIdAndUpdate(
+            id,
+            {
+                $set: {
+                    remark: remark || '',
+                    missingPcs: missingPcs ? Number(missingPcs) : 0,
+                    qty: qty ? Number(qty) : 0,
+                    amount: amount ? Number(amount) : 0
+                }
+            },
+            { new: true }
+        );
+
+        if (!updatedAudit) return res.status(404).json({ error: "Audit item not found." });
+
+        res.json(updatedAudit);
+    } catch (err) {
+        console.error("Audit Edit Error:", err);
+        res.status(500).json({ error: "Failed to update audit item." });
+    }
+};
+
+/**
  * Creates the Bill Details Route.
  */
 const createBillDetailsRoute = (BookingModel, DeliveryModel) => async (req, res) => {
@@ -399,7 +538,9 @@ const createEmployeeSummaryRoute = (ExpenseModel) => async (req, res) => {
                     "_id": { "$toLower": { "$trim": { "input": "$name" } } },
                     "name": { "$first": { "$trim": { "input": "$name" } } },
                     "total": { "$sum": "$amount" },
-                    "count": { "$sum": 1 }
+                    "count": { "$sum": 1 },
+                    "dept": { "$first": { "$trim": { "input": "$dept" } } },
+                    "cat": { "$first": { "$trim": { "input": "$cat" } } }
                 }
             },
             { "$sort": { "total": -1 } }
@@ -432,6 +573,8 @@ const createEmployeeHistoryRoute = (ExpenseModel) => async (req, res) => {
                 $lte: new Date(end + 'T23:59:59.999Z')
             };
         }
+
+
 
         const history = await ExpenseModel.find(query).sort({ date: -1 });
         res.json(history);
@@ -554,23 +697,16 @@ const createDailyLedgerRoute = (BookingModel, DeliveryModel, ExpenseModel) => as
                     description: `Delivery - ${d.billNo || 'No Bill'}`,
                     amount: amt,
                     billNo: d.billNo,
-                    status: d.status
+                    status: d.status,
+                    raw: d,
+                    dataType: 'delivery'
                 });
             }
         });
 
-        // Add Bookings as Income/Credit (Order Bookings)
-        const bookings = await BookingModel.find(dayFilter).lean();
-        bookings.forEach(b => {
-            entries.push({
-                type: 'credit',
-                category: 'ORDER',
-                description: `Booking - ${b.billNo || 'No Bill'} (${b.name || 'No Name'})`,
-                amount: b.amount || 0,
-                billNo: b.billNo,
-                status: b.status
-            });
-        });
+        // Remove Bookings as Income/Credit (Order Bookings)
+        // Bookings are recorded separately and are not necessarily cash physically received today.
+        // The grossBooking total is already calculated above for the top cards.
 
         // Add Expenses as Debit
         const expenses = await ExpenseModel.find(dayFilter).lean();
@@ -580,7 +716,9 @@ const createDailyLedgerRoute = (BookingModel, DeliveryModel, ExpenseModel) => as
                 category: e.cat || 'General',
                 description: e.description || e.name || 'Expense',
                 amount: e.amount || 0,
-                status: e.status
+                status: e.status,
+                raw: e,
+                dataType: 'expense'
             });
         });
 
@@ -620,47 +758,105 @@ const createLedgerHistoryRoute = (BookingModel, DeliveryModel, ExpenseModel) => 
         const { date: targetDateStr } = req.query;
         const shop = req.originalUrl.split('/')[2];
         const targetDate = targetDateStr ? new Date(targetDateStr + 'T00:00:00.000Z') : new Date();
+        const mongoose = require('mongoose');
+        const LedgerSettings = mongoose.model('LedgerSettings');
+        const LedgerAdjustment = mongoose.model('LedgerAdjustment');
 
-        const history = [];
-        // Calculate for the last 30 days
-        for (let i = 0; i < 30; i++) {
-            const date = new Date(targetDate);
-            date.setDate(date.getDate() - i);
-            date.setUTCHours(0, 0, 0, 0);
+        // 1. Fetch Settings to establish baseline
+        const settings = await LedgerSettings.findOne({ shop });
+        const startFrom = settings && settings.startDate ? new Date(settings.startDate) : new Date('2000-01-01');
+        const initialBal = settings && settings.initialBalance ? settings.initialBalance : 0;
 
-            const nextDay = new Date(date);
-            nextDay.setUTCHours(23, 59, 59, 999);
+        // 2. Fetch all data for the 30 day window, PLUS historical data before the window to get opening balance
+        const thirtyDaysAgo = new Date(targetDate);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29); // 30 days inclusive
+        thirtyDaysAgo.setUTCHours(0, 0, 0, 0);
 
-            const dayFilter = { date: { $gte: date, $lte: nextDay } };
+        // Actual calculation window starts from either the settings startDate, or 30 days ago, whichever is EARLIER, 
+        // to ensure we can build up the running mathematical balance.
+        const calcStart = thirtyDaysAgo < startFrom ? thirtyDaysAgo : startFrom;
 
-            // Optimization: These could be aggregated in bulk outside the loop, but for 30 days this is okay for now.
-            // Let's do a slightly better way for production later, but for now, this works.
-            const [deliveries, expenses, adjustment] = await Promise.all([
-                DeliveryModel.find(dayFilter).lean(),
-                ExpenseModel.find(dayFilter).lean(),
-                LedgerAdjustment.findOne({ shop, date: { $gte: date, $lte: nextDay } })
-            ]);
+        // Fetch all relevant historical data from calcStart to targetDate
+        const allDeliveries = await DeliveryModel.find({ date: { $gte: calcStart, $lte: targetDate } }).lean();
+        const allExpenses = await ExpenseModel.find({ date: { $gte: calcStart, $lte: targetDate } }).lean();
+        const allAdjustments = await LedgerAdjustment.find({ shop, date: { $gte: calcStart, $lte: targetDate } }).lean();
 
-            const cashDelivery = deliveries
-                .filter(d => {
-                    if (!d.amountType || d.amountType === "" || d.amountType.toLowerCase().includes('cash')) return true;
-                    return !(/card|visa|master|adib|atm/i.test(d.amountType));
-                })
-                .reduce((sum, d) => sum + (d.amount || 0), 0);
+        // Helper to sum by date string YYYY-MM-DD
+        const mapByDate = (arr, valKey, isDeliveryFunc = null) => {
+            const map = {};
+            arr.forEach(item => {
+                if (!item.date) return;
+                const dKey = new Date(item.date).toISOString().split('T')[0];
+                if (!map[dKey]) map[dKey] = 0;
 
-            const totalExpense = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-            const adj = adjustment ? adjustment.amount : 0;
+                let amount = item[valKey] || item.amount || 0;
+                // Specifically for cash deliveries vs card
+                if (isDeliveryFunc && !isDeliveryFunc(item)) amount = 0;
 
-            // Note: We are not calculating the opening balance for EACH day here to save time.
-            // But the frontend can derive it if needed, or we just show daily delta.
-            // Actually, let's just return the basics.
-            history.push({
-                date: date.toISOString(),
-                cash: cashDelivery,
-                expense: totalExpense,
-                adj: adj,
-                inactive: cashDelivery === 0 && totalExpense === 0 && adj === 0
+                map[dKey] += amount;
             });
+            return map;
+        };
+
+        const cashCriteria = (d) => {
+            if (!d.amountType || d.amountType === "" || d.amountType.toLowerCase().includes('cash')) return true;
+            return !(/card|visa|master|adib|atm/i.test(d.amountType));
+        };
+
+        const deliveryMap = mapByDate(allDeliveries, 'amount', cashCriteria);
+        const expenseMap = mapByDate(allExpenses, 'amount');
+        const adjustMap = mapByDate(allAdjustments, 'amount');
+
+        // Track running balance
+        let currentRunningBalance = initialBal;
+
+        // We must iterate day by day from 'startFrom' up to 'targetDate' to build the running balance accurately.
+        const iterDate = new Date(startFrom);
+        iterDate.setUTCHours(0, 0, 0, 0);
+
+        const historyMap = {}; // Store chronological history objects
+
+        while (iterDate <= targetDate) {
+            const dKey = iterDate.toISOString().split('T')[0];
+
+            const dayInc = deliveryMap[dKey] || 0;
+            const dayExp = expenseMap[dKey] || 0;
+            const dayAdj = adjustMap[dKey] || 0;
+
+            // Apply daily math
+            currentRunningBalance = currentRunningBalance + dayInc - dayExp + dayAdj;
+
+            historyMap[dKey] = {
+                date: iterDate.toISOString(),
+                income: dayInc,
+                expense: dayExp,
+                adj: dayAdj,
+                closing: currentRunningBalance
+            };
+
+            iterDate.setDate(iterDate.getDate() + 1);
+        }
+
+        // 3. Extract just the requested 30 days in reverse chronological order
+        const history = [];
+        for (let i = 0; i < 30; i++) {
+            const reqDate = new Date(targetDate);
+            reqDate.setDate(reqDate.getDate() - i);
+            const rKey = reqDate.toISOString().split('T')[0];
+
+            if (historyMap[rKey]) {
+                // Return calculated day
+                history.push(historyMap[rKey]);
+            } else {
+                // If before start date, return empty stats
+                history.push({
+                    date: reqDate.toISOString(),
+                    income: 0,
+                    expense: 0,
+                    adj: 0,
+                    closing: 0
+                });
+            }
         }
 
         res.json(history);
@@ -670,18 +866,248 @@ const createLedgerHistoryRoute = (BookingModel, DeliveryModel, ExpenseModel) => 
     }
 };
 
+/**
+ * Creates the Compare Bookings Route
+ * Expects query params: startA, endA, startB, endB (YYYY-MM-DD)
+ */
+const createCompareBookingsRoute = (BookingModel) => async (req, res) => {
+    try {
+        const { startA, endA, startB, endB } = req.query;
+
+        if (!startA || !endA || !startB || !endB) {
+            return res.status(400).json({ error: "Missing required date parameters." });
+        }
+
+        const dateAStart = new Date(startA + 'T00:00:00.000Z');
+        const dateAEnd = new Date(endA + 'T23:59:59.999Z');
+        const dateBStart = new Date(startB + 'T00:00:00.000Z');
+        const dateBEnd = new Date(endB + 'T23:59:59.999Z');
+
+        // Helper to aggregate stats for a specific period
+        const getPeriodStats = async (start, end) => {
+            const bookings = await BookingModel.find({ date: { $gte: start, $lte: end } }).lean();
+
+            let gross = 0;
+            let cancel = 0;
+            let net = 0;
+            const dailyMap = {};
+
+            bookings.forEach(b => {
+                const amt = b.amount || 0;
+                gross += amt;
+                const dKey = new Date(b.date).toISOString().split('T')[0];
+
+                if (!dailyMap[dKey]) dailyMap[dKey] = { gross: 0, cancel: 0, net: 0, count: 0 };
+                dailyMap[dKey].count += 1;
+                dailyMap[dKey].gross += amt;
+
+                const status = String(b.status || '').toLowerCase().trim();
+                // Match isCanceledStatus logic
+                if (status.includes('cancel') || status.includes('refund') || status.includes('wrong') || status.includes('delete') || status.includes('fraud')) {
+                    cancel += amt;
+                    dailyMap[dKey].cancel += amt;
+                } else {
+                    net += amt;
+                    dailyMap[dKey].net += amt;
+                }
+            });
+
+            return {
+                gross,
+                cancel,
+                net,
+                count: bookings.length,
+                dailyData: dailyMap
+            };
+        };
+
+        const [periodA, periodB] = await Promise.all([
+            getPeriodStats(dateAStart, dateAEnd),
+            getPeriodStats(dateBStart, dateBEnd)
+        ]);
+
+        res.json({
+            periodA: {
+                label: `${startA} to ${endA}`,
+                stats: periodA
+            },
+            periodB: {
+                label: `${startB} to ${endB}`,
+                stats: periodB
+            }
+        });
+
+    } catch (err) {
+        console.error("Compare Bookings Error:", err);
+        res.status(500).json({ error: "Failed to fetch comparison data." });
+    }
+};
+
+/**
+ * Creates the Excess Delivery Route.
+ * Finds bills where total delivered amount > original booked amount.
+ */
+const createExcessDeliveryRoute = (BookingModel, DeliveryModel) => async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+
+        // Build base query for bookings
+        let bookingQuery = { billNo: { $exists: true, $ne: 'other-amounts' } };
+
+        // Optional date filtering
+        if (startDate && endDate) {
+            bookingQuery.date = {
+                $gte: new Date(startDate),
+                $lte: new Date(`${endDate}T23:59:59.999Z`)
+            };
+        }
+
+        const bookings = await BookingModel.find(bookingQuery).lean();
+        const deliveries = await DeliveryModel.find({ billNo: { $exists: true } }).select('billNo amount').lean();
+
+        const deliveryMap = {};
+        deliveries.forEach(d => {
+            const b = String(d.billNo).trim();
+            if (!deliveryMap[b]) deliveryMap[b] = 0;
+            deliveryMap[b] += (d.amount || 0);
+        });
+
+        const excessDeliveries = [];
+        const cancelledDeliveries = [];
+        const CANCEL_STATUSES = ["cancel", "canceled", "cancelled", "deducted"];
+
+        bookings.forEach(b => {
+            if (!b.billNo) return;
+            const billNo = String(b.billNo).trim();
+            const bookedAmount = b.amount || 0;
+            const deliveredAmount = deliveryMap[billNo] || 0;
+
+            if (b.status && CANCEL_STATUSES.includes(b.status.toLowerCase())) {
+                if (deliveredAmount > 0) {
+                    cancelledDeliveries.push({
+                        billNo: billNo,
+                        name: b.name || 'Unknown',
+                        date: b.date,
+                        phone: b.phone,
+                        countryCode: b.countryCode,
+                        bookedAmount: bookedAmount,
+                        deliveredAmount: deliveredAmount,
+                        status: b.status
+                    });
+                }
+                return;
+            }
+
+            const extraAmount = deliveredAmount - bookedAmount;
+
+            if (extraAmount > 0) {
+                excessDeliveries.push({
+                    billNo: billNo,
+                    name: b.name || 'Unknown',
+                    date: b.date,
+                    phone: b.phone,
+                    countryCode: b.countryCode,
+                    qty: b.qty || 0,
+                    bookedAmount: bookedAmount,
+                    deliveredAmount: deliveredAmount,
+                    extraAmount: extraAmount
+                });
+            }
+        });
+
+        // Sort both by highest delivered amount first
+        excessDeliveries.sort((a, b) => b.extraAmount - a.extraAmount);
+        cancelledDeliveries.sort((a, b) => b.deliveredAmount - a.deliveredAmount);
+
+        res.json({ excess: excessDeliveries, cancelled: cancelledDeliveries });
+    } catch (err) {
+        console.error("Excess Delivery Error:", err);
+        res.status(500).json({ error: "Failed to fetch excess deliveries." });
+    }
+};
+
+
 module.exports = {
     createEntryRoute,
+    updateEntryRoute,
     createSummaryRoute,
     createAccrualSummaryRoute,
     createLifetimeSummaryRoute,
     createStockAuditRoute,
     createAuditVerifyRoute,
     createAuditArchiveRoute,
+    createAuditEditRoute,
+    createAuditDeleteRoute,
     createBillDetailsRoute,
     createEmployeeListRoute,
     createEmployeeSummaryRoute,
     createEmployeeHistoryRoute,
     createDailyLedgerRoute,
-    createLedgerHistoryRoute
+    createLedgerHistoryRoute,
+    createCompareBookingsRoute,
+    createExcessDeliveryRoute,
+    createDiscrepancyDiagnosticRoute: (BookingModel, DeliveryModel) => async (req, res) => {
+        try {
+            const { start, end } = req.query;
+            const startDate = new Date(start + 'T00:00:00.000Z');
+            const endDate = new Date(end + 'T23:59:59.999Z');
+
+            const bookings = await BookingModel.find({
+                date: { $gte: startDate, $lte: endDate },
+                billNo: { $exists: true, $ne: 'other-amounts' }
+            }).lean();
+
+            const billNos = bookings.map(b => String(b.billNo).trim());
+            const deliveries = await DeliveryModel.find({ billNo: { $in: billNos } }).lean();
+
+            const deliveryMap = {};
+            deliveries.forEach(d => {
+                const b = String(d.billNo).trim();
+                if (!deliveryMap[b]) deliveryMap[b] = 0;
+                deliveryMap[b] += (d.amount || 0);
+            });
+
+            const CANCEL_STATUSES = ["cancel", "canceled", "cancelled", "deducted"];
+            const results = [];
+
+            bookings.forEach(b => {
+                const billNo = String(b.billNo).trim();
+                const bookedAmt = b.amount || 0;
+                const delAmt = deliveryMap[billNo] || 0;
+                const isCancelled = b.status && CANCEL_STATUSES.includes(b.status.toLowerCase());
+
+                // Dashboard Logic: Net - Accrual
+                // Net is 0 if cancelled, else bookedAmt.
+                const dashboardNet = isCancelled ? 0 : bookedAmt;
+                // Accrual is delAmt ALWAYS (even if cancelled)
+                const dashboardStock = dashboardNet - delAmt;
+
+                // Audit Logic: Balance if not cancelled, else 0. Balance floor at 0.
+                let auditStock = 0;
+                if (!isCancelled) {
+                    auditStock = Math.max(0, bookedAmt - delAmt);
+                }
+
+                if (dashboardStock !== auditStock) {
+                    results.push({
+                        billNo,
+                        status: b.status,
+                        bookedAmt,
+                        delAmt,
+                        dashboardStock,
+                        auditStock,
+                        diff: auditStock - dashboardStock
+                    });
+                }
+            });
+
+            res.json({
+                totalDiff: results.reduce((s, r) => s + r.diff, 0),
+                count: results.length,
+                topOffenders: results.sort((a, b) => b.diff - a.diff).slice(0, 50)
+            });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    }
 };

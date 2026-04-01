@@ -26,6 +26,7 @@ SHOP_NAMES.forEach(shopPrefix => {
 
         router.get(`/${shopPrefix}/${config.path}/summary`, authenticateToken, creators.createSummaryRoute(Model));
         router.post(`/${shopPrefix}/${config.path}/create`, authenticateToken, creators.createEntryRoute(Model, config.path));
+        router.put(`/${shopPrefix}/${config.path}/update/:id`, authenticateToken, creators.updateEntryRoute(Model, config.path));
 
         if (config.path === 'expense') {
             router.get(`/${shopPrefix}/expense/employees`, authenticateToken, creators.createEmployeeListRoute(Model));
@@ -51,10 +52,15 @@ SHOP_NAMES.forEach(shopPrefix => {
     router.get(`/${shopPrefix}/stock_audit`, authenticateToken, creators.createStockAuditRoute(BookingsModel, DeliveryModel, AuditModel));
     router.post(`/${shopPrefix}/stock_audit/verify`, authenticateToken, creators.createAuditVerifyRoute(AuditModel));
     router.post(`/${shopPrefix}/stock_audit/archive`, authenticateToken, creators.createAuditArchiveRoute(AuditModel));
+    router.put(`/${shopPrefix}/stock_audit/:id`, authenticateToken, creators.createAuditEditRoute(AuditModel));
+    router.delete(`/${shopPrefix}/stock_audit/:id`, authenticateToken, creators.createAuditDeleteRoute(AuditModel));
     router.get(`/${shopPrefix}/bill_details`, authenticateToken, creators.createBillDetailsRoute(BookingsModel, DeliveryModel));
     router.get(`/${shopPrefix}/lifetime/summary`, authenticateToken, creators.createLifetimeSummaryRoute(BookingsModel, DeliveryModel));
+    router.get(`/${shopPrefix}/compare_bookings`, authenticateToken, creators.createCompareBookingsRoute(BookingsModel));
     router.get(`/${shopPrefix}/daily_ledger`, authenticateToken, creators.createDailyLedgerRoute(BookingsModel, DeliveryModel, ExpenseModel));
     router.get(`/${shopPrefix}/ledger/history`, authenticateToken, creators.createLedgerHistoryRoute(BookingsModel, DeliveryModel, ExpenseModel));
+    router.get(`/${shopPrefix}/excess_delivery`, authenticateToken, creators.createExcessDeliveryRoute(BookingsModel, DeliveryModel));
+    router.get(`/${shopPrefix}/diagnose_discrepancy`, authenticateToken, creators.createDiscrepancyDiagnosticRoute(BookingsModel, DeliveryModel));
 });
 
 module.exports = router;

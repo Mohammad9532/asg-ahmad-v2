@@ -164,6 +164,33 @@ export async function fetchShopData(shopPrefix) {
 }
 
 /**
+ * Fetches historical bookings for a specific shop (used for YoY comparison).
+ * Uses a unique storage key to prevent overwriting the current dashboard's booking data.
+ */
+export async function fetchHistoricalBookings(shopPrefix, start, end) {
+    const url = `${BASE_URL}/api/${shopPrefix}/bookings/summary?start=${start}&end=${end}`;
+    try {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+        });
+        if (!response.ok) {
+            throw new Error(`[${shopPrefix}|historical_bookings] Failed with status ${response.status}`);
+        }
+        const data = await response.json();
+        // Store in a unique key specifically for the owner report
+        state.allResults[`${shopPrefix}|historical_bookings`] = data;
+    } catch (error) {
+        console.error("Historical Bookings Error:", error);
+        state.allResults[`${shopPrefix}|historical_bookings`] = {
+            totalAmount: 0,
+            filteredData: [],
+            isError: true,
+            errorMessage: error.message
+        };
+    }
+}
+
+/**
  * Fetches detailed history for a specific employee.
  */
 export async function fetchEmployeeHistory(shop, name) {
@@ -235,9 +262,39 @@ export async function fetchAllData() {
 
         renderShopTabs();
         renderDataTypeTabs(state.activeShop);
+        renderContent(state.activeShop, state.activeDataType);
 
     } catch (err) {
         logError("Fetch Operation Failed: " + err.message);
+    } finally {
+        showLoading(false);
+    }
+}
+// --- GLOBAL MODAL ACTIONS ---
+
+/**
+ * Fetches expenses for all shops and opens the global profit modal.
+ */
+export async function openGlobalProfitModal() {
+    // Import dynamically to avoid top-level circular dependency if any (safety)
+    // Actually render.js doesn't import api.js, so static import is fine, but let's be safe 
+    // since we are adding a new cross-module interaction.
+    // However, we are already inside a function.
+
+    showLoading(true);
+    try {
+        const { SHOP_PREFIXES } = await import('./config.js');
+        const { viewGlobalProfitDetails } = await import('./render.js');
+
+        const fetchPromises = SHOP_PREFIXES.map(shop =>
+            fetchEndpoint(shop, 'expense', state.dateRange.start, state.dateRange.end)
+        );
+
+        await Promise.all(fetchPromises);
+        viewGlobalProfitDetails();
+
+    } catch (error) {
+        console.error("Failed to load global profit details:", error);
     } finally {
         showLoading(false);
     }

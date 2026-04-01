@@ -9,6 +9,9 @@ import { formatCurrency, isCanceledStatus } from './utils.js';
  * @param {string} shopPrefix 
  */
 export async function renderDailyLedger(shopPrefix, forcedDate = null) {
+    // Scroll to top smoothly so if they click from the bottom history table, they see the result immediately
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
     const container = document.getElementById('dataTypeContentContainer');
     // Default to today in YYYY-MM-DD format (local time)
     let targetDate = forcedDate;
@@ -90,10 +93,10 @@ async function fetchLedgerData(shop, date) {
  */
 function renderLedgerTable(shop, data, date) {
     const container = document.getElementById('dataTypeContentContainer');
-    const { entries, openingBalance, closingBalance, adjustments } = data;
+    const { entries, openingBalance, closingBalance, adjustments, grossBooking } = data;
 
     // Calculate Totals for Summary
-    const totals = calculateLedgerTotals(entries, openingBalance);
+    const totals = calculateLedgerTotals(entries, openingBalance, shop);
 
     // Adjustments
     const shortCash = adjustments && adjustments.short ? adjustments.short : 0;
@@ -140,11 +143,17 @@ function renderLedgerTable(shop, data, date) {
                 </div>
 
                 <div class="flex gap-2">
+                     <button onclick="showLedgerSettingsModal('${shop}')" class="flex items-center space-x-2 px-4 py-2 bg-slate-50 text-slate-700 rounded-lg hover:bg-slate-100 font-medium transition-colors border border-slate-200 shadow-sm" title="Ledger Settings">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
                      <button onclick="showAdjustmentModal('${shop}', '${date}', ${shortCash}, ${extraCash})" class="flex items-center space-x-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-medium transition-colors border border-indigo-200 shadow-sm">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        <span>Adjust Cash</span>
+                        <span class="hidden sm:inline">Adjust Cash</span>
                     </button>
                     <div class="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
                         <span class="block text-xs text-slate-400 font-bold uppercase tracking-wider">Reviewing</span>
@@ -154,23 +163,11 @@ function renderLedgerTable(shop, data, date) {
             </div>
 
             <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <!-- Opening Balance -->
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center items-center">
                     <span class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Opening Balance</span>
                     <span class="text-2xl font-mono font-bold text-slate-700">${formatCurrency(openingBalance)}</span>
-                </div>
-
-                <!-- Total Income -->
-                <div class="bg-green-50 p-4 rounded-xl shadow-sm border border-green-100 flex flex-col justify-center items-center">
-                    <span class="text-xs text-green-600 font-bold uppercase tracking-wider mb-1">Total Income</span>
-                    <span class="text-2xl font-mono font-bold text-green-700">+${formatCurrency(totals.totalIncome)}</span>
-                </div>
-
-                <!-- Total Expenses -->
-                <div class="bg-red-50 p-4 rounded-xl shadow-sm border border-red-100 flex flex-col justify-center items-center">
-                    <span class="text-xs text-red-600 font-bold uppercase tracking-wider mb-1">Total Expenses</span>
-                    <span class="text-2xl font-mono font-bold text-red-700">-${formatCurrency(totals.totalExpense)}</span>
                 </div>
 
                 <!-- Closing Balance -->
@@ -183,6 +180,14 @@ function renderLedgerTable(shop, data, date) {
             </div>
 
             <!-- Ledger Entries Table -->
+            <div class="mb-4">
+                <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex justify-between items-center shadow-sm">
+                    <span class="text-sm font-semibold text-indigo-800">Total Bookings (Orders) Today:</span>
+                    <span class="font-mono font-bold text-indigo-700">${formatCurrency(grossBooking || 0)}</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1 ml-1">* Bookings are promised revenue and do not affect the physical cash box balance below.</p>
+            </div>
+
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
@@ -192,6 +197,7 @@ function renderLedgerTable(shop, data, date) {
                                 <th class="px-6 py-4 text-left">Description</th>
                                 <th class="px-6 py-4 text-right w-32">Debit (Out)</th>
                                 <th class="px-6 py-4 text-right w-32">Credit (In)</th>
+                                <th class="px-6 py-4 text-center w-24">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -224,26 +230,60 @@ function renderLedgerTable(shop, data, date) {
     loadLedgerHistory(shop, date);
 }
 
-function calculateLedgerTotals(entries, openingBalance) {
+function calculateLedgerTotals(entries, openingBalance, shop) {
     let totalIncome = 0;
-    let totalExpense = 0;
+    let totalExpense = 0; // Cumulative for balance
+    let operationalExpense = 0;
+    let profitPayout = 0;
     let rowsHtml = '';
 
     if (entries.length === 0) {
         rowsHtml = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No transactions recorded for this day.</td></tr>`;
     } else {
+        // Prepend the Opening Balance Row
+        rowsHtml += `
+            <tr class="bg-indigo-50/50 border-b border-indigo-100/50">
+                <td class="px-6 py-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 tracking-wider uppercase">
+                        START
+                    </span>
+                </td>
+                <td class="px-6 py-3 font-semibold text-slate-700">
+                    Opening Balance
+                </td>
+                <td class="px-6 py-3 text-right text-slate-400">-</td>
+                <td class="px-6 py-3 text-right font-mono font-bold text-indigo-700">
+                    ${formatCurrency(openingBalance)}
+                </td>
+            </tr>
+        `;
+
         entries.forEach(entry => {
             const amount = entry.amount || 0;
             const isCredit = entry.type === 'credit'; // In (Income)
             const isDebit = entry.type === 'debit';   // Out (Expense)
 
             if (isCredit) totalIncome += amount;
-            if (isDebit) totalExpense += amount;
+            if (isDebit) {
+                if ((entry.category || '').toLowerCase().trim() === 'profit') {
+                    profitPayout += amount;
+                } else {
+                    operationalExpense += amount;
+                }
+                totalExpense += amount;
+            }
 
             // Row Styling
             const debitClass = isDebit ? 'text-red-700 font-medium' : 'text-slate-300';
             const creditClass = isCredit ? 'text-green-700 font-medium' : 'text-slate-300';
             const rowBg = isCanceledStatus(entry.status) ? 'bg-slate-50 opacity-50 decoration-slice line-through' : 'hover:bg-slate-50 transition-colors';
+
+            let actionBtnHtml = '-';
+            if (entry.raw && entry.dataType) {
+                const encodedRaw = encodeURIComponent(JSON.stringify(entry.raw).replace(/'/g, "\\'"));
+                // The shopPrefix is already available in scope (from arguments: `shop`)
+                actionBtnHtml = `<button onclick="openEditModal('${encodedRaw}', '${entry.dataType}', '${shop}')" class="text-indigo-600 hover:text-indigo-900 font-medium text-xs border border-indigo-200 bg-indigo-50 px-2 py-1 rounded">Edit</button>`;
+            }
 
             rowsHtml += `
                 <tr class="${rowBg}">
@@ -262,6 +302,9 @@ function calculateLedgerTotals(entries, openingBalance) {
                     <td class="px-6 py-3 text-right font-mono ${creditClass}">
                         ${isCredit ? formatCurrency(amount) : '-'}
                     </td>
+                    <td class="px-6 py-3 text-center">
+                        ${actionBtnHtml}
+                    </td>
                 </tr>
             `;
         });
@@ -269,7 +312,7 @@ function calculateLedgerTotals(entries, openingBalance) {
 
     const closingBalance = openingBalance + totalIncome - totalExpense;
 
-    return { totalIncome, totalExpense, closingBalance, rowsHtml };
+    return { totalIncome, totalExpense, operationalExpense, profitPayout, closingBalance, rowsHtml };
 }
 
 /**
@@ -415,13 +458,14 @@ async function loadLedgerHistory(shop, currentDate) {
         `;
 
         historyData.forEach(day => {
-            const netAdjust = (day.extra || 0) - (day.short || 0);
+            const netAdjust = day.adj || 0;
             const adjustClass = netAdjust > 0 ? 'text-green-600' : (netAdjust < 0 ? 'text-red-600' : 'text-slate-300');
             const dateObj = new Date(day.date);
             const isToday = dateObj.toLocaleDateString() === new Date().toLocaleDateString();
 
+            const cleanDate = day.date.split('T')[0];
             html += `
-                <tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="renderDailyLedger('${shop}', '${day.date}')">
+                <tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="renderDailyLedger('${shop}', '${cleanDate}')" title="View details for ${cleanDate}">
                     <td class="px-4 py-2 font-medium ${isToday ? 'text-indigo-600' : 'text-slate-600'}">
                         ${dateObj.toLocaleDateString()}
                     </td>
@@ -449,3 +493,150 @@ window.changeLedgerDate = changeLedgerDate;
 window.showAdjustmentModal = showAdjustmentModal;
 window.closeAdjustmentModal = closeAdjustmentModal;
 window.adjustDailyCash = adjustDailyCash;
+
+// --- INITIAL BALANCE SETTINGS ---
+window.showLedgerSettingsModal = async (shop) => {
+    let modal = document.getElementById('ledgerSettingsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'ledgerSettingsModal';
+        modal.className = 'fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300';
+        document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all scale-95 opacity-0" id="ledgerSettingsModalContent">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Ledger Settings
+                </h3>
+                <button onclick="closeLedgerSettingsModal()" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-200">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="px-6 py-6 space-y-5">
+                <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm text-indigo-800">
+                    Set the opening cash balance for <b>${shop}</b> as of a specific starting date. All subsequent daily balances will calculate forward from this amount.
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Initial Starting Cash Balance</label>
+                    <div class="relative rounded-md shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm font-medium">AED</span>
+                        </div>
+                        <input type="number" id="settingsInitialBalance" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-12 pr-4 sm:text-sm border-gray-300 rounded-md py-2.5 transition-shadow" placeholder="0.00">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">Start Date</label>
+                    <input type="date" id="settingsStartDate" class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md py-2.5 transition-shadow">
+                    <p class="mt-1 text-xs text-slate-500">The balance above will be applied exactly on this physical date.</p>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                 <button onclick="closeLedgerSettingsModal()" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-100 font-medium transition-colors shadow-sm">Cancel</button>
+                 <button onclick="saveLedgerSettings('${shop}')" id="saveSettingsBtn" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md transition-all transform active:scale-95 flex items-center gap-2">
+                    <span>Save Settings</span>
+                 </button>
+            </div>
+        </div>
+    `;
+
+    // Fetch current settings to populate
+    try {
+        const url = `${BASE_URL}/api/${shop}/ledger/settings`;
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.initialBalance !== undefined) {
+                document.getElementById('settingsInitialBalance').value = data.initialBalance;
+            }
+            if (data.startDate) {
+                document.getElementById('settingsStartDate').value = data.startDate.split('T')[0];
+            } else {
+                document.getElementById('settingsStartDate').value = new Date().toLocaleDateString('en-CA');
+            }
+        }
+    } catch (err) {
+        console.error("Failed to load settings:", err);
+        document.getElementById('settingsStartDate').value = new Date().toLocaleDateString('en-CA');
+    }
+
+    modal.classList.remove('hidden');
+    // small delay to allow display:block to apply before animating opacity
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        document.getElementById('ledgerSettingsModalContent').classList.remove('scale-95', 'opacity-0');
+    }, 10);
+};
+
+window.closeLedgerSettingsModal = () => {
+    const modal = document.getElementById('ledgerSettingsModal');
+    if (!modal) return;
+
+    modal.classList.add('opacity-0');
+    document.getElementById('ledgerSettingsModalContent').classList.add('scale-95', 'opacity-0');
+
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+};
+
+window.saveLedgerSettings = async (shop) => {
+    const initialBalance = parseFloat(document.getElementById('settingsInitialBalance').value) || 0;
+    const startDate = document.getElementById('settingsStartDate').value;
+    const btn = document.getElementById('saveSettingsBtn');
+
+    if (!startDate) {
+        alert("Please select a Start Date.");
+        return;
+    }
+
+    try {
+        btn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div> Saving...';
+        btn.disabled = true;
+
+        const url = `${BASE_URL}/api/${shop}/ledger/settings`;
+        const token = localStorage.getItem('authToken');
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ initialBalance, startDate })
+        });
+
+        if (!response.ok) throw new Error(await response.text());
+
+        // Clear all ledger caches since history is entirely recalculated
+        if (state.allResults) {
+            Object.keys(state.allResults).forEach(key => {
+                if (key.includes('daily_ledger')) {
+                    delete state.allResults[key];
+                }
+            });
+        }
+
+        closeLedgerSettingsModal();
+
+        // Re-render the current view
+        const targetDate = document.querySelector('input[type="date"]').value || new Date().toLocaleDateString('en-CA');
+        renderDailyLedger(shop, targetDate);
+
+    } catch (err) {
+        alert("Failed to save settings: " + err.message);
+        btn.innerHTML = 'Save Settings';
+        btn.disabled = false;
+    }
+};

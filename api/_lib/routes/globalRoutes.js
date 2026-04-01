@@ -110,12 +110,35 @@ router.get('/global/summary', authenticateToken, cacheMiddleware(300), async (re
             const other = delRes.totalAmount - (delRes.cash + delRes.adib + delRes.atm);
             const finalCash = delRes.cash + other;
 
-            // 3. Total Expenses
+            // 3. Total Expenses (Split: Operational vs Profit)
             const expenseMetrics = await ExpenseModel.aggregate([
                 { $match: { date: { $gte: startDate, $lte: endDate } } },
-                { $group: { _id: null, total: { $sum: "$amount" } } }
+                {
+                    $group: {
+                        _id: null,
+                        totalExp: {
+                            $sum: {
+                                $cond: {
+                                    if: { $ne: [{ $toLower: "$dept" }, "profit"] },
+                                    then: "$amount",
+                                    else: 0
+                                }
+                            }
+                        },
+                        totalProfit: {
+                            $sum: {
+                                $cond: {
+                                    if: { $eq: [{ $toLower: "$dept" }, "profit"] },
+                                    then: "$amount",
+                                    else: 0
+                                }
+                            }
+                        }
+                    }
+                }
             ]);
-            const totalExpense = expenseMetrics.length > 0 ? expenseMetrics[0].total : 0;
+            const totalExpense = expenseMetrics.length > 0 ? expenseMetrics[0].totalExp : 0;
+            const profitPayout = expenseMetrics.length > 0 ? expenseMetrics[0].totalProfit : 0;
 
             // 4. Accrual Deliveries
             const bookings = await BookingsModel.find({
@@ -172,7 +195,7 @@ router.get('/global/summary', authenticateToken, cacheMiddleware(300), async (re
                     paymentMethods: { CASH: finalCash, ADIB: delRes.adib, ATM: delRes.atm },
                     filteredData: []
                 },
-                expense: { totalAmount: totalExpense, filteredData: [] },
+                expense: { totalAmount: totalExpense, profitPayout: profitPayout, filteredData: [] },
                 accrual_delivery: { totalAccrualAmount: accrualDelivery },
                 lifetime: { lifetimeNet: lifeNet, lifetimeDelivery: lifeDel, lifetimeStock: lifeNet - lifeDel }
             };
@@ -189,7 +212,7 @@ router.get('/global/summary', authenticateToken, cacheMiddleware(300), async (re
                 results[shop] = {
                     bookings: { totalAmount: 0, netAmount: 0, cancelAmount: 0, filteredData: [], error: shopError.message },
                     delivery: { totalAmount: 0, bookingDel: 0, miscDel: 0, paymentMethods: { CASH: 0, ADIB: 0, ATM: 0 }, filteredData: [] },
-                    expense: { totalAmount: 0, filteredData: [] },
+                    expense: { totalAmount: 0, profitPayout: 0, filteredData: [] },
                     accrual_delivery: { totalAccrualAmount: 0 },
                     lifetime: { lifetimeNet: 0, lifetimeDelivery: 0, lifetimeStock: 0 }
                 };
