@@ -59,7 +59,7 @@ SHOP_NAMES.forEach(shopPrefix => {
     router.get(`/${shopPrefix}/compare_bookings`, authenticateToken, creators.createCompareBookingsRoute(BookingsModel));
     router.get(`/${shopPrefix}/daily_ledger`, authenticateToken, creators.createDailyLedgerRoute(BookingsModel, DeliveryModel, ExpenseModel));
     router.get(`/${shopPrefix}/ledger/history`, authenticateToken, creators.createLedgerHistoryRoute(BookingsModel, DeliveryModel, ExpenseModel));
-    router.get(`/${shopPrefix}/excess_delivery`, authenticateToken, creators.createExcessDeliveryRoute(BookingsModel, DeliveryModel));
+    router.get(`/${shopPrefix}/excess_delivery`, authenticateToken, creators.createExcessDeliveryRoute(BookingsModel, DeliveryModel, AuditModel));
     router.get(`/${shopPrefix}/diagnose_discrepancy`, authenticateToken, creators.createDiscrepancyDiagnosticRoute(BookingsModel, DeliveryModel));
 });
 

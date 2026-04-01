@@ -14,8 +14,8 @@ export async function renderExcessDeliveryView(shop) {
     const headerHtml = `
         <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
             <div>
-                <h2 class="text-2xl font-bold text-slate-800">Excess Delivery: ${shop}</h2>
-                <p class="text-sm text-slate-500 mt-1">Showing bills where total delivered amount exceeds the original booked amount.</p>
+                <h2 class="text-2xl font-bold text-slate-800">Excess Delivery & Stock Audit Discrepancies: ${shop}</h2>
+                <p class="text-sm text-slate-500 mt-1">Reconciling the 3,706 AED gap between Dashboard and Audit records.</p>
             </div>
             <div class="flex flex-wrap gap-3">
                  <button onclick="window.printExcessDeliveryList()" class="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-semibold shadow-md transition-colors flex items-center">
@@ -107,29 +107,70 @@ async function fetchExcessData(shop) {
 function renderExcessTable(shop, data) {
     const container = document.getElementById('excessContent');
 
-    // Handle both old array format (case-by-case cache) and new object format
-    const excess = (data && data.excess) ? data.excess : (Array.isArray(data) ? data : []);
+    // Handle data structure
+    const excess = (data && data.excess) ? data.excess : [];
     const cancelled = (data && data.cancelled) ? data.cancelled : [];
+    const manual = (data && data.manual) ? data.manual : [];
 
-    if (excess.length === 0 && cancelled.length === 0) {
-        container.innerHTML = `<div class="p-8 text-center text-slate-500">No discrepancies found. All balances look good!</div>`;
+    if (excess.length === 0 && cancelled.length === 0 && manual.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-dashed border-slate-300">
+                <div class="bg-teal-50 text-teal-600 p-4 rounded-full mb-4">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">No Discrepancies Found</h3>
+                <p class="text-slate-500 max-w-xs text-center mt-2">All balances match across Dashboard and Audit records. Your stock is perfectly reconciled!</p>
+            </div>
+        `;
         return;
     }
 
     const totalExcessAmt = excess.reduce((sum, item) => sum + item.extraAmount, 0);
     const totalCancelledAmt = cancelled.reduce((sum, item) => sum + item.deliveredAmount, 0);
+    const totalManualDiff = manual.reduce((sum, item) => sum + item.diff, 0);
+    const grandTotalImpact = totalExcessAmt + totalCancelledAmt + totalManualDiff;
 
     let html = `
         <div id="excessTableContainer" class="space-y-12">
+            <!-- Summary Dashboard -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Impact</p>
+                    <p class="text-2xl font-black text-slate-800">${formatCurrency(grandTotalImpact)}</p>
+                    <div class="mt-2 text-[10px] text-slate-400">Sum of all identified gaps</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+                    <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">Excess Delivery</p>
+                    <p class="text-2xl font-black text-slate-800">${formatCurrency(totalExcessAmt)}</p>
+                    <div class="mt-2 text-[10px] text-slate-400">${excess.length} bills overpaid</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-amber-500">
+                    <p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Cancelled Bills</p>
+                    <p class="text-2xl font-black text-slate-800">${formatCurrency(totalCancelledAmt)}</p>
+                    <div class="mt-2 text-[10px] text-slate-400">${cancelled.length} deliveries after cancel</div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-500">
+                    <p class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Manual Overrides</p>
+                    <p class="text-2xl font-black text-slate-800">${formatCurrency(totalManualDiff)}</p>
+                    <div class="mt-2 text-[10px] text-slate-400">${manual.length} audit calculation gaps</div>
+                </div>
+            </div>
+
             <!-- EXCESS SECTION -->
+            ${excess.length > 0 ? `
             <section>
-                <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4 text-sm flex items-center justify-between shadow-sm">
-                    <div class="flex items-center">
-                        <svg class="h-5 w-5 mr-2 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <span>Found <strong>${excess.length}</strong> overpaid bills. Total Excess: <strong>${formatCurrency(totalExcessAmt)}</strong></span>
-                    </div>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center">
+                        <span class="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center mr-2">
+                             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </span>
+                        Excess Deliveries
+                    </h3>
+                    <span class="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-100">Action Required</span>
                 </div>
 
                 <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
@@ -137,45 +178,42 @@ function renderExcessTable(shop, data) {
                         <table class="min-w-full divide-y divide-slate-200">
                             <thead class="bg-slate-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-24">Bill No</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-32">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Bill No</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Customer</th>
-                                    <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase w-32">Booked</th>
-                                    <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase w-32">Delivered</th>
-                                    <th class="px-6 py-3 text-right text-xs font-bold text-red-600 uppercase w-32">Extra</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">Booked</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">Delivered</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-red-600 uppercase">Extra</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-200 text-sm">
-                                ${excess.length === 0 ? '<tr><td colspan="6" class="px-6 py-4 text-center text-slate-400">None found</td></tr>' :
-            excess.map(item => `
+                                ${excess.map(item => `
                                     <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-4 font-mono font-bold text-slate-700">
-                                            <button onclick="window.showBillDetails('${shop}', '${item.billNo}')" class="text-teal-600 hover:text-teal-800 underline focus:outline-none flex items-center">
-                                                ${item.billNo}
-                                            </button>
-                                        </td>
-                                        <td class="px-6 py-4 text-slate-500 whitespace-nowrap">${new Date(item.date).toLocaleDateString()}</td>
+                                        <td class="px-6 py-4 font-mono font-bold text-teal-600 cursor-pointer underline" onclick="window.showBillDetails('${shop}', '${item.billNo}')">${item.billNo}</td>
                                         <td class="px-6 py-4 text-slate-700 font-medium">${item.name}</td>
-                                        <td class="px-6 py-4 text-right">${formatCurrency(item.bookedAmount || 0)}</td>
-                                        <td class="px-6 py-4 text-right">${formatCurrency(item.deliveredAmount || 0)}</td>
-                                        <td class="px-6 py-4 text-right font-bold text-red-600">${formatCurrency(item.extraAmount)}</td>
+                                        <td class="px-6 py-4 text-right text-slate-500">${formatCurrency(item.bookedAmount)}</td>
+                                        <td class="px-6 py-4 text-right text-slate-700">${formatCurrency(item.deliveredAmount)}</td>
+                                        <td class="px-6 py-4 text-right font-black text-red-600">${formatCurrency(item.extraAmount)}</td>
                                     </tr>
-                                  `).join('')}
+                                `).join('')}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </section>
+            </section>` : ''}
 
             <!-- CANCELLED SECTION -->
+            ${cancelled.length > 0 ? `
             <section>
-                <div class="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg mb-4 text-sm flex items-center justify-between shadow-sm">
-                    <div class="flex items-center">
-                        <svg class="h-5 w-5 mr-2 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span>Found <strong>${cancelled.length}</strong> deliveries on cancelled bills. Total Amount: <strong>${formatCurrency(totalCancelledAmt)}</strong></span>
-                    </div>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center">
+                        <span class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center mr-2">
+                             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </span>
+                        Deliveries on Cancelled Bills
+                    </h3>
+                     <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">Suspicious</span>
                 </div>
 
                 <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
@@ -183,37 +221,72 @@ function renderExcessTable(shop, data) {
                         <table class="min-w-full divide-y divide-slate-200">
                             <thead class="bg-slate-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-24">Bill No</th>
-                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-32">Date</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Bill No</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Customer</th>
-                                    <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-32">Status</th>
-                                    <th class="px-6 py-3 text-right text-xs font-bold text-amber-700 uppercase w-32">Delivered Amt</th>
+                                    <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-amber-700 uppercase">Delivered Amt</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-200 text-sm">
-                                ${cancelled.length === 0 ? '<tr><td colspan="5" class="px-6 py-4 text-center text-slate-400">None found</td></tr>' :
-            cancelled.map(item => `
+                                ${cancelled.map(item => `
                                     <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-4 font-mono font-bold text-slate-700">
-                                            <button onclick="window.showBillDetails('${shop}', '${item.billNo}')" class="text-teal-600 hover:text-teal-800 underline focus:outline-none flex items-center">
-                                                ${item.billNo}
-                                            </button>
-                                        </td>
-                                        <td class="px-6 py-4 text-slate-500 whitespace-nowrap">${new Date(item.date).toLocaleDateString()}</td>
+                                        <td class="px-6 py-4 font-mono font-bold text-teal-600 cursor-pointer underline" onclick="window.showBillDetails('${shop}', '${item.billNo}')">${item.billNo}</td>
                                         <td class="px-6 py-4 text-slate-700 font-medium">${item.name}</td>
                                         <td class="px-6 py-4 text-center">
                                             <span class="px-2 py-1 rounded-md bg-red-100 text-red-700 font-bold uppercase text-[10px]">${item.status}</span>
                                         </td>
-                                        <td class="px-6 py-4 text-right font-bold text-amber-700">${formatCurrency(item.deliveredAmount)}</td>
+                                        <td class="px-6 py-4 text-right font-black text-amber-700">${formatCurrency(item.deliveredAmount)}</td>
                                     </tr>
-                                  `).join('')}
+                                `).join('')}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </section>
+            </section>` : ''}
+
+            <!-- MANUAL OVERRIDES SECTION -->
+            ${manual.length > 0 ? `
+            <section>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-slate-800 flex items-center">
+                        <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center mr-2">
+                             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </span>
+                        Manual Audit Overrides
+                    </h3>
+                     <span class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full border border-indigo-100">Data Entry Error</span>
+                </div>
+
+                <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Bill No</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Math Balance</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Saved Audit</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-indigo-600 uppercase">Gap</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Audit Remark</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 text-sm">
+                                ${manual.map(item => `
+                                    <tr class="hover:bg-slate-50 transition-colors">
+                                        <td class="px-6 py-4 font-mono font-bold text-teal-600 cursor-pointer underline" onclick="window.showBillDetails('${shop}', '${item.billNo}')">${item.billNo}</td>
+                                        <td class="px-6 py-4 text-slate-500">${formatCurrency(item.calculatedBalance)}</td>
+                                        <td class="px-6 py-4 text-slate-700 font-medium">${formatCurrency(item.actualAuditAmount)}</td>
+                                        <td class="px-6 py-4 text-right font-black text-indigo-600">${formatCurrency(item.diff)}</td>
+                                        <td class="px-6 py-4 text-slate-500 italic text-xs">${item.remark || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>` : ''}
         </div>
     `;
-
     container.innerHTML = html;
 }

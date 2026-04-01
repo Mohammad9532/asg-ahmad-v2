@@ -947,24 +947,25 @@ const createCompareBookingsRoute = (BookingModel) => async (req, res) => {
  * Creates the Excess Delivery Route.
  * Finds bills where total delivered amount > original booked amount.
  */
-const createExcessDeliveryRoute = (BookingModel, DeliveryModel) => async (req, res) => {
+const createExcessDeliveryRoute = (BookingModel, DeliveryModel, AuditModel) => async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
 
         // Build base query for bookings
-        let bookingQuery = { billNo: { $exists: true, $ne: 'other-amounts' } };
+        let bookingsQuery = { billNo: { $exists: true, $ne: 'other-amounts' } };
 
         // Optional date filtering
         if (startDate && endDate) {
-            bookingQuery.date = {
+            bookingsQuery.date = {
                 $gte: new Date(startDate),
                 $lte: new Date(`${endDate}T23:59:59.999Z`)
             };
         }
 
-        const bookings = await BookingModel.find(bookingQuery).lean();
-        const deliveries = await DeliveryModel.find({ billNo: { $exists: true } }).select('billNo amount').lean();
+        const bookings = await BookingModel.find(bookingsQuery).lean();
+        const billNos = bookings.map(b => String(b.billNo).trim());
 
+        const deliveries = await DeliveryModel.find({ billNo: { $in: billNos } }).select('billNo amount').lean();
         const deliveryMap = {};
         deliveries.forEach(d => {
             const b = String(d.billNo).trim();
@@ -972,8 +973,15 @@ const createExcessDeliveryRoute = (BookingModel, DeliveryModel) => async (req, r
             deliveryMap[b] += (d.amount || 0);
         });
 
+        const auditRecords = await AuditModel.find({ billNo: { $in: billNos } }).lean();
+        const auditMap = {};
+        auditRecords.forEach(a => {
+            auditMap[String(a.billNo).trim()] = a;
+        });
+
         const excessDeliveries = [];
         const cancelledDeliveries = [];
+        const manualDiscrepancies = [];
         const CANCEL_STATUSES = ["cancel", "canceled", "cancelled", "deducted"];
 
         bookings.forEach(b => {
@@ -981,51 +989,75 @@ const createExcessDeliveryRoute = (BookingModel, DeliveryModel) => async (req, r
             const billNo = String(b.billNo).trim();
             const bookedAmount = b.amount || 0;
             const deliveredAmount = deliveryMap[billNo] || 0;
+            const audit = auditMap[billNo];
+            const isCancelled = b.status && CANCEL_STATUSES.includes(b.status.toLowerCase());
 
-            if (b.status && CANCEL_STATUSES.includes(b.status.toLowerCase())) {
+            // 1. Cancelled Bill Deliveries
+            if (isCancelled) {
                 if (deliveredAmount > 0) {
                     cancelledDeliveries.push({
-                        billNo: billNo,
+                        billNo,
                         name: b.name || 'Unknown',
                         date: b.date,
                         phone: b.phone,
                         countryCode: b.countryCode,
-                        bookedAmount: bookedAmount,
-                        deliveredAmount: deliveredAmount,
+                        bookedAmount,
+                        deliveredAmount,
                         status: b.status
                     });
                 }
                 return;
             }
 
+            // 2. Excess Deliveries (Delivery > Booking)
             const extraAmount = deliveredAmount - bookedAmount;
-
             if (extraAmount > 0) {
                 excessDeliveries.push({
-                    billNo: billNo,
+                    billNo,
                     name: b.name || 'Unknown',
                     date: b.date,
                     phone: b.phone,
                     countryCode: b.countryCode,
                     qty: b.qty || 0,
-                    bookedAmount: bookedAmount,
-                    deliveredAmount: deliveredAmount,
-                    extraAmount: extraAmount
+                    bookedAmount,
+                    deliveredAmount,
+                    extraAmount
                 });
+            }
+
+            // 3. Manual Audit Overrides
+            if (audit) {
+                const calculatedBalance = bookedAmount - deliveredAmount;
+                const actualAuditAmount = audit.amount || 0;
+                if (Math.abs(actualAuditAmount - calculatedBalance) > 0.01) {
+                    manualDiscrepancies.push({
+                        billNo,
+                        name: b.name || 'Unknown',
+                        date: b.date,
+                        calculatedBalance,
+                        actualAuditAmount,
+                        diff: actualAuditAmount - calculatedBalance,
+                        remark: audit.remark
+                    });
+                }
             }
         });
 
-        // Sort both by highest delivered amount first
+        // Sort by highest amount/impact
         excessDeliveries.sort((a, b) => b.extraAmount - a.extraAmount);
         cancelledDeliveries.sort((a, b) => b.deliveredAmount - a.deliveredAmount);
+        manualDiscrepancies.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
 
-        res.json({ excess: excessDeliveries, cancelled: cancelledDeliveries });
+        res.json({
+            excess: excessDeliveries,
+            cancelled: cancelledDeliveries,
+            manual: manualDiscrepancies
+        });
     } catch (err) {
         console.error("Excess Delivery Error:", err);
         res.status(500).json({ error: "Failed to fetch excess deliveries." });
     }
 };
-
 
 module.exports = {
     createEntryRoute,
@@ -1076,19 +1108,15 @@ module.exports = {
                 const delAmt = deliveryMap[billNo] || 0;
                 const isCancelled = b.status && CANCEL_STATUSES.includes(b.status.toLowerCase());
 
-                // Dashboard Logic: Net - Accrual
-                // Net is 0 if cancelled, else bookedAmt.
                 const dashboardNet = isCancelled ? 0 : bookedAmt;
-                // Accrual is delAmt ALWAYS (even if cancelled)
                 const dashboardStock = dashboardNet - delAmt;
 
-                // Audit Logic: Balance if not cancelled, else 0. Balance floor at 0.
                 let auditStock = 0;
                 if (!isCancelled) {
                     auditStock = Math.max(0, bookedAmt - delAmt);
                 }
 
-                if (dashboardStock !== auditStock) {
+                if (Math.abs(dashboardStock - auditStock) > 0.01) {
                     results.push({
                         billNo,
                         status: b.status,
