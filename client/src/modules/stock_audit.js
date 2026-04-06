@@ -216,9 +216,9 @@ function renderPendingTable(shop, data) {
         </div>
 
         <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
+            <div class="">
+                <table class="min-w-full divide-y divide-slate-200 block md:table">
+                    <thead class="bg-slate-50 hidden md:table-header-group">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-24">Bill No</th>
                             <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-32">Date</th>
@@ -231,7 +231,7 @@ function renderPendingTable(shop, data) {
                             <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-20">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-sm">
+                    <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
     `;
 
     data.forEach(item => {
@@ -240,40 +240,56 @@ function renderPendingTable(shop, data) {
         const amountValue = item.balance || 0;
 
         html += `
-            <tr id="row_${item.billNo}" class="hover:bg-slate-50 group transition-colors">
-                <td class="px-6 py-4 font-mono font-bold text-slate-700">
-                    <button onclick="showBillDetails('${shop}', '${item.billNo}')" 
-                        class="text-teal-600 hover:text-teal-800 hover:underline focus:outline-none flex items-center">
-                        ${item.billNo}
-                        <svg class="w-3 h-3 ml-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                    </button>
+            <tr id="row_${item.billNo}" class="hover:bg-slate-50 group transition-colors block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 bg-white relative">
+                <td class="px-6 py-4 font-mono font-bold text-slate-700 block md:table-cell border-b border-slate-50 md:border-none bg-slate-50 md:bg-transparent">
+                    <div class="flex justify-between items-center md:block">
+                        <span class="md:hidden text-[10px] text-slate-400 uppercase font-bold tracking-tight">Bill No:</span>
+                        <button onclick="showBillDetails('${shop}', '${item.billNo}')" 
+                            class="text-teal-600 hover:text-teal-800 hover:underline focus:outline-none flex items-center">
+                            ${item.billNo}
+                            <svg class="w-3 h-3 ml-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                        </button>
+                    </div>
                 </td>
-                <td class="px-6 py-4 text-slate-500 whitespace-nowrap">${new Date(item.date).toLocaleDateString()}</td>
-                <td class="px-6 py-4 text-slate-700 font-medium">${item.name}</td>
-                <td class="px-6 py-4 text-center font-bold text-slate-600">${qtyDisplay}</td>
-                 <td class="px-6 py-4 text-right font-medium text-slate-600">${formatCurrency(item.bookedAmount || 0)}</td>
-                <td class="px-6 py-4 text-right font-bold text-teal-700">${formatCurrency(item.balance)}</td>
-                <td class="px-6 py-3">
+                <td class="px-6 py-2.5 text-slate-500 whitespace-nowrap block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Date</span> ${new Date(item.date).toLocaleDateString()}
+                </td>
+                <td class="px-6 py-2.5 text-slate-700 font-medium block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Customer</span> ${item.name}
+                </td>
+                <td class="px-6 py-2.5 text-center font-bold text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Qty</span> ${qtyDisplay}
+                </td>
+                 <td class="px-6 py-2.5 text-right font-medium text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px]">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Total Amt</span> ${formatCurrency(item.bookedAmount || 0)}
+                 </td>
+                <td class="px-6 py-2.5 text-right font-bold text-teal-700 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-teal-50/30 md:bg-transparent text-[13px]">
+                    <span class="md:hidden font-black text-teal-600 uppercase text-[10px] tracking-tight">Balance</span> ${formatCurrency(item.balance)}
+                </td>
+                <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight mr-4">Missing Pcs</span>
                     <input type="number" 
                         id="missing_${item.billNo}" 
                         min="0"
-                        class="w-full text-center text-sm border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" 
+                        class="w-32 md:w-full text-center text-sm border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" 
                         placeholder="0"
                     >
                 </td>
-                <td class="px-6 py-3">
+                <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight mr-4">Remark</span>
                     <input type="text" 
                         id="remark_${item.billNo}" 
-                        class="w-full text-sm border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" 
+                        class="w-full md:w-full text-sm border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" 
                         placeholder="Location / Status..."
                     >
                 </td>
-                <td class="px-6 py-3 text-center">
+                <td class="px-6 py-4 text-center block md:table-cell md:border-none flex justify-center items-center md:block">
                     <button onclick="verifyStockAuditItem('${shop}', '${item.billNo}', ${qtyValue}, ${amountValue})" 
-                        class="bg-green-100 text-green-700 p-2 rounded-full hover:bg-green-200 transition-colors shadow-sm border border-green-200"
+                        class="bg-green-600 text-white md:bg-green-100 md:text-green-700 p-2 md:p-2 rounded-lg md:rounded-full hover:bg-green-700 md:hover:bg-green-200 transition-colors shadow-sm border border-green-200 flex items-center justify-center w-full md:w-auto"
                         title="Mark as Checked">
+                        <span class="md:hidden mr-2 font-bold uppercase text-xs">Mark as Checked</span>
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
@@ -512,9 +528,9 @@ function renderHistoryTable(shop, data) {
 
     html += `
         <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200" id="checkedHistoryTable">
-                    <thead class="bg-slate-50">
+            <div class="">
+                <table class="min-w-full divide-y divide-slate-200 block md:table" id="checkedHistoryTable">
+                    <thead class="bg-slate-50 hidden md:table-header-group">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-24">Bill No</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-20">Qty</th>
@@ -526,7 +542,7 @@ function renderHistoryTable(shop, data) {
                             <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-24">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-sm">
+                    <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
     `;
 
     data.forEach(item => {
@@ -550,32 +566,51 @@ function renderHistoryTable(shop, data) {
         let searchTerms = `${item.billNo} ${item.remark || ''} ${tags}`.toLowerCase();
 
         html += `
-            <tr class="hover:bg-slate-50 history-row" data-search="${searchTerms}" data-amount="${item.amount || 0}">
-                <td class="px-6 py-4 font-mono font-bold text-slate-700">${item.billNo}</td>
-                <td class="px-6 py-4 text-center text-slate-600 font-semibold">${item.qty !== undefined && item.qty !== null ? item.qty : '-'}</td>
-                 <td class="px-6 py-4 text-right">${amountDisplay}</td>
-                <td class="px-6 py-4 text-center">${missingDisplay}</td>
-                <td class="px-6 py-4 text-slate-600">${item.remark || '<span class="text-slate-400 italic">No remark</span>'}</td>
-                <td class="px-6 py-4 text-slate-500 whitespace-nowrap text-xs">
-                    ${new Date(item.checkedAt).toLocaleDateString()} 
-                    <span class="text-slate-400 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <tr class="hover:bg-slate-50 history-row block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 bg-white relative" data-search="${searchTerms}" data-amount="${item.amount || 0}">
+                <td class="px-6 py-4 font-mono font-bold text-slate-700 block md:table-cell border-b border-slate-50 md:border-none bg-slate-50 md:bg-transparent">
+                    <div class="flex justify-between items-center md:block">
+                        <span class="md:hidden text-[10px] text-slate-400 uppercase font-bold tracking-tight">Bill No:</span>
+                        <span>${item.billNo}</span>
+                    </div>
                 </td>
-                <td class="px-6 py-4 text-center">
+                <td class="px-6 py-2 md:py-4 text-center text-slate-600 font-semibold block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                     <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Qty</span> ${item.qty !== undefined && item.qty !== null ? item.qty : '-'}
+                </td>
+                 <td class="px-6 py-2 md:py-4 text-right block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Amount</span> ${amountDisplay}
+                 </td>
+                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Missing</span> ${missingDisplay}
+                </td>
+                <td class="px-6 py-2 md:py-4 text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Remark</span> ${item.remark || '<span class="text-slate-400 italic">No remark</span>'}
+                </td>
+                <td class="px-6 py-2 md:py-4 text-slate-500 whitespace-nowrap text-xs block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Checked At</span>
+                    <div>
+                        ${new Date(item.checkedAt).toLocaleDateString()} 
+                        <span class="text-slate-400 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Status</span>
                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                         Checked
                     </span>
                 </td>
-                <td class="px-6 py-4 text-center">
-                    <div class="flex justify-center space-x-3">
+                <td class="px-6 py-4 text-center block md:table-cell md:border-none flex justify-center items-center md:block">
+                    <div class="flex justify-center space-x-3 w-full md:w-auto">
                         <button onclick="editStockAuditItem('${shop}', '${item._id}', '${(item.remark || '').replace(/'/g, "\\'")}', ${item.missingPcs || 0}, ${item.qty || 0}, ${item.amount || 0})" 
-                            class="text-indigo-600 hover:text-indigo-800 transition-colors" title="Edit">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            class="text-indigo-600 hover:text-indigo-800 transition-colors p-2 bg-indigo-50 rounded-lg md:bg-transparent md:p-0" title="Edit">
+                            <span class="md:hidden text-xs font-bold mr-1">Edit Info</span>
+                            <svg class="w-5 h-5 md:w-4 md:h-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                         </button>
                         <button onclick="undoStockAuditItem('${shop}', '${item._id}')" 
-                            class="text-red-500 hover:text-red-700 transition-colors" title="Undo (Move to Pending)">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            class="text-red-500 hover:text-red-700 transition-colors p-2 bg-red-50 rounded-lg md:bg-transparent md:p-0" title="Undo (Move to Pending)">
+                            <span class="md:hidden text-xs font-bold mr-1">Undo Item</span>
+                            <svg class="w-5 h-5 md:w-4 md:h-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                             </svg>
                         </button>
@@ -740,9 +775,9 @@ function renderArchivedDetails(shop, allData, batchLabel) {
 
     html += `
         <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-slate-50">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200" id="archivedTable">
-                    <thead class="bg-indigo-50">
+            <div class="">
+                <table class="min-w-full divide-y divide-slate-200 block md:table" id="archivedTable">
+                    <thead class="bg-indigo-50 hidden md:table-header-group">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-bold text-indigo-800 uppercase w-24">Bill No</th>
                             <th class="px-6 py-3 text-center text-xs font-bold text-indigo-500 uppercase w-20">Qty</th>
@@ -752,7 +787,7 @@ function renderArchivedDetails(shop, allData, batchLabel) {
                             <th class="px-6 py-3 text-left text-xs font-bold text-indigo-500 uppercase whitespace-nowrap">Checked At</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-sm bg-white">
+                    <tbody class="divide-y divide-slate-200 text-sm bg-white block md:table-row-group">
     `;
 
     filteredData.forEach(item => {
@@ -776,15 +811,31 @@ function renderArchivedDetails(shop, allData, batchLabel) {
         const searchTerms = `${item.billNo} ${item.remark || ''} ${tags}`.toLowerCase();
 
         html += `
-            <tr class="hover:bg-slate-50 archived-row" data-search="${searchTerms}" data-amount="${item.amount || 0}">
-                <td class="px-6 py-4 font-mono font-bold text-slate-700">${item.billNo}</td>
-                <td class="px-6 py-4 text-center text-slate-600 font-semibold">${item.qty !== undefined && item.qty !== null ? item.qty : '-'}</td>
-                <td class="px-6 py-4 text-right">${amountDisplay}</td>
-                <td class="px-6 py-4 text-center">${missingDisplay}</td>
-                <td class="px-6 py-4 text-slate-600">${item.remark || '<span class="text-slate-400 italic">No remark</span>'}</td>
-                <td class="px-6 py-4 text-slate-500 whitespace-nowrap text-xs">
-                    ${new Date(item.checkedAt).toLocaleDateString()} 
-                    <span class="text-slate-400 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <tr class="hover:bg-slate-50 archived-row block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 bg-white relative" data-search="${searchTerms}" data-amount="${item.amount || 0}">
+                <td class="px-6 py-4 font-mono font-bold text-slate-700 block md:table-cell border-b border-slate-50 md:border-none bg-slate-50 md:bg-transparent">
+                    <div class="flex justify-between items-center md:block">
+                        <span class="md:hidden text-[10px] text-slate-400 uppercase font-bold tracking-tight">Bill No:</span>
+                        <span>${item.billNo}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-2 md:py-4 text-center text-slate-600 font-semibold block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Qty</span> ${item.qty !== undefined && item.qty !== null ? item.qty : '-'}
+                </td>
+                <td class="px-6 py-2 md:py-4 text-right block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Amount</span> ${amountDisplay}
+                </td>
+                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Missing</span> ${missingDisplay}
+                </td>
+                <td class="px-6 py-2 md:py-4 text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Remark</span> ${item.remark || '<span class="text-slate-400 italic">No remark</span>'}
+                </td>
+                <td class="px-6 py-2 md:py-4 text-slate-500 whitespace-nowrap text-xs block md:table-cell md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Checked At</span>
+                    <div>
+                        ${new Date(item.checkedAt).toLocaleDateString()} 
+                        <span class="text-slate-400 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                 </td>
             </tr>
         `;

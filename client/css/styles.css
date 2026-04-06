@@ -117,6 +117,16 @@
             animation: pulse-ring 1.25s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
         }
 
+        /* Truncate text on mobile to prevent overflow in card view */
+        @media (max-width: 767px) {
+            .truncate-mobile {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 100%;
+            }
+        }
+
         /* --- PRINT STYLES --- */
         @media print {
 

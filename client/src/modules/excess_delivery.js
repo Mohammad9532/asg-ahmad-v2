@@ -142,18 +142,18 @@ function renderExcessTable(shop, data) {
                     <div class="mt-2 text-[10px] text-slate-400">Sum of all identified gaps</div>
                 </div>
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
-                    <p class="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">Excess Delivery</p>
-                    <p class="text-2xl font-black text-slate-800">${formatCurrency(totalExcessAmt)}</p>
-                    <div class="mt-2 text-[10px] text-slate-400">${excess.length} bills overpaid</div>
+                    <p class="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1">Excess Deliveries</p>
+                    <p class="text-xl md:text-2xl font-black text-slate-800">${formatCurrency(totalExcessAmt)}</p>
+                    <div class="mt-2 text-[10px] text-slate-400">${excess.length} bills with extra amount</div>
                 </div>
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-amber-500">
-                    <p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Cancelled Bills</p>
-                    <p class="text-2xl font-black text-slate-800">${formatCurrency(totalCancelledAmt)}</p>
+                    <p class="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">Cancelled Bills</p>
+                    <p class="text-xl md:text-2xl font-black text-slate-800">${formatCurrency(totalCancelledAmt)}</p>
                     <div class="mt-2 text-[10px] text-slate-400">${cancelled.length} deliveries after cancel</div>
                 </div>
                 <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-l-indigo-500">
-                    <p class="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Manual Overrides</p>
-                    <p class="text-2xl font-black text-slate-800">${formatCurrency(totalManualDiff)}</p>
+                    <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">Manual Overrides</p>
+                    <p class="text-xl md:text-2xl font-black text-slate-800">${formatCurrency(totalManualDiff)}</p>
                     <div class="mt-2 text-[10px] text-slate-400">${manual.length} audit calculation gaps</div>
                 </div>
             </div>
@@ -174,9 +174,9 @@ function renderExcessTable(shop, data) {
                 </div>
 
                 <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50">
+                    <div class="">
+                        <table class="min-w-full divide-y divide-slate-200 block md:table">
+                            <thead class="bg-slate-50 hidden md:table-header-group">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Bill No</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Customer</th>
@@ -185,14 +185,24 @@ function renderExcessTable(shop, data) {
                                     <th class="px-6 py-3 text-right text-xs font-bold text-red-600 uppercase">Extra</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-200 text-sm">
+                            <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
                                 ${excess.map(item => `
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-4 font-mono font-bold text-teal-600 cursor-pointer underline" onclick="window.showBillDetails('${shop}', '${item.billNo}')">${item.billNo}</td>
-                                        <td class="px-6 py-4 text-slate-700 font-medium">${item.name}</td>
-                                        <td class="px-6 py-4 text-right text-slate-500">${formatCurrency(item.bookedAmount)}</td>
-                                        <td class="px-6 py-4 text-right text-slate-700">${formatCurrency(item.deliveredAmount)}</td>
-                                        <td class="px-6 py-4 text-right font-black text-red-600">${formatCurrency(item.extraAmount)}</td>
+                                    <tr class="hover:bg-slate-50 transition-colors block md:table-row border-b-4 border-slate-50 md:border-none mb-4 md:mb-0 relative py-1">
+                                        <td class="px-6 py-2.5 font-mono font-bold text-teal-600 cursor-pointer underline block md:table-cell border-b border-slate-50 md:border-none bg-slate-50/50 md:bg-transparent" onclick="window.showBillDetails('${shop}', '${item.billNo}')">
+                                            <span class="md:hidden text-[10px] text-slate-400 uppercase font-black tracking-tight mr-2">Bill No:</span> ${item.billNo}
+                                        </td>
+                                        <td class="px-6 py-2.5 text-slate-700 font-medium block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Customer</span> ${item.name}
+                                        </td>
+                                        <td class="px-6 py-2.5 text-right text-slate-500 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Booked</span> ${formatCurrency(item.bookedAmount)}
+                                        </td>
+                                        <td class="px-6 py-2.5 text-right text-slate-700 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Delivered</span> ${formatCurrency(item.deliveredAmount)}
+                                        </td>
+                                        <td class="px-6 py-2.5 text-right font-black text-red-600 block md:table-cell md:border-none flex justify-between items-center md:block bg-red-50/30 md:bg-transparent">
+                                            <span class="md:hidden font-black text-red-600 uppercase text-[10px] tracking-tight">Extra</span> ${formatCurrency(item.extraAmount)}
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -217,9 +227,9 @@ function renderExcessTable(shop, data) {
                 </div>
 
                 <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50">
+                    <div class="">
+                        <table class="min-w-full divide-y divide-slate-200 block md:table">
+                            <thead class="bg-slate-50 hidden md:table-header-group">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Bill No</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Customer</th>
@@ -227,15 +237,22 @@ function renderExcessTable(shop, data) {
                                     <th class="px-6 py-3 text-right text-xs font-bold text-amber-700 uppercase">Delivered Amt</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-200 text-sm">
+                            <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
                                 ${cancelled.map(item => `
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-4 font-mono font-bold text-teal-600 cursor-pointer underline" onclick="window.showBillDetails('${shop}', '${item.billNo}')">${item.billNo}</td>
-                                        <td class="px-6 py-4 text-slate-700 font-medium">${item.name}</td>
-                                        <td class="px-6 py-4 text-center">
+                                    <tr class="hover:bg-slate-50 transition-colors block md:table-row border-b-4 border-slate-50 md:border-none mb-4 md:mb-0 relative py-1">
+                                        <td class="px-6 py-2.5 font-mono font-bold text-teal-600 cursor-pointer underline block md:table-cell border-b border-slate-50 md:border-none bg-slate-50/50 md:bg-transparent" onclick="window.showBillDetails('${shop}', '${item.billNo}')">
+                                            <span class="md:hidden text-[10px] text-slate-400 uppercase font-black tracking-tight mr-2">Bill No:</span> ${item.billNo}
+                                        </td>
+                                        <td class="px-6 py-2.5 text-slate-700 font-medium block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Customer</span> ${item.name}
+                                        </td>
+                                        <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Status</span>
                                             <span class="px-2 py-1 rounded-md bg-red-100 text-red-700 font-bold uppercase text-[10px]">${item.status}</span>
                                         </td>
-                                        <td class="px-6 py-4 text-right font-black text-amber-700">${formatCurrency(item.deliveredAmount)}</td>
+                                        <td class="px-6 py-2 md:py-4 text-right font-black text-amber-700 block md:table-cell md:border-none flex justify-between items-center md:block bg-amber-50/30 md:bg-transparent">
+                                            <span class="md:hidden font-bold text-amber-600 uppercase text-xs">Delivered Amt</span> ${formatCurrency(item.deliveredAmount)}
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -260,9 +277,9 @@ function renderExcessTable(shop, data) {
                 </div>
 
                 <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50">
+                    <div class="">
+                        <table class="min-w-full divide-y divide-slate-200 block md:table">
+                            <thead class="bg-slate-50 hidden md:table-header-group">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Bill No</th>
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Math Balance</th>
@@ -271,14 +288,24 @@ function renderExcessTable(shop, data) {
                                     <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Audit Remark</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-200 text-sm">
+                            <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
                                 ${manual.map(item => `
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-6 py-4 font-mono font-bold text-teal-600 cursor-pointer underline" onclick="window.showBillDetails('${shop}', '${item.billNo}')">${item.billNo}</td>
-                                        <td class="px-6 py-4 text-slate-500">${formatCurrency(item.calculatedBalance)}</td>
-                                        <td class="px-6 py-4 text-slate-700 font-medium">${formatCurrency(item.actualAuditAmount)}</td>
-                                        <td class="px-6 py-4 text-right font-black text-indigo-600">${formatCurrency(item.diff)}</td>
-                                        <td class="px-6 py-4 text-slate-500 italic text-xs">${item.remark || '-'}</td>
+                                    <tr class="hover:bg-slate-50 transition-colors block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 relative py-1">
+                                        <td class="px-6 py-3 font-mono font-bold text-teal-600 cursor-pointer underline block md:table-cell border-b border-slate-50 md:border-none bg-slate-50/50 md:bg-transparent" onclick="window.showBillDetails('${shop}', '${item.billNo}')">
+                                            <span class="md:hidden text-xs text-slate-400 uppercase font-normal mr-2">Bill No:</span> ${item.billNo}
+                                        </td>
+                                        <td class="px-6 py-2 md:py-4 text-slate-500 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Math Balance</span> ${formatCurrency(item.calculatedBalance)}
+                                        </td>
+                                        <td class="px-6 py-2 md:py-4 text-slate-700 font-medium block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Saved Audit</span> ${formatCurrency(item.actualAuditAmount)}
+                                        </td>
+                                        <td class="px-6 py-2 md:py-4 text-right font-black text-indigo-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-indigo-50/30 md:bg-transparent">
+                                            <span class="md:hidden font-bold text-indigo-600 uppercase text-xs">Gap</span> ${formatCurrency(item.diff)}
+                                        </td>
+                                        <td class="px-6 py-2 md:py-4 text-slate-500 italic text-xs block md:table-cell md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Audit Remark</span> ${item.remark || '-'}
+                                        </td>
                                     </tr>
                                 `).join('')}
                             </tbody>

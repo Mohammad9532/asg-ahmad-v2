@@ -350,15 +350,34 @@ export function handleSort(key, tableId) {
 }
 
 export function handleTableSearch(tableId, query) {
-    state.searchState[tableId] = query;
-    // Debounce could be added here, but for now direct update
+    const inputId = `${tableId}_search`;
+    const activeEl = document.activeElement;
+    const isOurInput = activeEl && activeEl.id === inputId;
+    let cursorStart, cursorEnd;
 
-    // Re-render current view to apply filter
-    if (state.activeDataType === 'bookings' || state.activeDataType === 'delivery' || state.activeDataType === 'expense' || state.activeDataType === 'dashboard') {
-        renderContent(state.activeShop, state.activeDataType);
-    } else {
-        // generic
-        renderContent(state.activeShop, state.activeDataType);
+    if (isOurInput) {
+        cursorStart = activeEl.selectionStart;
+        cursorEnd = activeEl.selectionEnd;
+    }
+
+    state.searchState[tableId] = query;
+    state.pageState[tableId] = 1; // Reset to page 1 on search
+
+    // Re-render
+    if (typeof window.renderContent === 'function') {
+        window.renderContent(state.activeShop, state.activeDataType);
+    }
+
+    // Restore focus
+    if (isOurInput) {
+        // Use timeout because renderContent might have a skeleton/delay
+        setTimeout(() => {
+            const newInput = document.getElementById(inputId);
+            if (newInput) {
+                newInput.focus();
+                newInput.setSelectionRange(cursorStart, cursorEnd);
+            }
+        }, 15); // Slightly more than the 10ms skeleton timeout in render.js
     }
 }
 
@@ -371,14 +390,14 @@ export function renderLegendHTML(methods, total) {
         if (val > 0 || key === 'CASH') {
             const percent = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
             html += `
-                <div class="flex items-center justify-between text-sm">
-                    <div class="flex items-center">
-                        <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${colors[key]}"></span>
-                        <span class="text-slate-600 font-medium">${labels[key]}</span>
+                <div class="flex flex-wrap items-center justify-between text-sm gap-y-1">
+                    <div class="flex items-center min-w-[100px]">
+                        <span class="w-3 h-3 rounded-full mr-2 shrink-0" style="background-color: ${colors[key]}"></span>
+                        <span class="text-slate-600 font-medium truncate">${labels[key]}</span>
                     </div>
-                    <div class="flex items-center text-slate-700">
-                        <span class="font-bold mr-2">${formatCurrency(val)}</span>
-                        <span class="text-xs text-slate-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded">${percent}%</span>
+                    <div class="flex items-center text-slate-700 gap-2">
+                        <span class="font-bold whitespace-nowrap">${formatCurrency(val)}</span>
+                        <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded leading-none">${percent}%</span>
                     </div>
                 </div>
             `;
@@ -395,4 +414,22 @@ export function filterEmployeeGrid(query) {
         const name = card.getAttribute('data-name') || '';
         card.classList.toggle('hidden', !name.includes(q));
     });
+}
+window.setCustomDateRange = setCustomDateRange;
+
+export function setCustomDateRange(start, end, skipFetch = false) {
+    if (!start || !end) return;
+
+    document.getElementById('startDate').value = start;
+    document.getElementById('endDate').value = end;
+    state.dateRange.start = start;
+    state.dateRange.end = end;
+
+    localStorage.setItem('selectedRangeType', 'custom');
+    localStorage.setItem('startDate', start);
+    localStorage.setItem('endDate', end);
+
+    if (!skipFetch && typeof window.fetchAllData === 'function') {
+        window.fetchAllData();
+    }
 }

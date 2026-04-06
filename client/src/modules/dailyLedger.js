@@ -165,16 +165,16 @@ function renderLedgerTable(shop, data, date) {
             <!-- Summary Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <!-- Opening Balance -->
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center items-center">
-                    <span class="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Opening Balance</span>
-                    <span class="text-2xl font-mono font-bold text-slate-700">${formatCurrency(openingBalance)}</span>
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center items-center">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Opening Balance</span>
+                    <span class="text-xl md:text-2xl font-mono font-bold text-slate-700">${formatCurrency(openingBalance)}</span>
                 </div>
-
+                
                 <!-- Closing Balance -->
-                <div class="bg-indigo-600 p-4 rounded-xl shadow-md flex flex-col justify-center items-center text-white relative overflow-hidden group">
+                <div class="bg-indigo-600 p-3 rounded-xl shadow-md flex flex-col justify-center items-center text-white relative overflow-hidden group">
                     <div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-white opacity-10 rounded-full transform group-hover:scale-150 transition-transform duration-500"></div>
-                    <span class="text-xs text-indigo-200 font-bold uppercase tracking-wider mb-1">Net Cash in Box</span>
-                    <span class="text-3xl font-mono font-bold">${formatCurrency(finalClosing)}</span>
+                    <span class="text-[10px] text-indigo-200 font-bold uppercase tracking-wider mb-1">Net Cash in Box</span>
+                    <span class="text-2xl md:text-3xl font-mono font-bold">${formatCurrency(finalClosing)}</span>
                      ${adjustmentHtml}
                 </div>
             </div>
@@ -189,9 +189,9 @@ function renderLedgerTable(shop, data, date) {
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <div class="">
+                    <table class="w-full text-[13px] block md:table">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 hidden md:table-header-group">
                             <tr>
                                 <th class="px-6 py-4 text-left w-24">Category</th>
                                 <th class="px-6 py-4 text-left">Description</th>
@@ -200,14 +200,20 @@ function renderLedgerTable(shop, data, date) {
                                 <th class="px-6 py-4 text-center w-24">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 block md:table-row-group">
                             ${totals.rowsHtml}
                         </tbody>
-                        <tfoot class="bg-slate-50 font-bold text-slate-700 border-t border-slate-200">
-                            <tr>
-                                <td colspan="2" class="px-6 py-4 text-right uppercase tracking-wider text-xs">Daily Totals</td>
-                                <td class="px-6 py-4 text-right text-red-600">${formatCurrency(totals.totalExpense)}</td>
-                                <td class="px-6 py-4 text-right text-green-600">${formatCurrency(totals.totalIncome)}</td>
+                        <tfoot class="bg-slate-50 font-bold text-slate-700 border-t border-slate-200 block md:table-footer-group">
+                            <tr class="block md:table-row">
+                                <td colspan="2" class="px-6 py-2 md:py-4 text-right md:text-right uppercase tracking-wider text-xs block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-slate-50/50 md:bg-transparent">
+                                    <span>Daily Totals</span>
+                                </td>
+                                <td class="px-6 py-2 md:py-4 text-right text-red-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                   <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Total Debit</span> ${formatCurrency(totals.totalExpense)}
+                                </td>
+                                <td class="px-6 py-2 md:py-4 text-right text-green-600 block md:table-cell md:border-none flex justify-between items-center md:block">
+                                   <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Total Credit</span> ${formatCurrency(totals.totalIncome)}
+                                </td>
                             </tr>
                         </tfoot>
                     </table>
@@ -242,17 +248,21 @@ function calculateLedgerTotals(entries, openingBalance, shop) {
     } else {
         // Prepend the Opening Balance Row
         rowsHtml += `
-            <tr class="bg-indigo-50/50 border-b border-indigo-100/50">
-                <td class="px-6 py-3">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 tracking-wider uppercase">
+            <tr class="bg-indigo-50/50 border-b border-indigo-100/50 block md:table-row">
+                <td class="px-6 py-2.5 block md:table-cell border-b border-indigo-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-indigo-500 uppercase text-[10px] tracking-tight">Type</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 tracking-wider uppercase">
                         START
                     </span>
                 </td>
-                <td class="px-6 py-3 font-semibold text-slate-700">
-                    Opening Balance
+                <td class="px-6 py-2.5 font-bold text-slate-700 block md:table-cell border-b border-indigo-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Description</span> Opening Balance
                 </td>
-                <td class="px-6 py-3 text-right text-slate-400">-</td>
-                <td class="px-6 py-3 text-right font-mono font-bold text-indigo-700">
+                <td class="px-6 py-2.5 text-right text-slate-400 block md:table-cell border-b border-indigo-50 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Debit</span> -
+                </td>
+                <td class="px-6 py-2.5 text-right font-mono font-bold text-indigo-700 block md:table-cell md:border-none flex justify-between items-center md:block bg-indigo-50 md:bg-transparent">
+                    <span class="md:hidden font-black text-indigo-700 uppercase text-[10px] tracking-tight">Credit (In)</span>
                     ${formatCurrency(openingBalance)}
                 </td>
             </tr>
@@ -286,24 +296,32 @@ function calculateLedgerTotals(entries, openingBalance, shop) {
             }
 
             rowsHtml += `
-                <tr class="${rowBg}">
-                    <td class="px-6 py-3">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isCredit ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                <tr class="${rowBg} block md:table-row border-b border-slate-100 md:border-none">
+                    <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Category</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${isCredit ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
                             ${entry.category || 'General'}
                         </span>
                     </td>
-                    <td class="px-6 py-3 text-slate-600">
-                        ${entry.description || '-'}
-                        ${entry.billNo ? `<span class="ml-2 text-xs font-mono text-slate-400">#${entry.billNo}</span>` : ''}
+                    <td class="px-6 py-2.5 text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Description</span>
+                        <span>
+                            ${entry.description || '-'}
+                            ${entry.billNo ? `<span class="ml-2 text-[10px] font-mono text-slate-400">#${entry.billNo}</span>` : ''}
+                        </span>
                     </td>
-                    <td class="px-6 py-3 text-right font-mono ${debitClass}">
+                    <td class="px-6 py-2.5 text-right font-mono ${debitClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-black text-red-500 uppercase text-[10px] tracking-tight">Debit (Out)</span>
                         ${isDebit ? formatCurrency(amount) : '-'}
                     </td>
-                    <td class="px-6 py-3 text-right font-mono ${creditClass}">
+                    <td class="px-6 py-2.5 text-right font-mono ${creditClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-black text-green-600 uppercase text-[10px] tracking-tight">Credit (In)</span>
                         ${isCredit ? formatCurrency(amount) : '-'}
                     </td>
-                    <td class="px-6 py-3 text-center">
-                        ${actionBtnHtml}
+                    <td class="px-6 py-3 text-center block md:table-cell md:border-none">
+                        <div class="flex justify-center md:block">
+                            ${actionBtnHtml}
+                        </div>
                     </td>
                 </tr>
             `;
@@ -443,9 +461,9 @@ async function loadLedgerHistory(shop, currentDate) {
         }
 
         let html = `
-            <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-sm bg-white">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+            <div class="overflow-hidden rounded-lg border border-slate-200 shadow-sm bg-white">
+                <table class="w-full text-sm text-left block md:table">
+                    <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 hidden md:table-header-group">
                          <tr>
                             <th class="px-4 py-2">Date</th>
                             <th class="px-4 py-2 text-right">Income</th>
@@ -454,7 +472,7 @@ async function loadLedgerHistory(shop, currentDate) {
                             <th class="px-4 py-2 text-right">Closing</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 block md:table-row-group">
         `;
 
         historyData.forEach(day => {
@@ -465,14 +483,27 @@ async function loadLedgerHistory(shop, currentDate) {
 
             const cleanDate = day.date.split('T')[0];
             html += `
-                <tr class="hover:bg-slate-50 transition-colors cursor-pointer" onclick="renderDailyLedger('${shop}', '${cleanDate}')" title="View details for ${cleanDate}">
-                    <td class="px-4 py-2 font-medium ${isToday ? 'text-indigo-600' : 'text-slate-600'}">
+                <tr class="hover:bg-slate-50 transition-colors cursor-pointer block md:table-row border-b border-slate-50 md:border-none" onclick="renderDailyLedger('${shop}', '${cleanDate}')" title="View details for ${cleanDate}">
+                    <td class="px-4 py-2 font-medium ${isToday ? 'text-indigo-600' : 'text-slate-600'} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Date</span>
                         ${dateObj.toLocaleDateString()}
                     </td>
-                    <td class="px-4 py-2 text-right text-green-700">${formatCurrency(day.income)}</td>
-                    <td class="px-4 py-2 text-right text-red-700">${formatCurrency(day.expense)}</td>
-                    <td class="px-4 py-2 text-right font-bold ${adjustClass}">${netAdjust !== 0 ? formatCurrency(netAdjust) : '-'}</td>
-                    <td class="px-4 py-2 text-right font-bold text-slate-800">${formatCurrency(day.closing)}</td>
+                    <td class="px-4 py-2 text-right text-green-700 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Income</span>
+                        ${formatCurrency(day.income)}
+                    </td>
+                    <td class="px-4 py-2 text-right text-red-700 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Expense</span>
+                        ${formatCurrency(day.expense)}
+                    </td>
+                    <td class="px-4 py-2 text-right font-bold ${adjustClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                         <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Adjustment</span>
+                         ${netAdjust !== 0 ? formatCurrency(netAdjust) : '-'}
+                    </td>
+                    <td class="px-4 py-2 text-right font-bold text-slate-800 block md:table-cell md:border-none flex justify-between items-center md:block bg-slate-50/50 md:bg-transparent">
+                         <span class="md:hidden font-bold text-slate-700 uppercase text-[10px]">Closing Total</span>
+                         ${formatCurrency(day.closing)}
+                    </td>
                 </tr>
             `;
         });

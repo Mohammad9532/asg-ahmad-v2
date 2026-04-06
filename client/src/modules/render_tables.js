@@ -91,25 +91,32 @@ export function renderStandardTable(shopPrefix, data, dataType, showCanceledIndi
 
         const cellData = relevantKeys.map(key => {
             let value = doc[key];
+            const headerText = headerMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
 
             if (key === 'date' && value) {
                 value = new Date(value).toLocaleDateString();
             } else if (key === 'amount') {
-                return `<td class="px-6 py-4 ${colorClass}">${formatCurrency(displayAmount)}</td>`;
+                return `<td class="px-6 py-2 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px] ${colorClass}">
+                    <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">${headerText}</span>
+                    <span>${formatCurrency(displayAmount)}</span>
+                </td>`;
             } else if (key === 'status') {
                 const statusColor = isCanceled ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800';
                 value = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">${value || 'N/A'}</span>`;
             }
 
-            return `<td class="px-6 py-4">${value || '-'}</td>`;
+            return `<td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px] font-medium text-slate-700 min-w-0 overflow-hidden">
+                <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight mr-4 flex-shrink-0">${headerText}</span>
+                <span class="truncate-mobile text-right md:text-left">${value || '-'}</span>
+            </td>`;
         }).join('');
 
         const encodedDoc = encodeURIComponent(JSON.stringify(doc).replace(/'/g, "\\'"));
-        const actionHtml = `<td class="px-6 py-4 text-right">
-            <button onclick="openEditModal('${encodedDoc}', '${dataType}', '${shopPrefix}')" class="text-indigo-600 hover:text-indigo-900 font-medium text-sm border border-indigo-200 bg-indigo-50 px-3 py-1 rounded-lg">Edit</button>
+        const actionHtml = `<td class="px-6 py-4 text-center md:text-right block md:table-cell">
+            <button onclick="openEditModal('${encodedDoc}', '${dataType}', '${shopPrefix}')" class="w-full md:w-auto text-indigo-600 hover:text-indigo-900 font-medium text-sm border border-indigo-200 bg-indigo-50 px-3 py-1.5 rounded-lg shadow-sm">Edit Entry</button>
         </td>`;
 
-        return `<tr class="bg-white border-b hover:bg-gray-50 transition-colors ${isCanceled ? 'bg-red-50' : ''}">${cellData}${actionHtml}</tr>`;
+        return `<tr class="bg-white border-b hover:bg-gray-50 transition-colors block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 relative ${isCanceled ? 'bg-red-50' : ''}">${cellData}${actionHtml}</tr>`;
     }).join('');
 
     // Generate Pagination Controls
@@ -143,6 +150,7 @@ export function renderStandardTable(shopPrefix, data, dataType, showCanceledIndi
                 </svg>
             </div>
             <input 
+                id="${tableId}_search"
                 type="text" 
                 placeholder="Search bill number, name, amount..." 
                 class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 sm:text-sm"
@@ -156,14 +164,14 @@ export function renderStandardTable(shopPrefix, data, dataType, showCanceledIndi
     return `
         ${searchHtml}
         <div class="overflow-hidden border rounded-xl shadow-sm bg-white dark:bg-slate-800 dark:border-slate-700">
-            <div id="${tableId}" class="overflow-x-auto custom-scroll max-h-[600px]">
-                <table class="w-full text-sm text-left text-gray-500 data-table">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700/50 dark:text-slate-300 sticky top-0 z-10">
+            <div id="${tableId}" class="overflow-y-auto custom-scroll max-h-[600px]">
+                <table class="w-full text-sm text-left text-gray-500 data-table block md:table">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-slate-700/50 dark:text-slate-300 sticky top-0 z-10 hidden md:table-header-group">
                         <tr>
                             ${headerRow}
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700 block md:table-row-group">
                         ${rows}
                     </tbody>
                 </table>
@@ -206,24 +214,34 @@ export function renderDailyNetBookingTable(dailyData, dataTypeLabel, tableId) {
         let netColorClass = netAmount >= 0 ? 'text-green-700-bold' : 'text-red-700-bold';
         let grossColorClass = grossAmount >= 0 ? 'text-teal-700' : 'text-red-700-bold';
 
-        rowCells += `<tr class="bg-white border-b hover:bg-gray-50">
-            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">${item.dateStr}</td>
-            <td class="px-6 py-3 text-right ${grossColorClass}">${formatCurrency(grossAmount)}</td>
-            <td class="px-6 py-3 text-right text-red-700-bold">${formatCurrency(canceledAmount)}</td>
-            <td class="px-6 py-3 text-right ${netColorClass} bg-green-100/50">${formatCurrency(netAmount)}</td>
-            <td class="px-6 py-3 text-right text-gray-700">${item.count}</td>
+        rowCells += `<tr class="bg-white border-b hover:bg-gray-50 block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 relative">
+            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Date</span> ${item.dateStr}
+            </td>
+            <td class="px-6 py-3 text-right ${grossColorClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Gross Bookings</span> ${formatCurrency(grossAmount)}
+            </td>
+            <td class="px-6 py-3 text-right text-red-700-bold block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Canceled</span> ${formatCurrency(canceledAmount)}
+            </td>
+            <td class="px-6 py-3 text-right ${netColorClass} bg-green-100/50 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-green-700 uppercase text-xs">Net Booking</span> ${formatCurrency(netAmount)}
+            </td>
+            <td class="px-6 py-3 text-right text-gray-700 block md:table-cell md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Count</span> ${item.count}
+            </td>
         </tr>`;
     });
 
     return `
-        <div class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner">
-            <table class="w-full text-sm text-left text-gray-500 data-table">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+        <div class="overflow-y-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner bg-white">
+            <table class="w-full text-sm text-left text-gray-500 data-table block md:table">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 hidden md:table-header-group">
                     <tr>
                         ${headerCells}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="block md:table-row-group">
                     ${rowCells}
                 </tbody>
             </table>
@@ -269,8 +287,10 @@ export function renderDailyCategoryTrendTable(dailyAggregates, allCategories, da
     let rowCells = '';
     dailyAggregates.forEach(item => {
         const daily = item;
-        let row = `<tr class="bg-white border-b hover:bg-gray-50">
-            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">${daily.dateStr}</td>`;
+        let row = `<tr class="bg-white border-b hover:bg-gray-50 block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 relative py-2">
+            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-slate-50/50 md:bg-transparent">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Date</span> ${daily.dateStr}
+            </td>`;
 
         // Calculate Total for row
         let totalAmount = daily.total || 0;
@@ -279,7 +299,9 @@ export function renderDailyCategoryTrendTable(dailyAggregates, allCategories, da
 
         // 2a. Expense: Total cell first
         if (isExpense) {
-            row += `<td class="px-6 py-3 text-right font-extrabold ${totalColorClass} ${totalBgClass}">${formatCurrency(totalAmount)}</td>`;
+            row += `<td class="px-6 py-3 text-right font-extrabold ${totalColorClass} ${totalBgClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">${totalLabel}</span> ${formatCurrency(totalAmount)}
+            </td>`;
         }
 
         // 2b. Category Cells
@@ -288,29 +310,35 @@ export function renderDailyCategoryTrendTable(dailyAggregates, allCategories, da
             const displayAmount = isExpense ? -amount : amount;
 
             const colorClass = displayAmount >= 0 ? 'text-green-700-bold' : 'text-red-700-bold';
-            row += `<td class="px-6 py-3 text-right ${colorClass}">${formatCurrency(displayAmount)}</td>`;
+            row += `<td class="px-6 py-3 text-right ${colorClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">${cat}</span> ${formatCurrency(displayAmount)}
+            </td>`;
         });
 
         // 2c. Deliveries: Total cell last
         if (!isExpense) {
-            row += `<td class="px-6 py-3 text-right font-extrabold ${totalColorClass} ${totalBgClass}">${formatCurrency(totalAmount)}</td>`;
+            row += `<td class="px-6 py-3 text-right font-extrabold ${totalColorClass} ${totalBgClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                <span class="md:hidden font-bold text-slate-500 uppercase text-xs">${totalLabel}</span> ${formatCurrency(totalAmount)}
+            </td>`;
         }
 
-        row += `<td class="px-6 py-3 text-right text-gray-700">${daily.count}</td></tr>`;
+        row += `<td class="px-6 py-3 text-right text-gray-700 block md:table-cell md:border-none flex justify-between items-center md:block">
+            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Count</span> ${daily.count}
+        </td></tr>`;
 
         rowCells += row;
     });
 
     // --- 3. Construct Table ---
     return `
-        <div id="${tableId}" class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner">
-            <table class="w-full text-sm text-left text-gray-500 data-table">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+        <div id="${tableId}" class="overflow-y-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner bg-white">
+            <table class="w-full text-sm text-left text-gray-500 data-table block md:table">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 hidden md:table-header-group">
                     <tr>
                         ${headerCells}
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="block md:table-row-group">
                     ${rowCells}
                 </tbody>
             </table>

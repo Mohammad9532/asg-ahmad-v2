@@ -157,9 +157,9 @@ export function renderCustomerTable() {
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
-                        <thead class="bg-slate-50">
+                <div class="">
+                    <table class="min-w-full divide-y divide-slate-200 block md:table">
+                        <thead class="bg-slate-50 hidden md:table-header-group">
                             <tr>
                                 <th onclick="handleCustomerSort('name')" class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-100 group">
                                     Name ${getIcon('name')}
@@ -182,7 +182,7 @@ export function renderCustomerTable() {
                                 <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-200 text-sm">
+                        <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
     `;
 
     if (pageData.length === 0) {
@@ -198,30 +198,46 @@ export function renderCustomerTable() {
             }
 
             html += `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="px-6 py-4">${nameHtml}</td>
-                    <td class="px-6 py-4 font-mono text-slate-600">${c.countryCode} ${c.phone}</td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="inline-flex items-center justify-center px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 font-bold text-xs">
+                <tr class="hover:bg-slate-50 transition-colors block md:table-row border-b-4 border-slate-50 md:border-none">
+                    <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-slate-50/50 md:bg-transparent">
+                        <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Name</span>
+                        <span>${nameHtml}</span>
+                    </td>
+                    <td class="px-6 py-2.5 font-mono text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px]">
+                         <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Phone</span>
+                         <span>${c.countryCode} ${c.phone}</span>
+                    </td>
+                    <td class="px-6 py-2.5 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Orders</span>
+                        <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold text-[10px]">
                             ${c.totalOrders}
                         </span>
                     </td>
-                    <td class="px-6 py-4 text-right font-bold text-emerald-700">${formatCurrency(c.totalAmount)}</td>
-                    <td class="px-6 py-4 text-center">
+                    <td class="px-6 py-2.5 text-right font-bold text-emerald-700 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px]">
+                        <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Total Spent</span>
+                        <span>${formatCurrency(c.totalAmount)}</span>
+                    </td>
+                    <td class="px-6 py-2.5 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Shops</span>
                         <div class="tooltip" data-tip="${c.shopsArray}">
-                             <span class="inline-flex items-center justify-center h-6 w-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold border border-slate-200 cursor-help">
+                             <span class="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200 cursor-help">
                                 ${c.shopCount}
                             </span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 text-slate-500 text-xs">${lastSeen}</td>
-                    <td class="px-6 py-4 text-center">
-                        <button onclick="viewCustomerProfile('${c.cleanPhone}')" class="text-teal-600 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 p-2 rounded-lg transition-colors" title="View Profile">
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                        </button>
+                    <td class="px-6 py-2.5 text-slate-500 text-[11px] block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                        <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Last Seen</span>
+                        <span>${lastSeen}</span>
+                    </td>
+                    <td class="px-6 py-4 text-center block md:table-cell md:border-none">
+                        <div class="flex justify-center md:block">
+                            <button onclick="viewCustomerProfile('${c.cleanPhone}')" class="text-teal-600 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 p-2 rounded-lg transition-colors" title="View Profile">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;

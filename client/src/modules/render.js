@@ -280,29 +280,29 @@ function renderShopDashboard(shop, container) {
             <!-- Metrics Cards -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <!-- 1. Gross -->
-                <div class="bg-white p-4 rounded-xl shadow border border-slate-200">
-                    <h3 class="text-xs font-semibold text-slate-500 uppercase">Gross Booking</h3>
-                    <p class="text-xl font-bold text-slate-700 mt-1">${formatCurrency(shopGross)}</p>
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Gross Booking</h3>
+                    <p class="text-lg md:text-xl font-bold text-slate-700 mt-0.5">${formatCurrency(shopGross)}</p>
                 </div>
                 <!-- 2. Cancel -->
-                <div class="bg-white p-4 rounded-xl shadow border border-slate-200">
-                    <h3 class="text-xs font-semibold text-slate-500 uppercase">Cancelled</h3>
-                    <p class="text-xl font-bold text-red-600 mt-1">${formatCurrency(shopCancel)}</p>
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-[10px] font-bold text-rose-500 uppercase tracking-tight">Cancelled</h3>
+                    <p class="text-lg md:text-xl font-bold text-rose-700 mt-0.5">${formatCurrency(shopCancel)}</p>
                 </div>
                 <!-- 3. Net -->
-                <div class="bg-indigo-50 p-4 rounded-xl shadow border border-indigo-100">
-                    <h3 class="text-xs font-semibold text-indigo-800 uppercase">Net Booking</h3>
-                    <p class="text-xl font-bold text-indigo-900 mt-1">${formatCurrency(shopNet)}</p>
+                <div class="bg-indigo-50 p-3 rounded-xl shadow-sm border border-indigo-100">
+                    <h3 class="text-[10px] font-bold text-indigo-800 uppercase tracking-tight">Net Booking</h3>
+                    <p class="text-lg md:text-xl font-bold text-indigo-900 mt-0.5">${formatCurrency(shopNet)}</p>
                 </div>
                 <!-- 4. Deliveries (Accrual) -->
-                <div class="bg-blue-50 p-4 rounded-xl shadow border border-blue-100">
-                    <h3 class="text-xs font-semibold text-blue-800 uppercase tracking-tighter">Del (Accrual)</h3>
-                    <p class="text-xl font-bold text-blue-900 mt-1">${formatCurrency(accrualDeliveryAmount)}</p>
+                <div class="bg-blue-50 p-3 rounded-xl shadow-sm border border-blue-100">
+                    <h3 class="text-[10px] font-bold text-blue-800 uppercase tracking-tight">Del (Accrual)</h3>
+                    <p class="text-lg md:text-xl font-bold text-blue-900 mt-0.5">${formatCurrency(accrualDeliveryAmount)}</p>
                 </div>
                 <!-- 5. Expenses -->
-                <div class="bg-white p-4 rounded-xl shadow border border-slate-200">
-                    <h3 class="text-xs font-semibold text-slate-500 uppercase">Expenses</h3>
-                    <p class="text-xl font-bold text-red-600 mt-1">${formatCurrency(shopExp)}</p>
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Expenses</h3>
+                    <p class="text-lg md:text-xl font-bold text-red-600 mt-0.5">${formatCurrency(shopExp)}</p>
                 </div>
                 
                 <!-- 6. Profit -->
@@ -324,8 +324,12 @@ function renderShopDashboard(shop, container) {
                     <p class="text-xl font-bold text-cyan-900">${formatCurrency(oldCollection)}</p>
                 </div>
                 <!-- 8. Misc Collections -->
-                <div class="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-100">
-                    <h3 class="text-xs font-semibold text-amber-800 uppercase">Misc Collections</h3>
+                <div class="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-100 cursor-pointer hover:shadow-md transition-all group" 
+                     onclick="viewMiscCollectionDetails('${shop}')">
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xs font-semibold text-amber-800 uppercase tracking-tighter">Misc Collections</h3>
+                        <svg class="w-4 h-4 text-amber-400 group-hover:text-amber-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
                     <p class="text-xs text-amber-600 mb-1">(Rent, Advance, etc.)</p>
                     <p class="text-xl font-bold text-amber-900">${formatCurrency(shopMiscDel)}</p>
                 </div>
@@ -360,31 +364,31 @@ function renderShopDashboard(shop, container) {
             </div>
 
             <!-- Charts Area -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Daily Trend -->
-                <div class="bg-white p-4 rounded-xl shadow border border-slate-200">
-                    <h4 class="font-bold text-slate-700 mb-2 text-sm">Daily Net Booking Trend</h4>
-                    <div class="h-60 relative w-full">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h4 class="font-bold text-slate-800 mb-4 text-sm tracking-tight">Daily Net Booking Trend</h4>
+                    <div class="h-64 md:h-72 relative w-full">
                         <canvas id="shopTrendChart"></canvas>
                     </div>
                 </div>
-                    <!-- Payment Methods -->
-                    <div class="bg-white p-4 rounded-xl shadow border border-slate-200">
-                        <h4 class="font-bold text-slate-700 mb-2 text-sm">Delivery Payment Methods</h4>
-                        <div class="flex flex-col md:flex-row items-center h-60 w-full">
-                        <div class="relative w-full md:w-1/2 h-full flex justify-center">
+                <!-- Payment Methods -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h4 class="font-bold text-slate-800 mb-4 text-sm tracking-tight">Delivery Payment Methods</h4>
+                    <div class="flex flex-col md:flex-row items-center gap-6">
+                        <div class="relative w-full md:w-1/2 h-48 md:h-64 flex justify-center">
                             <canvas id="shopPaymentChart"></canvas>
                         </div>
-                        <div class="w-full md:w-1/2 p-4">
+                        <div class="w-full md:w-1/2">
                             ${renderLegendHTML(paymentMethods, shopDel)}
                         </div>
-                        </div>
                     </div>
+                </div>
             </div>
 
             <!-- Monthly Summary Reuse -->
             <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
-                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <h3 class="font-bold text-slate-800 text-sm">Monthly Summary Quick View</h3>
                         <button onclick="downloadMonthlyExcel('${shop}')" class="text-xs flex items-center bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1.5 rounded-lg font-medium transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -610,8 +614,12 @@ function renderOverviewDashboard(container) {
                     <p class="text-xl font-extrabold text-cyan-900">${formatCurrency(totalOldCollection)}</p>
                 </div>
                 <!-- 8. Misc Collections -->
-                <div class="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl shadow-sm border border-amber-200">
-                    <h3 class="text-xs font-semibold text-amber-800 uppercase tracking-wider">Misc Collections</h3>
+                <div class="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl shadow-sm border border-amber-200 cursor-pointer hover:shadow-md transition-all group" 
+                     onclick="viewGlobalMiscCollectionDetails()">
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-xs font-semibold text-amber-800 uppercase tracking-wider">Misc Collections</h3>
+                        <svg class="w-4 h-4 text-amber-400 group-hover:text-amber-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
                     <p class="text-xs text-amber-600 mb-1">(Rent, Advance, etc.)</p>
                     <p class="text-xl font-extrabold text-amber-900">${formatCurrency(totalMiscDeliveries)}</p>
                 </div>
@@ -675,13 +683,13 @@ function renderOverviewDashboard(container) {
             </div>
 
             <!-- Leaderboard Table -->
-            <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden flex flex-col max-h-[400px]">
+            <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden flex flex-col max-h-[600px] md:max-h-[400px]">
                 <div class="px-6 py-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
                     <h3 class="font-bold text-slate-800 text-sm">Shop Leaderboard</h3>
                 </div>
                 <div class="overflow-y-auto custom-scroll">
-                    <table class="w-full text-sm text-center relative">
-                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b sticky top-0 z-10 shadow-sm">
+                    <table class="w-full text-sm text-center relative block md:table">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b sticky top-0 z-10 shadow-sm hidden md:table-header-group">
                             <tr>
                                 <th class="px-2 py-3 text-left bg-slate-50">Shop</th>
                                 <th class="px-2 py-3 text-right bg-slate-50" title="Gross Booking">Gross</th>
@@ -696,7 +704,7 @@ function renderOverviewDashboard(container) {
                                 <th class="px-2 py-3 text-right bg-slate-50 text-purple-700" title="Percentage of Net Booking Uncollected">Stock %</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 block md:table-row-group">
                             ${shopPerformance.map(p => {
         const profit = p.accDel - p.exp;
         const oldColl = p.del - p.accDel;
@@ -705,18 +713,40 @@ function renderOverviewDashboard(container) {
         const stockPercent = p.net > 0 ? (stockAcc / p.net) * 100 : 0;
 
         return `
-                                    <tr class="hover:bg-slate-50 transition-colors">
-                                        <td class="px-2 py-3 text-left font-medium text-slate-900 truncate max-w-[120px]" title="${p.shop}">${p.shop}</td>
-                                        <td class="px-2 py-3 text-right text-slate-500">${formatCurrency(p.gross)}</td>
-                                        <td class="px-2 py-3 text-right text-red-500">${formatCurrency(p.cancel)}</td>
-                                        <td class="px-2 py-3 text-right font-semibold text-slate-700">${formatCurrency(p.net)}</td>
-                                        <td class="px-2 py-3 text-right text-blue-600 font-medium">${formatCurrency(p.accDel)}</td>
-                                        <td class="px-2 py-3 text-right text-red-600">${formatCurrency(p.exp)}</td>
-                                        <td class="px-2 py-3 text-right font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}">${formatCurrency(profit)}</td>
-                                        <td class="px-2 py-3 text-right font-medium text-cyan-600">${formatCurrency(oldColl)}</td>
-                                        <td class="px-2 py-3 text-right font-bold text-indigo-700">${formatCurrency(totalBalance)}</td>
-                                        <td class="px-2 py-3 text-right font-bold ${stockAcc >= 0 ? 'text-amber-600' : 'text-red-500'}">${formatCurrency(stockAcc)}</td>
-                                        <td class="px-2 py-3 text-right font-bold ${stockPercent > 0 ? 'text-purple-600' : 'text-emerald-600'}">${stockPercent.toFixed(1)}%</td>
+                                    <tr class="hover:bg-slate-50 transition-colors block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 bg-white relative">
+                                        <td class="px-4 py-3 text-left font-bold text-slate-900 truncate block md:table-cell md:px-2 border-b border-slate-50 md:border-none bg-slate-50/50 md:bg-transparent" title="${p.shop}">
+                                            <span class="md:hidden text-xs text-slate-400 uppercase mr-2 font-normal">Shop:</span> ${p.shop}
+                                        </td>
+                                        <td class="px-4 py-2 text-right text-slate-500 block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Gross</span> ${formatCurrency(p.gross)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right text-red-500 block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Cancel</span> ${formatCurrency(p.cancel)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-semibold text-slate-700 block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-indigo-50/30 md:bg-transparent">
+                                            <span class="md:hidden font-bold text-indigo-500 uppercase text-xs">Net</span> ${formatCurrency(p.net)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right text-blue-600 font-medium block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-blue-500 uppercase text-xs">Del(Acc)</span> ${formatCurrency(p.accDel)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right text-red-600 block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-red-500 uppercase text-xs">Exp</span> ${formatCurrency(p.exp)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'} block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Profit</span> ${formatCurrency(profit)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-medium text-cyan-600 block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-cyan-500 uppercase text-xs">Old Coll.</span> ${formatCurrency(oldColl)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-bold text-indigo-700 block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-indigo-600 uppercase text-xs">Tot. Bal</span> ${formatCurrency(totalBalance)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-bold ${stockAcc >= 0 ? 'text-amber-600' : 'text-red-500'} block md:table-cell md:px-2 border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-amber-600 uppercase text-xs">Stock(Acc)</span> ${formatCurrency(stockAcc)}
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-bold ${stockPercent > 0 ? 'text-purple-600' : 'text-emerald-600'} block md:table-cell md:px-2 border-none flex justify-between items-center md:block">
+                                            <span class="md:hidden font-bold text-purple-600 uppercase text-xs">Stock %</span> ${stockPercent.toFixed(1)}%
+                                        </td>
                                     </tr>
                                 `}).join('')}
                         </tbody>
@@ -1477,8 +1507,8 @@ async function viewEmployeeHistory(shop, name) {
         <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scroll">
             ${history.length === 0 ? '<p class="text-center text-slate-500 py-10">No records found for this period.</p>' : `
                         <div class="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
-                            <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400">
-                                <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700/50 dark:text-slate-300">
+                            <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400 block md:table">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700/50 dark:text-slate-300 hidden md:table-header-group">
                                     <tr>
                                         <th class="px-6 py-3">Date</th>
                                         <th class="px-6 py-3">Category</th>
@@ -1486,22 +1516,26 @@ async function viewEmployeeHistory(shop, name) {
                                         <th class="px-6 py-3 text-right">Amount</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 block md:table-row-group">
                                     ${history.map(row => `
-                                        <tr class="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                                            <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-900 dark:text-white">
-                                                ${new Date(row.date).toLocaleDateString()}
+                                        <tr class="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors block md:table-row border-b-4 border-slate-50 md:border-none mb-4 md:mb-0">
+                                            <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-900 dark:text-white block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-slate-50/50 md:bg-transparent">
+                                                <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Date</span>
+                                                <span>${new Date(row.date).toLocaleDateString()}</span>
                                             </td>
-                                            <td class="px-6 py-4">
+                                            <td class="px-6 py-4 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                                <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Category</span>
                                                 <span class="px-2 py-1 rounded text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
                                                     ${row.cat || 'General'}
                                                 </span>
                                             </td>
-                                            <td class="px-6 py-4 text-xs text-slate-500 max-w-[200px] truncate">
-                                                ${row.description || row.dept || '-'}
+                                            <td class="px-6 py-4 text-xs text-slate-500 max-w-[200px] truncate block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                                <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Reference</span>
+                                                <span>${row.description || row.dept || '-'}</span>
                                             </td>
-                                            <td class="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">
-                                                ${formatCurrency(row.amount)}
+                                            <td class="px-6 py-4 text-right font-bold text-slate-900 dark:text-white block md:table-cell md:border-none flex justify-between items-center md:block">
+                                                <span class="md:hidden font-bold text-slate-500 uppercase text-[10px]">Amount</span>
+                                                <span>${formatCurrency(row.amount)}</span>
                                             </td>
                                         </tr>
                                     `).join('')}
@@ -1535,14 +1569,14 @@ function renderLegendHTML(methods, total) {
         if (val > 0 || key === 'CASH') {
             const percent = total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
             html += `
-        <div class="flex items-center justify-between text-sm">
-                    <div class="flex items-center">
-                        <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${colors[key]}"></span>
-                        <span class="text-slate-600 font-medium">${labels[key]}</span>
+        <div class="flex flex-wrap items-center justify-between text-sm gap-y-1">
+                    <div class="flex items-center min-w-[100px]">
+                        <span class="w-3 h-3 rounded-full mr-2 shrink-0" style="background-color: ${colors[key]}"></span>
+                        <span class="text-slate-600 font-medium truncate">${labels[key]}</span>
                     </div>
-                    <div class="flex items-center text-slate-700">
-                        <span class="font-bold mr-2">${formatCurrency(val)}</span>
-                        <span class="text-xs text-slate-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded">${percent}%</span>
+                    <div class="flex items-center text-slate-700 gap-2">
+                        <span class="font-bold whitespace-nowrap">${formatCurrency(val)}</span>
+                        <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded leading-none">${percent}%</span>
                     </div>
                 </div>
         `;
@@ -2060,8 +2094,369 @@ export async function printOwnerReport() {
     }
 }
 
+export function viewMiscCollectionDetails(shop) {
+    const del = state.allResults[`${shop}|delivery`];
+    if (!del || !del.filteredData) return;
+
+    const miscData = del.filteredData.filter(d => {
+        const bNo = (d.billNo || '').toLowerCase().trim();
+        return !(bNo && bNo !== 'other-amounts');
+    });
+
+    showMiscCollectionModal(`${shop} Misc Collections`, miscData);
+}
+
+export function viewGlobalMiscCollectionDetails() {
+    const allMiscEntries = [];
+    let total = 0;
+
+    SHOP_PREFIXES.forEach(shop => {
+        const del = state.allResults[`${shop}|delivery`];
+        if (!del || !del.filteredData) return;
+
+        const shopMisc = del.filteredData.filter(d => {
+            const bNo = (d.billNo || '').toLowerCase().trim();
+            return !(bNo && bNo !== 'other-amounts');
+        });
+
+        shopMisc.forEach(d => {
+            allMiscEntries.push({ ...d, _shopName: shop });
+            total += d.amount || 0;
+        });
+    });
+
+    showGlobalMiscCollectionModal(allMiscEntries, total);
+}
+
+function showMiscCollectionModal(title, entries) {
+    let modal = document.getElementById('detailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'detailsModal';
+        modal.className = 'fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[110] flex items-center justify-center p-4 transition-all duration-300';
+        modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+        document.body.appendChild(modal);
+    }
+
+    const grandTotal = entries.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    // Sort entries by date descending
+    const sortedEntries = entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // UNIQUE REMARKS AND PAYMENT METHODS
+    const uniqueRemarks = Array.from(new Set(
+        entries.map(e => {
+            const val = (e.remark || e.remarks || e.description || '').trim();
+            if (!val) return '';
+            return val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+        }).filter(r => r !== '')
+    )).sort();
+
+    const pMethods = { CASH: 0, ADIB: 0, ATM: 0, OTHER: 0 };
+    entries.forEach(e => {
+        let type = e.amountType ? e.amountType.toUpperCase().trim() : 'CASH';
+        if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER') || type.includes('ADIB')) type = 'ADIB';
+        if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+        pMethods[type] += e.amount || 0;
+    });
+
+    // Global function for filtering
+    window.filterMiscCollections = function () {
+        const term = document.getElementById('miscSearchInput').value.toLowerCase();
+        let visibleCount = 0;
+        let pMethods = { CASH: 0, ADIB: 0, ATM: 0, OTHER: 0 };
+        let currentTotal = 0;
+
+        document.querySelectorAll('.misc-item-row').forEach(row => {
+            const text = row.getAttribute('data-search').toLowerCase();
+            if (text.includes(term)) {
+                row.style.display = '';
+                visibleCount++;
+
+                const amt = parseFloat(row.getAttribute('data-amount')) || 0;
+                let type = (row.getAttribute('data-type') || 'CASH').toUpperCase().trim();
+                if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER') || type.includes('ADIB')) type = 'ADIB';
+                if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+                pMethods[type] += amt;
+                currentTotal += amt;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const totalEl = document.getElementById('miscGrandTotal');
+        if (totalEl) totalEl.innerText = formatCurrency(currentTotal);
+
+        const badgesContainer = document.getElementById('miscPaymentBadges');
+        if (badgesContainer) {
+            badgesContainer.innerHTML = '';
+            if (pMethods.CASH > 0) badgesContainer.innerHTML += `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">CASH: ${formatCurrency(pMethods.CASH)}</span>`;
+            if (pMethods.ADIB > 0) badgesContainer.innerHTML += `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ADIB: ${formatCurrency(pMethods.ADIB)}</span>`;
+            if (pMethods.ATM > 0) badgesContainer.innerHTML += `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ATM: ${formatCurrency(pMethods.ATM)}</span>`;
+        }
+
+        const emptyState = document.getElementById('miscEmptyState');
+        if (emptyState) {
+            emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
+        }
+    };
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-900/5">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-amber-500 to-orange-600 p-6 text-white shrink-0 relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-bold tracking-tight">${title}</h3>
+                        <p class="text-amber-100 text-sm font-medium mt-1">Total Misc Collections</p>
+                        <div class="flex items-end gap-3 mt-1">
+                            <p id="miscGrandTotal" class="text-3xl font-black tracking-tight">${formatCurrency(grandTotal)}</p>
+                            <div id="miscPaymentBadges" class="flex gap-2 mb-1">
+                                ${pMethods.CASH > 0 ? `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">CASH: ${formatCurrency(pMethods.CASH)}</span>` : ''}
+                                ${pMethods.ADIB > 0 ? `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ADIB: ${formatCurrency(pMethods.ADIB)}</span>` : ''}
+                                ${pMethods.ATM > 0 ? `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ATM: ${formatCurrency(pMethods.ATM)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" 
+                            class="bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Filter -->
+            <div class="px-6 py-3 bg-slate-50 border-b border-slate-100 shrink-0 flex gap-2">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="miscSearchInput" onkeyup="filterMiscCollections()" 
+                           class="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-colors" 
+                           placeholder="Filter by remarks or bill no...">
+                </div>
+                <select id="miscRemarkSelect" onchange="document.getElementById('miscSearchInput').value = this.value; filterMiscCollections();" 
+                        class="block w-1/3 py-2 px-3 border border-slate-200 rounded-xl leading-5 bg-white text-slate-700 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-colors custom-scroll">
+                    <option value="">All Remarks</option>
+                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}">${r}</option>`).join('')}
+                </select>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto custom-scroll space-y-4 bg-slate-50/50 flex-1 min-h-0">
+                <div class="bg-white rounded-2xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden">
+                    <div class="divide-y divide-slate-50">
+                        ${sortedEntries.map(e => {
+        const remarkStr = e.remark || e.remarks || e.description || '';
+        const searchStr = `${e.billNo || ''} ${remarkStr}`.replace(/"/g, '&quot;');
+        const displayDesc = remarkStr ? '- ' + remarkStr : '';
+        return `
+                            <div class="misc-item-row px-5 py-3 hover:bg-slate-50/50 transition-colors flex justify-between items-center group" data-search="${searchStr}" data-amount="${e.amount || 0}" data-type="${e.amountType || 'CASH'}">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                                        ${e.billNo || 'Misc Delivery'} ${displayDesc}
+                                    </span>
+                                    <span class="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                                        ${new Date(e.date).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <span class="flex flex-col items-end">
+                                    <span class="font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md text-sm group-hover:bg-amber-100 transition-colors">
+                                        ${formatCurrency(e.amount)}
+                                    </span>
+                                    <span class="text-[9px] uppercase tracking-wider text-amber-500/80 mt-0.5 font-bold">${e.amountType || 'CASH'}</span>
+                                </span>
+                            </div>
+                        `}).join('')}
+                    </div>
+                </div>
+                <!-- Empty State -->
+                <div id="miscEmptyState" class="${sortedEntries.length === 0 ? 'flex' : 'hidden'} flex-col items-center justify-center py-12 text-center">
+                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <p class="text-slate-500 font-medium">No misc collections matched.</p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+             <div class="bg-white border-t border-slate-100 p-4 text-center shrink-0">
+                <p class="text-xs text-slate-400">Generated on ${new Date().toLocaleDateString()}</p>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+}
+
+function showGlobalMiscCollectionModal(entries, total) {
+    let modal = document.getElementById('detailsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'detailsModal';
+        modal.className = 'fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[110] flex items-center justify-center p-4 transition-all duration-300';
+        modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+        document.body.appendChild(modal);
+    }
+
+    const sortedEntries = entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // UNIQUE REMARKS AND PAYMENT METHODS
+    const uniqueRemarks = Array.from(new Set(
+        entries.map(e => {
+            const val = (e.remark || e.remarks || e.description || '').trim();
+            if (!val) return '';
+            return val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+        }).filter(r => r !== '')
+    )).sort();
+
+    const pMethods = { CASH: 0, ADIB: 0, ATM: 0, OTHER: 0 };
+    entries.forEach(e => {
+        let type = e.amountType ? e.amountType.toUpperCase().trim() : 'CASH';
+        if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER') || type.includes('ADIB')) type = 'ADIB';
+        if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+        pMethods[type] += e.amount || 0;
+    });
+
+    // Global function for filtering
+    window.filterMiscCollections = function () {
+        const term = document.getElementById('miscSearchInput').value.toLowerCase();
+        let visibleCount = 0;
+        let pMethods = { CASH: 0, ADIB: 0, ATM: 0, OTHER: 0 };
+        let currentTotal = 0;
+
+        document.querySelectorAll('.misc-item-row').forEach(row => {
+            const text = row.getAttribute('data-search').toLowerCase();
+            if (text.includes(term)) {
+                row.style.display = '';
+                visibleCount++;
+
+                const amt = parseFloat(row.getAttribute('data-amount')) || 0;
+                let type = (row.getAttribute('data-type') || 'CASH').toUpperCase().trim();
+                if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER') || type.includes('ADIB')) type = 'ADIB';
+                if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
+                pMethods[type] += amt;
+                currentTotal += amt;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const totalEl = document.getElementById('miscGrandTotal');
+        if (totalEl) totalEl.innerText = formatCurrency(currentTotal);
+
+        const badgesContainer = document.getElementById('miscPaymentBadges');
+        if (badgesContainer) {
+            badgesContainer.innerHTML = '';
+            if (pMethods.CASH > 0) badgesContainer.innerHTML += `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">CASH: ${formatCurrency(pMethods.CASH)}</span>`;
+            if (pMethods.ADIB > 0) badgesContainer.innerHTML += `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ADIB: ${formatCurrency(pMethods.ADIB)}</span>`;
+            if (pMethods.ATM > 0) badgesContainer.innerHTML += `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ATM: ${formatCurrency(pMethods.ATM)}</span>`;
+        }
+
+        const emptyState = document.getElementById('miscEmptyState');
+        if (emptyState) {
+            emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
+        }
+    };
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ring-1 ring-slate-900/5">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-amber-600 to-orange-600 p-6 text-white shrink-0 relative overflow-hidden">
+                 <div class="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10 flex justify-between items-start">
+                    <div>
+                        <h3 class="text-xl font-bold tracking-tight">Global Misc Collections</h3>
+                        <p class="text-amber-100 text-sm font-medium mt-1">Across All Shops</p>
+                        <div class="flex items-end gap-3 mt-1">
+                            <p id="miscGrandTotal" class="text-4xl font-black tracking-tight">${formatCurrency(total)}</p>
+                            <div id="miscPaymentBadges" class="flex gap-2 mb-1.5">
+                                ${pMethods.CASH > 0 ? `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">CASH: ${formatCurrency(pMethods.CASH)}</span>` : ''}
+                                ${pMethods.ADIB > 0 ? `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ADIB: ${formatCurrency(pMethods.ADIB)}</span>` : ''}
+                                ${pMethods.ATM > 0 ? `<span class="px-2 py-0.5 bg-white/20 border border-white/30 rounded text-xs font-bold text-white shadow-sm">ATM: ${formatCurrency(pMethods.ATM)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" 
+                             class="bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Filter -->
+            <div class="px-6 py-3 bg-slate-50 border-b border-slate-100 shrink-0 flex gap-2">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="text" id="miscSearchInput" onkeyup="filterMiscCollections()" 
+                           class="block w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-colors" 
+                           placeholder="Filter by shop, remarks or bill no...">
+                </div>
+                <select id="miscRemarkSelect" onchange="document.getElementById('miscSearchInput').value = this.value; filterMiscCollections();" 
+                        class="block w-1/3 py-2 px-3 border border-slate-200 rounded-xl leading-5 bg-white text-slate-700 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-colors custom-scroll">
+                    <option value="">All Remarks</option>
+                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}">${r}</option>`).join('')}
+                </select>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto custom-scroll bg-slate-50/50 flex-1 min-h-0">
+                <div class="bg-white rounded-2xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow">
+                    <div class="divide-y divide-slate-50 flex-1 overflow-y-auto custom-scroll max-h-[60vh]">
+                        ${sortedEntries.map(e => {
+        const remarkStr = e.remark || e.remarks || e.description || '';
+        const searchStr = `${e._shopName || ''} ${e.billNo || ''} ${remarkStr}`.replace(/"/g, '&quot;');
+        const displayDesc = remarkStr ? '- ' + remarkStr : '';
+        return `
+                            <div class="misc-item-row px-5 py-3 hover:bg-slate-50/50 transition-colors flex justify-between items-center group" data-search="${searchStr}" data-amount="${e.amount || 0}" data-type="${e.amountType || 'CASH'}">
+                                <div class="flex flex-col gap-0.5">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 uppercase tracking-tighter">
+                                            ${e._shopName}
+                                        </span>
+                                        <span class="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">
+                                            ${new Date(e.date).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition-colors">
+                                        ${e.billNo || 'Misc Delivery'} ${displayDesc}
+                                    </span>
+                                </div>
+                                <span class="flex flex-col items-end">
+                                    <span class="font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md text-sm group-hover:bg-amber-100 transition-colors">
+                                        ${formatCurrency(e.amount)}
+                                    </span>
+                                    <span class="text-[9px] uppercase tracking-wider text-amber-500/80 mt-0.5 font-bold">${e.amountType || 'CASH'}</span>
+                                </span>
+                            </div>
+                        `}).join('')}
+                    </div>
+                </div>
+                <!-- Empty State -->
+                <div id="miscEmptyState" class="${sortedEntries.length === 0 ? 'flex' : 'hidden'} flex-col items-center justify-center py-12 text-center">
+                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <p class="text-slate-500 font-medium">No misc collections matched.</p>
+                </div>
+            </div>
+             <div class="bg-white border-t border-slate-100 p-4 text-center shrink-0">
+                <p class="text-xs text-slate-400">Generated on ${new Date().toLocaleDateString()}</p>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+}
+
 window.viewProfitDetails = viewProfitDetails;
 window.viewGlobalProfitDetails = viewGlobalProfitDetails;
+window.viewMiscCollectionDetails = viewMiscCollectionDetails;
+window.viewGlobalMiscCollectionDetails = viewGlobalMiscCollectionDetails;
 window.openOwnerReportModal = openOwnerReportModal;
 window.closeOwnerReportModal = closeOwnerReportModal;
 window.printOwnerReport = printOwnerReport;

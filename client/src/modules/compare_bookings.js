@@ -208,6 +208,66 @@ function renderComparisonData(data, shop) {
                 <canvas id="compareBarChart"></canvas>
             </div>
         </div>
+
+        <!-- Daily Comparison Table -->
+        <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <h4 class="font-bold text-slate-800">Daily Breakdown Comparison</h4>
+                <span class="text-xs font-medium text-slate-400 italic">Comparing matching days in sequence</span>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-[13px] text-left block md:table">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200 hidden md:table-header-group">
+                        <tr>
+                            <th class="px-6 py-4 font-bold">Timeline</th>
+                            <th class="px-6 py-4 font-bold">${periodA.label} (Net)</th>
+                            <th class="px-6 py-4 font-bold">${periodB.label} (Net)</th>
+                            <th class="px-6 py-4 font-bold text-right">Variance</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 block md:table-row-group">
+                        ${(() => {
+            const datesA = Object.keys(periodA.stats.dailyData).sort();
+            const datesB = Object.keys(periodB.stats.dailyData).sort();
+            const maxLen = Math.max(datesA.length, datesB.length);
+            let html = '';
+
+            for (let i = 0; i < maxLen; i++) {
+                const valA = datesA[i] ? periodA.stats.dailyData[datesA[i]].net : 0;
+                const valB = datesB[i] ? periodB.stats.dailyData[datesB[i]].net : 0;
+                const diff = calcDiff(valA, valB);
+                const isPos = diff >= 0;
+
+                html += `
+                                <tr class="hover:bg-slate-50 transition-colors block md:table-row border-b-4 border-slate-50 md:border-none mb-4 md:mb-0">
+                                    <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block font-bold text-slate-900 bg-slate-50/30 md:bg-transparent">
+                                        <span class="md:hidden text-slate-400 font-bold uppercase text-[10px] tracking-tight">Timeline</span>
+                                        <span>Day ${i + 1}</span>
+                                    </td>
+                                    <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                        <span class="md:hidden text-slate-400 font-bold uppercase text-[10px] tracking-tight">Period A</span>
+                                        <span class="font-semibold text-indigo-700">${formatCurrency(valA)}</span>
+                                    </td>
+                                    <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
+                                        <span class="md:hidden text-slate-400 font-bold uppercase text-[10px] tracking-tight">Period B</span>
+                                        <span class="font-medium text-slate-600">${formatCurrency(valB)}</span>
+                                    </td>
+                                    <td class="px-6 py-2.5 text-right block md:table-cell md:border-none flex justify-between items-center md:block">
+                                        <span class="md:hidden text-slate-400 font-bold uppercase text-[10px] tracking-tight">Variance</span>
+                                        <span class="font-black ${isPos ? 'text-emerald-600' : 'text-rose-600'}">
+                                            ${isPos ? '+' : ''}${diff.toFixed(1)}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            `;
+            }
+            return html || '<tr><td colspan="4" class="px-6 py-10 text-center text-slate-400">No daily data available for comparison.</td></tr>';
+        })()}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     `;
 
     area.classList.remove('hidden');

@@ -30,6 +30,7 @@ import './overview.js';
 import './audit.js';
 import './aiChat.js';
 import { openEditModal, closeEditModal, handleEditSubmit } from './edit_entry.js';
+import { renderContent } from './render.js';
 
 // Attach global functions used in HTML event handlers
 window.handleSort = handleSort;
@@ -51,6 +52,7 @@ window.handleDeliveryBillNoInput = handleDeliveryBillNoInput;
 window.openEditModal = openEditModal;
 window.closeEditModal = closeEditModal;
 window.handleEditSubmit = handleEditSubmit;
+window.renderContent = renderContent;
 
 // Init Application
 window.addEventListener('DOMContentLoaded', async () => {

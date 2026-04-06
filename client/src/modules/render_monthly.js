@@ -2,20 +2,16 @@ import { state } from './state.js';
 import { formatCurrency, isCanceledStatus, sortArray, getSortIcon } from './utils.js';
 
 
-// --- MONTHLY SUMMARY RENDERING ---
-
 /**
  * Aggregates data by month across all data types.
  */
 function aggregateMonthlyData(shopPrefix) {
-    // This function relies on 'bookings', 'delivery', and 'expense' being present in state.allResults
     const allBookings = state.allResults[`${shopPrefix}|bookings`]?.filteredData || [];
     const allDeliveries = state.allResults[`${shopPrefix}|delivery`]?.filteredData || [];
     const allExpenses = state.allResults[`${shopPrefix}|expense`]?.filteredData || [];
 
-    const monthlyData = {}; // Key: "YYYY-MM"
+    const monthlyData = {};
 
-    // 1. Process Bookings
     allBookings.forEach(doc => {
         const date = new Date(doc.date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -37,19 +33,14 @@ function aggregateMonthlyData(shopPrefix) {
         monthlyData[monthKey].net = monthlyData[monthKey].gross - monthlyData[monthKey].canceled;
     });
 
-    // 2. Process Deliveries
     allDeliveries.forEach(doc => {
         const date = new Date(doc.date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const amount = doc.amount || 0;
 
-        // REFINED CATEGORIZATION LOGIC:
-        // Use amountType if billNo exists and is not 'other-amounts', 
-        // otherwise use remarks/name for miscellaneous items
         const bNo = (doc.billNo || '').toLowerCase().trim();
         let type = doc.amountType ? doc.amountType.toUpperCase().trim() : 'CASH';
 
-        // Standardize card payment labels
         if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) {
             type = 'ADIB';
         }
@@ -84,7 +75,6 @@ function aggregateMonthlyData(shopPrefix) {
         monthlyData[monthKey].delivery.breakdown[type] += amount;
     });
 
-    // 3. Process Expenses
     allExpenses.forEach(doc => {
         const date = new Date(doc.date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -100,7 +90,6 @@ function aggregateMonthlyData(shopPrefix) {
         monthlyData[monthKey].expense += amount;
     });
 
-    // Convert to sorted array
     return Object.keys(monthlyData)
         .sort()
         .map(monthYear => ({
@@ -108,7 +97,6 @@ function aggregateMonthlyData(shopPrefix) {
             ...monthlyData[monthYear]
         }));
 }
-
 
 export function renderMonthlySummary(shopPrefix) {
     const container = document.getElementById('dataTypeContentContainer');
@@ -119,7 +107,6 @@ export function renderMonthlySummary(shopPrefix) {
         return;
     }
 
-    // Export Button
     container.innerHTML = `
         <div class="flex justify-end mb-4">
             <button 
@@ -129,94 +116,111 @@ export function renderMonthlySummary(shopPrefix) {
                 Export Monthly Report to CSV (Excel Format)
             </button>
         </div>
+        ${renderUnifiedMonthlyTable(monthlyData, shopPrefix)}
     `;
-
-    // Render Bookings Summary
-    container.innerHTML += renderMonthlyBookingsTable(monthlyData, shopPrefix);
-
-    // Render Deliveries Summary
-    container.innerHTML += `<h3 class="text-xl font-bold mt-8 mb-4 border-b pb-2 text-teal-700">Monthly Delivery Total</h3>`;
-    container.innerHTML += renderMonthlyDeliveriesTable(monthlyData, shopPrefix);
-
-    // Render Expenses Summary
-    container.innerHTML += `<h3 class="text-xl font-bold mt-8 mb-4 border-b pb-2 text-red-700">Monthly Expense Total</h3>`;
-    container.innerHTML += renderMonthlyExpensesTable(monthlyData, shopPrefix);
 }
 
-function renderMonthlyBookingsTable(monthlyData, shopPrefix) {
-    const tableId = `${shopPrefix}_monthly_bookings`;
+function renderUnifiedMonthlyTable(monthlyData, shopPrefix) {
+    const tableId = `${shopPrefix}_monthly_unified`;
     const currentSort = state.sortState[tableId];
 
     if (currentSort) {
         monthlyData = sortArray([...monthlyData], currentSort.key, currentSort.dir);
     }
 
-    let grandTotalGross = 0;
-    let grandTotalCanceled = 0;
     let grandTotalNet = 0;
+    let grandTotalDelivery = 0;
+    let grandTotalExpense = 0;
 
     const rows = monthlyData.map(item => {
         const [year, month] = item.monthYear.split('-').map(Number);
         const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' });
 
-        const gross = item.gross || 0;
-        const canceled = item.canceled || 0;
         const net = item.net || 0;
+        const delivery = item.delivery.total || 0;
+        const expense = item.expense || 0;
 
-        grandTotalGross += gross;
-        grandTotalCanceled += canceled;
         grandTotalNet += net;
+        grandTotalDelivery += delivery;
+        grandTotalExpense += expense;
 
         const netColorClass = net >= 0 ? 'text-green-700-bold' : 'text-red-700-bold';
-        const grossColorClass = gross >= 0 ? 'text-teal-700' : 'text-red-700-bold';
+        const deliveryColorClass = 'text-teal-700 font-bold';
+        const expenseColorClass = 'text-red-600 font-bold';
 
-        return `<tr class="bg-white border-b hover:bg-gray-50">
-            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">${monthName} ${year}</td>
-            <td class="px-6 py-3 text-right ${grossColorClass}">${formatCurrency(gross)}</td>
-            <td class="px-6 py-3 text-right text-red-700-bold">${formatCurrency(canceled)}</td>
-            <td class="px-6 py-3 text-right ${netColorClass} bg-green-100/50">${formatCurrency(net)}</td>
-                <td class="px-6 py-3 text-center">
-                <button onclick="downloadMonthlyExcel('${shopPrefix}', '${item.monthYear}')" class="text-green-600 hover:text-green-800 transition-colors" title="Download Excel">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                </button>
+        return `<tr class="bg-white border-b hover:bg-gray-50 block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0">
+            <td class="px-6 py-2.5 font-bold text-slate-900 whitespace-nowrap block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-slate-50/50 md:bg-transparent text-[13px]">
+                <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Month / Year</span>
+                <span>${monthName} ${year}</span>
+            </td>
+            <td class="px-6 py-2.5 text-right ${netColorClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px]">
+                <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Net Booking</span>
+                <span>${formatCurrency(net)}</span>
+            </td>
+            <td class="px-6 py-2.5 text-right ${deliveryColorClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px]">
+                <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Total Delivery</span>
+                <span>${formatCurrency(delivery)}</span>
+            </td>
+            <td class="px-6 py-2.5 text-right ${expenseColorClass} block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px]">
+                <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Total Expense</span>
+                <span>${formatCurrency(-expense)}</span>
+            </td>
+            <td class="px-6 py-2 text-center block md:table-cell md:border-none uppercase">
+                <div class="flex justify-between items-center md:justify-center">
+                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Export</span>
+                    <button onclick="viewMonthlyDetail('${shopPrefix}', '${item.monthYear}')" class="text-indigo-600 hover:text-indigo-800 transition-colors mr-3" title="View Detail">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                    <button onclick="downloadMonthlyExcel('${shopPrefix}', '${item.monthYear}')" class="text-green-600 hover:text-green-800 transition-colors" title="Download Excel">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                    </button>
+                </div>
             </td>
         </tr>`;
     }).join('');
 
     return `
-    <div id="${tableId}_container">
-        <h3 class="text-xl font-bold mb-4 border-b pb-2 text-teal-700">Monthly Booking Report (Gross, Canceled, Net)</h3>
-        <div class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg mb-8 shadow-inner">
-            <table class="w-full text-sm text-left text-gray-500 data-table">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+    <div id="${tableId}_container" class="space-y-6">
+        <div class="border rounded-lg shadow-inner overflow-hidden">
+            <table class="w-full text-left text-slate-600 data-table block md:table">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 hidden md:table-header-group">
                     <tr>
                         <th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('monthYear', '${tableId}', renderMonthlySummary)">
                             Month / Year ${getSortIcon('monthYear', tableId)}
                         </th>
-                        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('gross', '${tableId}', renderMonthlySummary)">
-                            Gross Bookings ${getSortIcon('gross', tableId)}
+                        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('net', '${tableId}', renderMonthlySummary)">
+                            Net Booking ${getSortIcon('net', tableId)}
                         </th>
-                        <th scope="col" class="px-6 py-3 text-right text-red-700-bold sortable-header" onclick="handleSort('canceled', '${tableId}', renderMonthlySummary)">
-                            Canceled/Deducted ${getSortIcon('canceled', tableId)}
+                        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('delivery.total', '${tableId}', renderMonthlySummary)">
+                            Total Delivery ${getSortIcon('delivery.total', tableId)}
                         </th>
-                        <th scope="col" class="px-6 py-3 text-right bg-green-100/50 text-green-700-bold sortable-header" onclick="handleSort('net', '${tableId}', renderMonthlySummary)">
-                            Net Booking Total ${getSortIcon('net', tableId)}
+                        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('expense', '${tableId}', renderMonthlySummary)">
+                            Total Expense ${getSortIcon('expense', tableId)}
                         </th>
                         <th scope="col" class="px-6 py-3 text-center">Export</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="block md:table-row-group">
                     ${rows}
                 </tbody>
-                <tfoot class="text-xs text-gray-700 uppercase bg-gray-200 sticky bottom-0">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base">Grand Totals</th>
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base text-right text-teal-700">${formatCurrency(grandTotalGross)}</th>
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base text-right text-red-700-bold">${formatCurrency(grandTotalCanceled)}</th>
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base text-right text-green-700-bold bg-green-100/50">${formatCurrency(grandTotalNet)}</th>
-                        <th scope="col" class="px-6 py-3"></th>
+                <tfoot class="text-[10px] text-gray-700 uppercase bg-gray-200 sticky bottom-0 block md:table-footer-group">
+                    <tr class="block md:table-row">
+                        <th scope="col" class="px-6 py-3 font-black text-sm block md:table-cell border-b border-slate-300 md:border-none bg-gray-200">Grand Totals</th>
+                        <th scope="col" class="px-6 py-2.5 font-black text-sm text-right text-green-700 block md:table-cell border-b border-slate-300 md:border-none flex justify-between items-center md:block">
+                            <span class="md:hidden font-bold text-slate-600 uppercase text-[10px]">Total Net Booking</span> ${formatCurrency(grandTotalNet)}
+                        </th>
+                        <th scope="col" class="px-6 py-2.5 font-black text-sm text-right text-teal-700 block md:table-cell border-b border-slate-300 md:border-none flex justify-between items-center md:block">
+                            <span class="md:hidden font-bold text-slate-600 uppercase text-[10px]">Total Delivery</span> ${formatCurrency(grandTotalDelivery)}
+                        </th>
+                        <th scope="col" class="px-6 py-2.5 font-black text-sm text-right text-red-700 block md:table-cell border-b border-slate-300 md:border-none flex justify-between items-center md:block">
+                            <span class="md:hidden font-bold text-slate-600 uppercase text-[10px]">Total Expense</span> ${formatCurrency(-grandTotalExpense)}
+                        </th>
+                        <th scope="col" class="px-6 py-2 block md:table-cell"></th>
                     </tr>
                 </tfoot>
             </table>
@@ -224,135 +228,29 @@ function renderMonthlyBookingsTable(monthlyData, shopPrefix) {
     </div>
 `;
 }
+export function viewMonthlyDetail(shop, monthYear) {
+    const [year, month] = monthYear.split('-').map(Number);
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-function renderMonthlyDeliveriesTable(monthlyData, shopPrefix) {
-    const tableId = `${shopPrefix}_monthly_deliveries`;
-
-    // 1. Identify all unique categories across all months
-    const allCategoriesSet = new Set();
-    monthlyData.forEach(item => {
-        if (item.delivery && item.delivery.breakdown) {
-            Object.keys(item.delivery.breakdown).forEach(cat => allCategoriesSet.add(cat));
-        }
-    });
-
-    // Sort categories: prioritize CASH, ADIB, ATM, then alphabetize others
-    const categories = ['CASH', 'ADIB', 'ATM'];
-
-    const currentSort = state.sortState[tableId];
-    if (currentSort) {
-        monthlyData = sortArray([...monthlyData], currentSort.key, currentSort.dir);
+    if (window.setCustomDateRange) {
+        window.setCustomDateRange(startDate, endDate, true);
     }
 
-    let grandTotalDelivery = 0;
-    const grandTotalsBreakdown = {};
-    categories.forEach(cat => grandTotalsBreakdown[cat] = 0);
-
-    const rows = monthlyData.map(item => {
-        const [year, month] = item.monthYear.split('-').map(Number);
-        const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' });
-
-        const total = item.delivery.total || 0;
-        grandTotalDelivery += total;
-
-        const cells = categories.map(cat => {
-            const val = item.delivery.breakdown[cat] || 0;
-            grandTotalsBreakdown[cat] += val;
-            return `<td class="px-6 py-3 text-right">${formatCurrency(val)}</td>`;
-        }).join('');
-
-        const totalColorClass = total >= 0 ? 'text-green-700-bold' : 'text-red-700-bold';
-        const totalBgClass = 'bg-teal-100/50';
-
-        return `<tr class="bg-white border-b hover:bg-gray-50">
-            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">${monthName} ${year}</td>
-            ${cells}
-            <td class="px-6 py-3 text-right font-extrabold ${totalColorClass} ${totalBgClass}">${formatCurrency(total)}</td>
-        </tr>`;
-    }).join('');
-
-    const headerCols = categories.map(cat => {
-        const sortKey = `delivery.breakdown.${cat}`;
-        return `<th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('${sortKey}', '${tableId}', renderMonthlySummary)">
-            ${cat} ${getSortIcon(sortKey, tableId)}
-        </th>`;
-    }).join('');
-
-    return `
-        <div class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg mb-8 shadow-inner">
-            <table class="w-full text-sm text-left text-gray-500 data-table">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('monthYear', '${tableId}', renderMonthlySummary)">
-                            Month / Year ${getSortIcon('monthYear', tableId)}
-                        </th>
-                        ${headerCols}
-                        <th scope="col" class="px-6 py-3 text-right bg-teal-200/50 sortable-header" onclick="handleSort('delivery.total', '${tableId}', renderMonthlySummary)">
-                            Total Delivery Amount ${getSortIcon('delivery.total', tableId)}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-                <tfoot class="text-xs text-gray-700 uppercase bg-gray-200 sticky bottom-0">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base">Grand Total</th>
-                        ${categories.map(cat => `<th scope="col" class="px-6 py-3 font-extrabold text-base text-right">${formatCurrency(grandTotalsBreakdown[cat])}</th>`).join('')}
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base text-right text-teal-700 bg-teal-200/50">${formatCurrency(grandTotalDelivery)}</th>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    `;
-}
-
-function renderMonthlyExpensesTable(monthlyData, shopPrefix) {
-    const tableId = `${shopPrefix}_monthly_expenses`;
-    const currentSort = state.sortState[tableId];
-
-    if (currentSort) {
-        monthlyData = sortArray([...monthlyData], currentSort.key, currentSort.dir);
+    if (typeof window.setActiveShop === 'function') {
+        window.setActiveShop(shop);
     }
 
-    let grandTotalExpense = 0;
+    // Switch to bookings tab on the dashboard
+    if (typeof window.setActiveDataType === 'function') {
+        window.setActiveDataType('bookings');
+    }
 
-    const rows = monthlyData.map(item => {
-        const [year, month] = item.monthYear.split('-').map(Number);
-        const monthName = new Date(year, month - 1, 1).toLocaleString('default', { month: 'long' });
-
-        const expense = item.expense || 0;
-        grandTotalExpense += expense;
-
-        // For visualization, show expenses as negative amounts (red)
-        const displayExpense = -expense;
-        const colorClass = 'text-red-700-bold';
-
-        return `<tr class="bg-white border-b hover:bg-gray-50">
-            <td class="px-6 py-3 font-medium text-gray-900 whitespace-nowrap">${monthName} ${year}</td>
-            <td class="px-6 py-3 text-right ${colorClass} bg-red-50/50">${formatCurrency(displayExpense)}</td>
-        </tr>`;
-    }).join('');
-
-    return `
-        <div class="overflow-x-auto custom-scroll max-h-[500px] border rounded-lg shadow-inner">
-            <table class="w-full text-sm text-left text-gray-500 data-table">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 sortable-header" onclick="handleSort('monthYear', '${tableId}', renderMonthlySummary)">Month / Year ${getSortIcon('monthYear', tableId)}</th>
-                        <th scope="col" class="px-6 py-3 text-right sortable-header" onclick="handleSort('expense', '${tableId}', renderMonthlySummary)">Total Expense Amount ${getSortIcon('expense', tableId)}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-                <tfoot class="text-xs text-gray-700 uppercase bg-gray-200 sticky bottom-0">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base">Grand Total</th>
-                        <th scope="col" class="px-6 py-3 font-extrabold text-base text-right text-red-700-bold bg-red-200/50">${formatCurrency(-grandTotalExpense)}</th>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    `;
+    // Trigger full fetch for the new range
+    if (typeof window.fetchAllData === 'function') {
+        window.fetchAllData();
+    }
 }
+
+window.viewMonthlyDetail = viewMonthlyDetail;
