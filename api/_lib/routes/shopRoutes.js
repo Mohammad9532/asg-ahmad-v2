@@ -49,12 +49,14 @@ SHOP_NAMES.forEach(shopPrefix => {
     const AuditModel = mongoose.models[auditModelName] || mongoose.model(auditModelName, AuditSchema, `${collectionPrefix}audit`);
 
     router.get(`/${shopPrefix}/accrual_delivery/summary`, authenticateToken, creators.createAccrualSummaryRoute(BookingsModel, DeliveryModel));
+    router.get(`/${shopPrefix}/bookings/latest-bill`, authenticateToken, creators.createLatestBillRoute(BookingsModel));
+    router.get(`/${shopPrefix}/owner_account_summary`, authenticateToken, creators.createOwnerAccountSummaryRoute(DeliveryModel, ExpenseModel));
     router.get(`/${shopPrefix}/stock_audit`, authenticateToken, creators.createStockAuditRoute(BookingsModel, DeliveryModel, AuditModel));
     router.post(`/${shopPrefix}/stock_audit/verify`, authenticateToken, creators.createAuditVerifyRoute(AuditModel));
     router.post(`/${shopPrefix}/stock_audit/archive`, authenticateToken, creators.createAuditArchiveRoute(AuditModel));
     router.put(`/${shopPrefix}/stock_audit/:id`, authenticateToken, creators.createAuditEditRoute(AuditModel));
     router.delete(`/${shopPrefix}/stock_audit/:id`, authenticateToken, creators.createAuditDeleteRoute(AuditModel));
-    router.get(`/${shopPrefix}/bill_details`, authenticateToken, creators.createBillDetailsRoute(BookingsModel, DeliveryModel));
+    router.get(`/${shopPrefix}/bill_details`, authenticateToken, creators.createBillDetailsRoute(BookingsModel, DeliveryModel, AuditModel));
     router.get(`/${shopPrefix}/lifetime/summary`, authenticateToken, creators.createLifetimeSummaryRoute(BookingsModel, DeliveryModel));
     router.get(`/${shopPrefix}/compare_bookings`, authenticateToken, creators.createCompareBookingsRoute(BookingsModel));
     router.get(`/${shopPrefix}/daily_ledger`, authenticateToken, creators.createDailyLedgerRoute(BookingsModel, DeliveryModel, ExpenseModel));

@@ -145,15 +145,19 @@ export async function handleEditSubmit(event) {
 
         closeEditModal();
 
-        // Refresh view: renderContent if defined globally (it is in main.js)
-        if (typeof window.renderContent === 'function') {
+        // Refresh view: fetchAllData to pull the updated data
+        if (typeof window.fetchAllData === 'function') {
+            window.fetchAllData();
+        } else if (typeof window.renderContent === 'function') {
             window.renderContent(currentEditShop, currentEditType);
         }
 
         // If daily ledger is active, refresh it
-        const dateInput = document.querySelector('input[type="date"]');
-        if (typeof window.renderDailyLedger === 'function' && dateInput) {
-            window.renderDailyLedger(currentEditShop, dateInput.value);
+        if (state.activeDataType === 'daily_ledger') {
+            const dateInput = document.querySelector('input[type="date"]');
+            if (typeof window.renderDailyLedger === 'function' && dateInput) {
+                window.renderDailyLedger(currentEditShop, dateInput.value);
+            }
         }
 
         // Ensure any active views are updated

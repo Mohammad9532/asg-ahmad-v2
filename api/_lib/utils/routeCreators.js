@@ -462,7 +462,7 @@ const createAuditEditRoute = (AuditModel) => async (req, res) => {
 /**
  * Creates the Bill Details Route.
  */
-const createBillDetailsRoute = (BookingModel, DeliveryModel) => async (req, res) => {
+const createBillDetailsRoute = (BookingModel, DeliveryModel, AuditModel) => async (req, res) => {
     try {
         const { billNo } = req.query;
         if (!billNo) return res.status(400).json({ error: "Bill No is required." });
@@ -470,10 +470,12 @@ const createBillDetailsRoute = (BookingModel, DeliveryModel) => async (req, res)
         const trimmedBillNo = String(billNo).trim();
         const booking = await BookingModel.findOne({ billNo: trimmedBillNo }).lean();
         const deliveries = await DeliveryModel.find({ billNo: trimmedBillNo }).sort({ date: 1 }).lean();
+        const audits = AuditModel ? await AuditModel.find({ billNo: trimmedBillNo }).sort({ checkedAt: -1 }).lean() : [];
 
         res.json({
             booking: booking || null,
-            deliveries: deliveries || []
+            deliveries: deliveries || [],
+            audits: audits
         });
     } catch (err) {
         console.error("Bill Details Error:", err);
@@ -590,7 +592,8 @@ const createEmployeeHistoryRoute = (ExpenseModel) => async (req, res) => {
 const createDailyLedgerRoute = (BookingModel, DeliveryModel, ExpenseModel) => async (req, res) => {
     try {
         const { date } = req.query;
-        const shop = req.originalUrl.split('/')[2];
+        const rawShop = req.originalUrl.split('/')[2].toLowerCase();
+        const shop = rawShop.charAt(0).toUpperCase() + rawShop.slice(1);
 
         if (!date) return res.status(400).json({ error: "Date parameter is required (YYYY-MM-DD)." });
 
@@ -1059,7 +1062,107 @@ const createExcessDeliveryRoute = (BookingModel, DeliveryModel, AuditModel) => a
     }
 };
 
+/**
+ * Creates the Latest Bill Route.
+ */
+const createLatestBillRoute = (BookingModel) => async (req, res) => {
+    try {
+        const latestBooking = await BookingModel.findOne({
+            billNo: { $exists: true, $nin: ['other-amounts', null, ''] }
+        }).sort({ _id: -1 }).select('billNo').lean();
+
+        if (latestBooking && latestBooking.billNo) {
+            const currentBillNo = String(latestBooking.billNo).trim();
+            const match = currentBillNo.match(/^(\D*)(\d+)(\D*)$/);
+            if (match) {
+                const prefix = match[1];
+                const numStr = match[2];
+                const suffix = match[3];
+                const nextNum = parseInt(numStr, 10) + 1;
+                const nextNumStr = String(nextNum).padStart(numStr.length, '0');
+                return res.json({ latest: currentBillNo, next: `${prefix}${nextNumStr}${suffix}` });
+            }
+            return res.json({ latest: currentBillNo, next: '' });
+        }
+        res.json({ latest: null, next: '1' });
+    } catch (err) {
+        console.error("Latest Bill Error:", err);
+        res.status(500).json({ error: "Failed to fetch latest bill." });
+    }
+};
+
+/**
+ * Creates the Owner Account Summary Route.
+ */
+const createOwnerAccountSummaryRoute = (DeliveryModel, ExpenseModel) => async (req, res) => {
+    try {
+        const { start, end } = req.query;
+        const rawShop = req.originalUrl.split('/')[2].toLowerCase();
+        const shop = rawShop.charAt(0).toUpperCase() + rawShop.slice(1);
+        if (!start || !end) return res.status(400).json({ error: "Start and End dates required." });
+
+        const selectedDate = new Date(start + 'T00:00:00.000Z');
+        const endDate = new Date(end + 'T23:59:59.999Z');
+
+        const settings = await LedgerSettings.findOne({ shop });
+        const initialBal = settings ? settings.initialBalance : 0;
+        const startFrom = settings && settings.startDate ? new Date(settings.startDate) : new Date('2000-01-01');
+
+        let openingBalance = 0;
+        if (selectedDate.getTime() === startFrom.getTime()) {
+            openingBalance = initialBal;
+        } else if (selectedDate < startFrom) {
+            openingBalance = 0;
+        } else {
+            const prevFilter = { date: { $gte: startFrom, $lt: selectedDate } };
+            const prevCashDelivery = await DeliveryModel.aggregate([
+                {
+                    $match: {
+                        ...prevFilter,
+                        $or: [
+                            { amountType: { $exists: false } },
+                            { amountType: "" },
+                            { amountType: { $regex: /^cash$/i } },
+                            { amountType: { $nin: [/atm/i, /adib/i, /card/i, /visa/i, /master/i] } }
+                        ]
+                    }
+                },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]);
+
+            const prevExpense = await ExpenseModel.aggregate([
+                { $match: prevFilter },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]);
+
+            const prevAdj = await LedgerAdjustment.aggregate([
+                { $match: { shop, date: { $gte: startFrom, $lt: selectedDate } } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]);
+
+            const totalPrevCash = prevCashDelivery.length ? prevCashDelivery[0].total : 0;
+            const totalPrevExp = prevExpense.length ? prevExpense[0].total : 0;
+            const totalPrevAdj = prevAdj.length ? prevAdj[0].total : 0;
+
+            openingBalance = initialBal + totalPrevCash - totalPrevExp + totalPrevAdj;
+        }
+
+        const rangeAdj = await LedgerAdjustment.aggregate([
+            { $match: { shop, date: { $gte: selectedDate, $lte: endDate } } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]);
+        const adjustAmount = rangeAdj.length ? rangeAdj[0].total : 0;
+
+        res.json({ openingBalance, adjustAmount });
+    } catch (err) {
+        console.error("Owner Account Summary Error:", err);
+        res.status(500).json({ error: "Failed to fetch owner account summary." });
+    }
+};
+
 module.exports = {
+    createLatestBillRoute,
+    createOwnerAccountSummaryRoute,
     createEntryRoute,
     updateEntryRoute,
     createSummaryRoute,

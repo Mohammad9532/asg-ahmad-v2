@@ -352,7 +352,7 @@ async function showBillDetails(shop, billNo) {
         if (!res.ok) throw new Error("Failed to fetch details");
 
         const data = await res.json();
-        const { booking, deliveries } = data;
+        const { booking, deliveries, audits } = data;
 
         if (!booking) {
             content.innerHTML = `<div class="p-8 text-center text-red-500">Booking not found for Bill ${billNo}.</div>`;
@@ -383,6 +383,36 @@ async function showBillDetails(shop, billNo) {
             });
         }
 
+        let auditRows = '';
+        if (!audits || audits.length === 0) {
+            auditRows = `<tr><td colspan="7" class="px-4 py-4 text-center text-slate-400 italic">No audit records found.</td></tr>`;
+        } else {
+            audits.forEach((aud, idx) => {
+                const batchLabelDisplay = aud.batchLabel || '<span class="italic text-slate-400">Current (Unarchived)</span>';
+                const statusBadge = aud.status === 'Archived'
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">Archived</span>`
+                    : `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 border border-green-200">Checked</span>`;
+                const missingDisplay = aud.missingPcs > 0
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-50 text-red-700 border border-red-200">${aud.missingPcs} Missing</span>`
+                    : '<span class="text-slate-400">-</span>';
+                const amountDisplay = (aud.amount !== undefined && aud.amount !== null)
+                    ? `<span class="font-bold text-slate-700">${formatCurrency(aud.amount)}</span>`
+                    : '<span class="text-slate-400 italic">-</span>';
+
+                auditRows += `
+                    <tr class="border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                        <td class="px-4 py-3 text-slate-600">${idx + 1}</td>
+                        <td class="px-4 py-3 text-slate-700 font-medium">${batchLabelDisplay}</td>
+                        <td class="px-4 py-3 text-slate-500">${new Date(aud.checkedAt).toLocaleDateString()}</td>
+                        <td class="px-4 py-3 text-center">${statusBadge}</td>
+                        <td class="px-4 py-3 text-right">${amountDisplay}</td>
+                        <td class="px-4 py-3 text-center">${missingDisplay}</td>
+                        <td class="px-4 py-3 text-slate-600 max-w-[200px] truncate" title="${aud.remark || ''}">${aud.remark || '<span class="text-slate-400 italic">No remark</span>'}</td>
+                    </tr>
+                `;
+            });
+        }
+
         const encodedBooking = encodeURIComponent(JSON.stringify(booking).replace(/'/g, "\\'"));
 
         content.innerHTML = `
@@ -400,7 +430,7 @@ async function showBillDetails(shop, billNo) {
                 </button>
             </div>
             
-            <div class="p-6">
+            <div class="p-6 max-h-[75vh] overflow-y-auto">
                 <!-- Booking Info -->
                 <div class="bg-indigo-50 rounded-xl p-5 mb-6 border border-indigo-100 relative">
                     <button onclick="window.openEditModal('${encodedBooking}', 'bookings', '${shop}')" class="absolute top-4 right-4 text-indigo-600 hover:text-indigo-900 border border-indigo-200 bg-white px-3 py-1 rounded shadow-sm text-xs font-semibold">Edit Booking</button>
@@ -458,6 +488,30 @@ async function showBillDetails(shop, billNo) {
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             ${deliveryRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Audit History -->
+                <div class="border rounded-lg overflow-hidden mt-6">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-slate-600 text-sm flex justify-between items-center">
+                        <span>Audit History</span>
+                        <span class="text-xs font-normal bg-white px-2 py-0.5 rounded border border-slate-300 shadow-sm">${audits ? audits.length : 0} Records</span>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-2 w-12">#</th>
+                                <th class="px-4 py-2">Batch / Cycle</th>
+                                <th class="px-4 py-2">Audit Date</th>
+                                <th class="px-4 py-2 text-center">Status</th>
+                                <th class="px-4 py-2 text-right">Audit Balance</th>
+                                <th class="px-4 py-2 text-center">Missing</th>
+                                <th class="px-4 py-2">Remark</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${auditRows}
                         </tbody>
                     </table>
                 </div>
@@ -1118,6 +1172,92 @@ async function editStockAuditItem(shop, id, currentRemark, currentMissing, curre
     };
 }
 
+/**
+ * Professional printing for Stock Audit reports using iframe pattern
+ */
+export function printAuditList() {
+    const auditContent = document.getElementById('auditContent');
+    if (!auditContent) {
+        alert("Nothing to print.");
+        return;
+    }
+
+    const shop = state.activeShop || 'Shop';
+    const statusLabel = currentAuditStatus.charAt(0).toUpperCase() + currentAuditStatus.slice(1);
+
+    // Prepare Content Clone
+    const printClone = auditContent.cloneNode(true);
+    // Remove action buttons from the print clone
+    printClone.querySelectorAll('button, .actions-cell, th:last-child, td:last-child').forEach(el => el.remove());
+
+    // Collect all styles from the parent document
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map(node => node.outerHTML)
+        .join('\n');
+
+    // Create a hidden iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Stock Audit - ${shop}</title>
+                ${styles}
+                <style>
+                    @page { size: auto; margin: 10mm; }
+                    body { 
+                        background-color: white !important; 
+                        padding: 20px;
+                        font-family: 'Inter', sans-serif;
+                    }
+                    .print-header { border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+                    .print-header h1 { margin: 0; color: #111827; font-size: 20px; font-weight: 800; }
+                    .print-header p { margin: 0; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+                    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+                </style>
+            </head>
+            <body>
+                <div class="print-header">
+                    <div>
+                        <p>Stock Audit Report</p>
+                        <h1>${shop}</h1>
+                    </div>
+                    <div style="text-align: right">
+                        <div class="badge">${statusLabel} Stock</div>
+                        <p style="margin-top: 4px">Generated: ${new Date().toLocaleString()}</p>
+                    </div>
+                </div>
+                <div class="audit-print-body">
+                    ${printClone.innerHTML}
+                </div>
+            </body>
+        </html>
+    `);
+    doc.close();
+
+    // Wait for render
+    setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+
+        // Remove iframe after print dialog is handled
+        setTimeout(() => {
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
+        }, 1000);
+    }, 500);
+}
+
 // Attach functions to window for global access
 window.switchAuditTab = switchAuditTab;
 window.archiveCurrentAudit = archiveCurrentAudit;
@@ -1132,3 +1272,4 @@ window.applyQuickFilter = applyQuickFilter;
 window.loadAuditContent = loadAuditContent; // Used in Retry button
 window.undoStockAuditItem = undoStockAuditItem;
 window.editStockAuditItem = editStockAuditItem;
+window.printAuditList = printAuditList;

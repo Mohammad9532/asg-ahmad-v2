@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { SHOP_PREFIXES } from './config.js';
+import { SHOP_PREFIXES, BASE_URL } from './config.js';
 import { formatCurrency, calculateCanceledSum, isCanceledStatus, sortArray, getSortIcon } from './utils.js';
 import { renderMonthlySummary } from './render_monthly.js';
 import { renderStockAuditView } from './stock_audit.js';
@@ -807,6 +807,11 @@ function renderNetBookingDetails(shopPrefix, bookingData, container) {
     if (!container) container = document.getElementById('dataTypeContentContainer');
     if (!container) return;
 
+    if (!bookingData || !bookingData.filteredData || bookingData.filteredData.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500 mt-8">No booking data found in the selected date range.</p>';
+        return;
+    }
+
     const totalBookings = bookingData.filteredData.reduce((s, d) => s + (d.amount || 0), 0);
     const totalCanceled = calculateCanceledSum(bookingData.filteredData);
     const netTotal = totalBookings - totalCanceled;
@@ -892,7 +897,7 @@ function renderDeliveryByTypeDetails(shopPrefix, deliveryData, container) {
     if (!container) container = document.getElementById('dataTypeContentContainer');
     if (!container) return;
 
-    if (deliveryData.filteredData.length === 0) {
+    if (!deliveryData || !deliveryData.filteredData || deliveryData.filteredData.length === 0) {
         container.innerHTML = '<p class="text-center text-gray-500 mt-8">No delivery data found in the selected date range.</p>';
         return;
     }
@@ -1848,16 +1853,18 @@ export async function openOwnerReportModal() {
             return;
         }
 
-        // --- YoY Booking Calculation ---
-        const [sy, sm, sd] = startDateRaw.split('-').map(Number);
-        const [ey, em, ed] = endDateRaw.split('-').map(Number);
-        const prevStartPattern = `${sy - 1}-${String(sm).padStart(2, '0')}-${String(sd).padStart(2, '0')}`;
-        const prevEndPattern = `${ey - 1}-${String(em).padStart(2, '0')}-${String(ed).padStart(2, '0')}`;
-
-        const { fetchHistoricalBookings } = await import('./api.js');
-        await fetchHistoricalBookings(shopPrefix, prevStartPattern, prevEndPattern);
-
-        const hist = state.allResults[`${shopPrefix}|historical_bookings`];
+        // --- Fetch Account Summary Data ---
+        let accountSummary = { openingBalance: 0, adjustAmount: 0 };
+        try {
+            const accountSummaryRes = await fetch(`${BASE_URL}/api/${shopPrefix}/owner_account_summary?start=${startDateRaw}&end=${endDateRaw}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            });
+            if (accountSummaryRes.ok) {
+                accountSummary = await accountSummaryRes.json();
+            }
+        } catch (err) {
+            console.error("Failed to fetch owner account summary:", err);
+        }
 
         let currentGross = 0, currentCanceled = 0;
         (bk.filteredData || []).forEach(b => {
@@ -1867,114 +1874,187 @@ export async function openOwnerReportModal() {
         });
         const currentNet = currentGross - currentCanceled;
 
-        let prevGross = 0, prevCanceled = 0;
-        if (hist && hist.filteredData) {
-            hist.filteredData.forEach(b => {
-                const amt = b.amount || 0;
-                prevGross += amt;
-                if (isCanceledStatus(b.status)) prevCanceled += amt;
-            });
-        }
-        const prevNet = prevGross - prevCanceled;
-
-        const netBookingDiff = currentNet - prevNet;
-        const netBookingTrendColor = netBookingDiff >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100';
-        const netBookingTrendIcon = netBookingDiff >= 0
-            ? `<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>`
-            : `<svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>`;
-
-        // --- Delivery Breakdown ---
         let totalDelivery = 0;
         const deliveryBreakdown = { CASH: 0, ADIB: 0, ATM: 0 };
+        let cashMiscCollections = 0;
+        let salmanMiscCollection = 0;
+        let otherMiscCollection = 0;
+        const bankMiscCollections = { ADIB: 0, ATM: 0 };
+        let shopBookingDel = 0;
+
         (del.filteredData || []).forEach(d => {
             const amt = d.amount || 0;
-            totalDelivery += amt;
             let type = d.amountType ? d.amountType.toUpperCase().trim() : 'CASH';
             if (type.includes('CARD') || type.includes('VISA') || type.includes('MASTER')) type = 'ADIB';
             if (type !== 'ADIB' && type !== 'ATM') type = 'CASH';
-            deliveryBreakdown[type] += amt;
+            
+            const bNo = String(d.billNo || '').trim().toLowerCase();
+            if (bNo === 'other-amounts') {
+                if (type === 'CASH') {
+                    cashMiscCollections += amt;
+                    let remark = (d.remarks || '').trim().toLowerCase();
+                    if (remark.includes('salman')) {
+                        salmanMiscCollection += amt;
+                    } else {
+                        otherMiscCollection += amt;
+                    }
+                } else {
+                    bankMiscCollections[type] += amt;
+                }
+            } else {
+                shopBookingDel += amt;
+                totalDelivery += amt;
+                deliveryBreakdown[type] += amt;
+            }
         });
 
-        // --- Expense Breakdown ---
+        const accrualData = state.allResults[`${shopPrefix}|accrual_delivery`];
+        const accrualDel = accrualData ? (accrualData.totalAccrualAmount || 0) : 0;
+        const oldCollection = shopBookingDel - accrualDel;
+
         let totalExpense = 0;
-        const expenseCategories = {};
         (exp.filteredData || []).forEach(e => {
-            const amt = e.amount || 0;
-            const cat = e.cat ? e.cat.trim() : 'Uncategorized';
-            if (!expenseCategories[cat]) expenseCategories[cat] = 0;
-            expenseCategories[cat] += amt;
-            totalExpense += amt;
+            totalExpense += (e.amount || 0);
         });
-        const sortedExpCats = Object.keys(expenseCategories).sort((a, b) => expenseCategories[b] - expenseCategories[a]);
 
-        // --- Construct HTML ---
-        contentArea.innerHTML = `
-            <!-- Booking Section -->
-            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 shadow-sm">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xl font-bold text-indigo-900 tracking-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        Total Booking
-                    </h3>
+        const { openingBalance, adjustAmount } = accountSummary;
+        const totalAmount = openingBalance + deliveryBreakdown.CASH + cashMiscCollections + adjustAmount;
+        const finalBalance = totalAmount - totalExpense;
+
+        let miscCollectionsHtml = '';
+        if (salmanMiscCollection > 0) {
+            miscCollectionsHtml += `
+                <div class="flex justify-between items-center px-4 py-2">
+                    <span class="font-medium text-lg">+ Received From Salman</span>
+                    <span class="font-bold text-lg">${formatCurrency(salmanMiscCollection)}</span>
                 </div>
-                <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                    <div>
-                        <p class="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">Gross (${formatCurrency(currentGross)}) - Cancelled (${formatCurrency(currentCanceled)})</p>
-                        <p class="text-4xl font-black text-indigo-800 tracking-tight">${formatCurrency(currentNet)}</p>
+            `;
+        }
+        
+        if (otherMiscCollection > 0 || salmanMiscCollection === 0) {
+            miscCollectionsHtml += `
+                <div class="flex justify-between items-center px-4 py-2">
+                    <span class="font-medium text-lg">+ Cash Collection</span>
+                    <span class="font-bold text-lg">${formatCurrency(otherMiscCollection)}</span>
+                </div>
+            `;
+        }
+
+        contentArea.innerHTML = `
+            <!-- Net Booking Section -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 shadow-sm mb-6">
+                <h3 class="text-xl font-bold text-indigo-900 tracking-tight flex items-center mb-2">
+                    <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Net Booking
+                </h3>
+                <p class="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">Gross (${formatCurrency(currentGross)}) - Cancelled (${formatCurrency(currentCanceled)})</p>
+                <p class="text-4xl font-black text-indigo-800 tracking-tight">${formatCurrency(currentNet)}</p>
+            </div>
+
+            <!-- Delivery Summary Section -->
+            <div class="bg-teal-50 border border-teal-100 rounded-xl p-6 shadow-sm mb-6">
+                <h3 class="text-xl font-bold text-teal-900 tracking-tight flex items-center mb-4">
+                    <svg class="w-6 h-6 mr-2 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    Delivery Summary
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center text-teal-800">
+                        <span class="font-medium text-lg">DEL (Accrual)</span>
+                        <span class="font-bold text-lg">${formatCurrency(accrualDel)}</span>
                     </div>
-                    <div class="flex items-center px-3 py-2 rounded-lg border ${netBookingTrendColor} shadow-sm backdrop-blur-sm">
-                        ${netBookingTrendIcon}
-                        <div class="flex flex-col">
-                            <span class="text-xs font-bold uppercase">Vs Prev Year (${sy - 1})</span>
-                            <span class="text-sm font-black">${netBookingDiff >= 0 ? '+' : ''}${formatCurrency(netBookingDiff)} (${formatCurrency(prevNet)})</span>
-                        </div>
+                    <div class="flex justify-between items-center text-teal-800">
+                        <span class="font-medium text-lg">Old Booking Collection</span>
+                        <span class="font-bold text-lg">${formatCurrency(oldCollection)}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-teal-900 mt-4 pt-4 border-t border-teal-200">
+                        <span class="font-bold text-xl uppercase tracking-widest">Total</span>
+                        <span class="text-3xl font-black">${formatCurrency(accrualDel + oldCollection)}</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Delivery Section -->
-             <div class="bg-teal-50 border border-teal-100 rounded-xl p-6 shadow-sm">
-                 <h3 class="text-xl font-bold text-teal-900 tracking-tight flex items-center mb-4">
-                    <svg class="w-6 h-6 mr-2 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                    Total Delivery
-                 </h3>
-                 <p class="text-4xl font-black text-teal-800 tracking-tight mb-4">${formatCurrency(totalDelivery)}</p>
-                 <div class="grid grid-cols-3 gap-2 sm:gap-4">
-                     <div class="bg-white/60 p-3 rounded-lg border border-teal-200 shadow-sm text-center">
-                         <p class="text-xs font-bold text-teal-600 uppercase mb-1">CASH</p>
-                         <p class="text-lg font-bold text-teal-900">${formatCurrency(deliveryBreakdown.CASH)}</p>
+            <!-- Delivery Breakdown Section -->
+            <div class="bg-blue-50 border border-blue-100 rounded-xl p-6 shadow-sm mb-6">
+                <h3 class="text-xl font-bold text-blue-900 tracking-tight flex items-center mb-4">
+                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    Delivery Breakdown
+                </h3>
+                <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+                     <div class="bg-white/60 p-4 rounded-lg border border-blue-200 shadow-sm text-center">
+                         <p class="text-sm font-bold text-blue-600 uppercase mb-1 tracking-widest">ATM</p>
+                         <p class="text-xl font-bold text-blue-900">${formatCurrency(deliveryBreakdown.ATM)}</p>
                      </div>
-                     <div class="bg-white/60 p-3 rounded-lg border border-teal-200 shadow-sm text-center">
-                         <p class="text-xs font-bold text-teal-600 uppercase mb-1">ADIB</p>
-                         <p class="text-lg font-bold text-teal-900">${formatCurrency(deliveryBreakdown.ADIB)}</p>
+                     <div class="bg-white/60 p-4 rounded-lg border border-blue-200 shadow-sm text-center">
+                         <p class="text-sm font-bold text-blue-600 uppercase mb-1 tracking-widest">ADIB</p>
+                         <p class="text-xl font-bold text-blue-900">${formatCurrency(deliveryBreakdown.ADIB)}</p>
                      </div>
-                     <div class="bg-white/60 p-3 rounded-lg border border-teal-200 shadow-sm text-center">
-                         <p class="text-xs font-bold text-teal-600 uppercase mb-1">ATM</p>
-                         <p class="text-lg font-bold text-teal-900">${formatCurrency(deliveryBreakdown.ATM)}</p>
+                     <div class="bg-white/60 p-4 rounded-lg border border-blue-200 shadow-sm text-center">
+                         <p class="text-sm font-bold text-blue-600 uppercase mb-1 tracking-widest">CASH</p>
+                         <p class="text-xl font-bold text-blue-900">${formatCurrency(deliveryBreakdown.CASH)}</p>
                      </div>
                  </div>
-             </div>
+                 <div class="flex justify-between items-center text-blue-900 mt-2 pt-4 border-t border-blue-200">
+                    <span class="font-bold text-xl uppercase tracking-widest">Total</span>
+                    <span class="text-3xl font-black">${formatCurrency(deliveryBreakdown.ATM + deliveryBreakdown.ADIB + deliveryBreakdown.CASH)}</span>
+                 </div>
+            </div>
 
-             <!-- Expenses Section -->
-             <div class="bg-rose-50 border border-rose-100 rounded-xl p-6 shadow-sm">
-                 <div class="flex items-end justify-between mb-4 border-b border-rose-200 pb-4">
-                    <h3 class="text-xl font-bold text-rose-900 tracking-tight flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>
-                        Total Expenses
-                    </h3>
-                    <p class="text-3xl font-black text-rose-800 tracking-tight">${formatCurrency(totalExpense)}</p>
+            <!-- Bank Misc Collections Block -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-6 shadow-sm mb-6">
+                <h3 class="text-xl font-bold text-indigo-900 tracking-tight flex items-center mb-4">
+                    <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    Bank Misc Collections
+                </h3>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                     <div class="bg-white/60 p-4 rounded-lg border border-indigo-200 shadow-sm text-center">
+                         <p class="text-sm font-bold text-indigo-600 uppercase mb-1 tracking-widest">ATM</p>
+                         <p class="text-xl font-bold text-indigo-900">${formatCurrency(bankMiscCollections.ATM)}</p>
+                     </div>
+                     <div class="bg-white/60 p-4 rounded-lg border border-indigo-200 shadow-sm text-center">
+                         <p class="text-sm font-bold text-indigo-600 uppercase mb-1 tracking-widest">ADIB</p>
+                         <p class="text-xl font-bold text-indigo-900">${formatCurrency(bankMiscCollections.ADIB)}</p>
+                     </div>
+                </div>
+                <div class="flex justify-between items-center text-indigo-900 mt-2 pt-4 border-t border-indigo-200">
+                    <span class="font-bold text-xl uppercase tracking-widest">Total</span>
+                    <span class="text-3xl font-black">${formatCurrency(bankMiscCollections.ATM + bankMiscCollections.ADIB)}</span>
                  </div>
-                 
-                 <div class="space-y-2">
-                     <h4 class="text-xs font-bold text-rose-500 uppercase tracking-widest mb-3">Category Breakdown</h4>
-                     ${sortedExpCats.length > 0 ? sortedExpCats.map(cat => `
-                         <div class="flex justify-between items-center py-2 px-3 bg-white/60 rounded border border-rose-100 shadow-sm">
-                             <span class="font-bold text-rose-900 text-sm uppercase">${cat}</span>
-                             <span class="font-bold text-rose-700">${formatCurrency(expenseCategories[cat])}</span>
-                         </div>
-                     `).join('') : '<p class="text-xs text-rose-400 italic">No expenses recorded for this period.</p>'}
-                 </div>
-             </div>
+            </div>
+
+            <!-- Account Summary Section -->
+            <div class="bg-amber-50 border border-amber-100 rounded-xl p-6 shadow-sm">
+                <h3 class="text-xl font-bold text-amber-900 tracking-tight flex items-center mb-6 border-b border-amber-200 pb-4">
+                    <svg class="w-6 h-6 mr-2 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Account Summary
+                </h3>
+                <div class="space-y-4 text-amber-900">
+                    <div class="flex justify-between items-center p-3 bg-white/50 rounded border border-amber-200 shadow-sm">
+                        <span class="font-medium text-lg">Opening Balance <span class="text-xs font-normal text-amber-700 ml-1">(From ${startDateRaw})</span></span>
+                        <span class="font-bold text-lg">${formatCurrency(openingBalance)}</span>
+                    </div>
+                    <div class="flex justify-between items-center px-4 py-2">
+                        <span class="font-medium text-lg">+ Cash Delivery</span>
+                        <span class="font-bold text-lg">${formatCurrency(deliveryBreakdown.CASH)}</span>
+                    </div>
+                    ${miscCollectionsHtml}
+                    <div class="flex justify-between items-center px-4 py-2">
+                        <span class="font-medium text-lg">+ Adjust Amount <span class="text-xs font-normal text-amber-700 ml-1">(Extra - Short)</span></span>
+                        <span class="font-bold text-lg">${formatCurrency(adjustAmount)}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-amber-100 rounded border border-amber-300 shadow-sm mt-4">
+                        <span class="font-bold text-xl uppercase tracking-widest">Total Amount</span>
+                        <span class="text-2xl font-black">${formatCurrency(totalAmount)}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-rose-50 rounded border border-rose-200 shadow-sm text-rose-800 mt-4">
+                        <span class="font-bold text-xl uppercase tracking-widest">- Expense</span>
+                        <span class="text-2xl font-black">${formatCurrency(totalExpense)}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-4 bg-emerald-600 rounded-xl shadow-lg text-white mt-6">
+                        <span class="font-black text-2xl uppercase tracking-widest">Balance</span>
+                        <span class="text-4xl font-black">${formatCurrency(finalBalance)}</span>
+                    </div>
+                </div>
+            </div>
         `;
 
     } catch (err) {
