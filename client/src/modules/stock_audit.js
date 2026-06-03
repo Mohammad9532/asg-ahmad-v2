@@ -215,23 +215,23 @@ function renderPendingTable(shop, data) {
             </div>
         </div>
 
-        <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
+        <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-800">
             <div class="">
-                <table class="min-w-full divide-y divide-slate-200 block md:table">
-                    <thead class="bg-slate-50 hidden md:table-header-group">
+                <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 block md:table">
+                    <thead class="bg-slate-50 dark:bg-slate-900 hidden md:table-header-group">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-24">Bill No</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-32">Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Customer</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-16">Qty</th>
-                            <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase w-32">Total Amt</th>
-                            <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase w-32">Balance</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-24">Missing Pcs</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-48">Remark</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-20">Action</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-24">Bill No</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-32">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Customer</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-16">Qty</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-32">Total Amt</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-32">Balance</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-24">Missing Pcs</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-48">Remark</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-20">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700 text-[13px] block md:table-row-group">
     `;
 
     data.forEach(item => {
@@ -240,48 +240,48 @@ function renderPendingTable(shop, data) {
         const amountValue = item.balance || 0;
 
         html += `
-            <tr id="row_${item.billNo}" class="hover:bg-slate-50 group transition-colors block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 bg-white relative">
-                <td class="px-6 py-4 font-mono font-bold text-slate-700 block md:table-cell border-b border-slate-50 md:border-none bg-slate-50 md:bg-transparent">
+            <tr id="row_${item.billNo}" class="hover:bg-slate-50 dark:hover:bg-slate-700/50 group transition-colors block md:table-row border-b-4 border-slate-100 dark:border-slate-800 md:border-none mb-4 md:mb-0 bg-white dark:bg-slate-800 relative">
+                <td class="px-6 py-4 font-mono font-bold text-slate-700 dark:text-slate-200 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none bg-slate-50 dark:bg-slate-800 md:bg-transparent">
                     <div class="flex justify-between items-center md:block">
-                        <span class="md:hidden text-[10px] text-slate-400 uppercase font-bold tracking-tight">Bill No:</span>
+                        <span class="md:hidden text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-tight">Bill No:</span>
                         <button onclick="showBillDetails('${shop}', '${item.billNo}')" 
-                            class="text-teal-600 hover:text-teal-800 hover:underline focus:outline-none flex items-center">
+                            class="text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline focus:outline-none flex items-center">
                             ${item.billNo}
-                            <svg class="w-3 h-3 ml-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg class="w-3 h-3 ml-1 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
                         </button>
                     </div>
                 </td>
-                <td class="px-6 py-2.5 text-slate-500 whitespace-nowrap block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Date</span> ${new Date(item.date).toLocaleDateString()}
+                <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 dark:text-slate-500 uppercase text-[10px] tracking-tight">Date</span> ${new Date(item.date).toLocaleDateString()}
                 </td>
-                <td class="px-6 py-2.5 text-slate-700 font-medium block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Customer</span> ${item.name}
+                <td class="px-6 py-2.5 text-slate-700 dark:text-slate-200 font-medium block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 dark:text-slate-500 uppercase text-[10px] tracking-tight">Customer</span> ${item.name}
                 </td>
-                <td class="px-6 py-2.5 text-center font-bold text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Qty</span> ${qtyDisplay}
+                <td class="px-6 py-2.5 text-center font-bold text-slate-600 dark:text-slate-300 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 dark:text-slate-500 uppercase text-[10px] tracking-tight">Qty</span> ${qtyDisplay}
                 </td>
-                 <td class="px-6 py-2.5 text-right font-medium text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block text-[13px]">
-                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight">Total Amt</span> ${formatCurrency(item.bookedAmount || 0)}
+                 <td class="px-6 py-2.5 text-right font-medium text-slate-600 dark:text-slate-300 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block text-[13px]">
+                    <span class="md:hidden font-black text-slate-400 dark:text-slate-500 uppercase text-[10px] tracking-tight">Total Amt</span> ${formatCurrency(item.bookedAmount || 0)}
                  </td>
-                <td class="px-6 py-2.5 text-right font-bold text-teal-700 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block bg-teal-50/30 md:bg-transparent text-[13px]">
-                    <span class="md:hidden font-black text-teal-600 uppercase text-[10px] tracking-tight">Balance</span> ${formatCurrency(item.balance)}
+                <td class="px-6 py-2.5 text-right font-bold text-teal-700 dark:text-teal-400 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block bg-teal-50/30 dark:bg-teal-950/20 md:bg-transparent text-[13px]">
+                    <span class="md:hidden font-black text-teal-600 dark:text-teal-400 uppercase text-[10px] tracking-tight">Balance</span> ${formatCurrency(item.balance)}
                 </td>
-                <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight mr-4">Missing Pcs</span>
+                <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 dark:text-slate-500 uppercase text-[10px] tracking-tight mr-4">Missing Pcs</span>
                     <input type="number" 
                         id="missing_${item.billNo}" 
                         min="0"
-                        class="w-32 md:w-full text-center text-sm border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" 
+                        class="w-32 md:w-full text-center text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400" 
                         placeholder="0"
                     >
                 </td>
-                <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-black text-slate-400 uppercase text-[10px] tracking-tight mr-4">Remark</span>
+                <td class="px-6 py-2.5 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-black text-slate-400 dark:text-slate-500 uppercase text-[10px] tracking-tight mr-4">Remark</span>
                     <input type="text" 
                         id="remark_${item.billNo}" 
-                        class="w-full md:w-full text-sm border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500" 
+                        class="w-full md:w-full text-sm border border-gray-300 dark:border-slate-600 rounded-md focus:ring-teal-500 focus:border-teal-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400" 
                         placeholder="Location / Status..."
                     >
                 </td>
@@ -316,7 +316,7 @@ async function showBillDetails(shop, billNo) {
         modalDom.id = 'billDetailsModal';
         modalDom.className = 'fixed inset-0 bg-slate-900 bg-opacity-50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm';
         modalDom.innerHTML = `
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all scale-95" id="billDetailsContent">
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all scale-95 border dark:border-slate-700" id="billDetailsContent">
                 <!-- Dynamic Content Load Here -->
             </div>
         `;
@@ -432,52 +432,52 @@ async function showBillDetails(shop, billNo) {
             
             <div class="p-6 max-h-[75vh] overflow-y-auto">
                 <!-- Booking Info -->
-                <div class="bg-indigo-50 rounded-xl p-5 mb-6 border border-indigo-100 relative">
-                    <button onclick="window.openEditModal('${encodedBooking}', 'bookings', '${shop}')" class="absolute top-4 right-4 text-indigo-600 hover:text-indigo-900 border border-indigo-200 bg-white px-3 py-1 rounded shadow-sm text-xs font-semibold">Edit Booking</button>
+                <div class="bg-indigo-50 dark:bg-indigo-950/30 rounded-xl p-5 mb-6 border border-indigo-100 dark:border-indigo-900/50 relative">
+                    <button onclick="window.openEditModal('${encodedBooking}', 'bookings', '${shop}')" class="absolute top-4 right-4 text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-700 px-3 py-1 rounded shadow-sm text-xs font-semibold">Edit Booking</button>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2 mt-4">
                         <div>
                             <p class="text-xs text-indigo-400 uppercase font-bold tracking-wider mb-1">Date</p>
-                            <p class="font-semibold text-indigo-900">${new Date(booking.date).toLocaleDateString()}</p>
+                            <p class="font-semibold text-indigo-900 dark:text-indigo-200">${new Date(booking.date).toLocaleDateString()}</p>
                         </div>
                         <div>
                             <p class="text-xs text-indigo-400 uppercase font-bold tracking-wider mb-1">Customer</p>
-                            <p class="font-semibold text-indigo-900">${booking.name || 'Unknown'}</p>
+                            <p class="font-semibold text-indigo-900 dark:text-indigo-200">${booking.name || 'Unknown'}</p>
                         </div>
                         <div>
                              <p class="text-xs text-indigo-400 uppercase font-bold tracking-wider mb-1">Phone</p>
-                             <p class="font-semibold text-indigo-900 font-mono">${booking.countryCode || ''} ${booking.phone || '-'}</p>
+                             <p class="font-semibold text-indigo-900 dark:text-indigo-200 font-mono">${booking.countryCode || ''} ${booking.phone || '-'}</p>
                         </div>
                          <div>
                              <p class="text-xs text-indigo-400 uppercase font-bold tracking-wider mb-1">Order Qty</p>
-                             <p class="font-bold text-indigo-900 bg-white inline-block px-2 rounded border border-indigo-200">${booking.qty || 0}</p>
+                             <p class="font-bold text-indigo-900 dark:text-indigo-200 bg-white dark:bg-slate-700 inline-block px-2 rounded border border-indigo-200 dark:border-indigo-800">${booking.qty || 0}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Financial Summary -->
                 <div class="grid grid-cols-3 gap-4 mb-6 text-center">
-                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <p class="text-xs text-slate-500 uppercase font-bold mb-1">Total Booked</p>
-                        <p class="text-xl font-bold text-slate-800">${formatCurrency(bookedAmt)}</p>
+                    <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold mb-1">Total Booked</p>
+                        <p class="text-xl font-bold text-slate-800 dark:text-slate-100">${formatCurrency(bookedAmt)}</p>
                     </div>
-                     <div class="bg-teal-50 p-4 rounded-lg border border-teal-200">
-                        <p class="text-xs text-teal-600 uppercase font-bold mb-1">Total Delivered</p>
-                        <p class="text-xl font-bold text-teal-700">${formatCurrency(totalDelivered)}</p>
+                     <div class="bg-teal-50 dark:bg-teal-950/20 p-4 rounded-lg border border-teal-200 dark:border-teal-900/50">
+                        <p class="text-xs text-teal-600 dark:text-teal-400 uppercase font-bold mb-1">Total Delivered</p>
+                        <p class="text-xl font-bold text-teal-700 dark:text-teal-400">${formatCurrency(totalDelivered)}</p>
                     </div>
-                     <div class="bg-amber-50 p-4 rounded-lg border border-amber-200 ring-2 ring-amber-100">
-                        <p class="text-xs text-amber-600 uppercase font-bold mb-1">Balance Due</p>
-                        <p class="text-xl font-bold text-amber-700">${formatCurrency(balance)}</p>
+                     <div class="bg-amber-50 dark:bg-amber-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-900/50 ring-2 ring-amber-100 dark:ring-amber-950">
+                        <p class="text-xs text-amber-600 dark:text-amber-400 uppercase font-bold mb-1">Balance Due</p>
+                        <p class="text-xl font-bold text-amber-700 dark:text-amber-400">${formatCurrency(balance)}</p>
                     </div>
                 </div>
 
                 <!-- Delivery History -->
-                <div class="border rounded-lg overflow-hidden">
-                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-slate-600 text-sm flex justify-between items-center">
+                <div class="border dark:border-slate-700 rounded-lg overflow-hidden">
+                    <div class="bg-slate-100 dark:bg-slate-800 px-4 py-2 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 text-sm flex justify-between items-center">
                         <span>Delivery History</span>
-                        <span class="text-xs font-normal bg-white px-2 py-0.5 rounded border border-slate-300 shadow-sm">${deliveries.length} Records</span>
+                        <span class="text-xs font-normal bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 shadow-sm dark:text-slate-300">${deliveries.length} Records</span>
                     </div>
                     <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                        <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700">
                             <tr>
                                 <th class="px-4 py-2 w-12">#</th>
                                 <th class="px-4 py-2">Type</th>
@@ -486,20 +486,20 @@ async function showBillDetails(shop, billNo) {
                                 <th class="px-4 py-2 text-center">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                             ${deliveryRows}
                         </tbody>
                     </table>
                 </div>
 
                 <!-- Audit History -->
-                <div class="border rounded-lg overflow-hidden mt-6">
-                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 font-bold text-slate-600 text-sm flex justify-between items-center">
+                <div class="border dark:border-slate-700 rounded-lg overflow-hidden mt-6">
+                    <div class="bg-slate-100 dark:bg-slate-800 px-4 py-2 border-b border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 text-sm flex justify-between items-center">
                         <span>Audit History</span>
-                        <span class="text-xs font-normal bg-white px-2 py-0.5 rounded border border-slate-300 shadow-sm">${audits ? audits.length : 0} Records</span>
+                        <span class="text-xs font-normal bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-600 shadow-sm dark:text-slate-300">${audits ? audits.length : 0} Records</span>
                     </div>
                     <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                        <thead class="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700">
                             <tr>
                                 <th class="px-4 py-2 w-12">#</th>
                                 <th class="px-4 py-2">Batch / Cycle</th>
@@ -510,15 +510,15 @@ async function showBillDetails(shop, billNo) {
                                 <th class="px-4 py-2">Remark</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                             ${auditRows}
                         </tbody>
                     </table>
                 </div>
             </div>
             
-             <div class="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end">
-                <button onclick="closeBillDetails()" class="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition-colors shadow-sm">
+             <div class="bg-slate-50 dark:bg-slate-800/80 px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                <button onclick="closeBillDetails()" class="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm">
                     Close Details
                 </button>
             </div>
@@ -560,43 +560,43 @@ function renderHistoryTable(shop, data) {
                     id="historySearchInput" 
                     onkeyup="filterHistoryTable()" 
                     placeholder="Search by Bill No or Remarks..." 
-                    class="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400"
                 >
             </div>
             <div class="flex gap-2 text-sm max-w-full overflow-x-auto pb-2 scrollbar-hide">
-                <button class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 whitespace-nowrap transition-colors" onclick="applyQuickFilter('', 'history')">All</button>
-                <button class="px-3 py-1 border border-teal-200 bg-teal-50 text-teal-700 rounded-full hover:bg-teal-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[clean]', 'history')">Clean (No Remarks & No Missing)</button>
-                <button class="px-3 py-1 border border-red-200 bg-red-50 text-red-700 rounded-full hover:bg-red-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[missing]', 'history')">With Missing Pcs</button>
-                <select class="px-3 py-1 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 focus:outline-none max-w-xs transition-colors cursor-pointer" onchange="applyQuickFilter(this.value, 'history')">
-                    <option value="">Filter by Existing Remark...</option>
-                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}">${r}</option>`).join('')}
+                <button class="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 whitespace-nowrap transition-colors" onclick="applyQuickFilter('', 'history')">All</button>
+                <button class="px-3 py-1 border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 rounded-full hover:bg-teal-100 dark:hover:bg-teal-900/50 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[clean]', 'history')">Clean (No Remarks & No Missing)</button>
+                <button class="px-3 py-1 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[missing]', 'history')">With Missing Pcs</button>
+                <select class="px-3 py-1 border border-indigo-200 dark:border-indigo-850 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 focus:outline-none max-w-xs transition-colors cursor-pointer" onchange="applyQuickFilter(this.value, 'history')">
+                    <option value="" class="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">Filter by Existing Remark...</option>
+                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}" class="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">${r}</option>`).join('')}
                 </select>
             </div>
         </div>
     `;
 
     if (!data || data.length === 0) {
-        container.innerHTML = html + `<div class="p-8 text-center text-slate-500">No checked items in history yet.</div>`;
+        container.innerHTML = html + `<div class="p-8 text-center text-slate-500 dark:text-slate-400">No checked items in history yet.</div>`;
         return;
     }
 
     html += `
-        <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-white">
+        <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm bg-white dark:bg-slate-800">
             <div class="">
-                <table class="min-w-full divide-y divide-slate-200 block md:table" id="checkedHistoryTable">
-                    <thead class="bg-slate-50 hidden md:table-header-group">
+                <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 block md:table" id="checkedHistoryTable">
+                    <thead class="bg-slate-50 dark:bg-slate-900 hidden md:table-header-group">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-24">Bill No</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-20">Qty</th>
-                            <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase w-32">Amount</th> 
-                            <th class="px-6 py-3 text-center text-xs font-bold text-red-500 uppercase w-24">Missing</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase w-full">Remark</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase whitespace-nowrap">Checked At</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-20">Status</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase w-24">Actions</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-24">Bill No</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-20">Qty</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-32">Amount</th> 
+                            <th class="px-6 py-3 text-center text-xs font-bold text-red-500 dark:text-red-400 uppercase w-24">Missing</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-full">Remark</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase whitespace-nowrap">Checked At</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-20">Status</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase w-24">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-[13px] block md:table-row-group">
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700 text-[13px] block md:table-row-group">
     `;
 
     data.forEach(item => {
@@ -620,35 +620,35 @@ function renderHistoryTable(shop, data) {
         let searchTerms = `${item.billNo} ${item.remark || ''} ${tags}`.toLowerCase();
 
         html += `
-            <tr class="hover:bg-slate-50 history-row block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 bg-white relative" data-search="${searchTerms}" data-amount="${item.amount || 0}">
-                <td class="px-6 py-4 font-mono font-bold text-slate-700 block md:table-cell border-b border-slate-50 md:border-none bg-slate-50 md:bg-transparent">
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 history-row block md:table-row border-b-4 border-slate-100 dark:border-slate-800 md:border-none mb-4 md:mb-0 bg-white dark:bg-slate-800 relative" data-search="${searchTerms}" data-amount="${item.amount || 0}">
+                <td class="px-6 py-4 font-mono font-bold text-slate-700 dark:text-slate-200 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none bg-slate-50 dark:bg-slate-800 md:bg-transparent">
                     <div class="flex justify-between items-center md:block">
-                        <span class="md:hidden text-[10px] text-slate-400 uppercase font-bold tracking-tight">Bill No:</span>
+                        <span class="md:hidden text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-tight">Bill No:</span>
                         <span>${item.billNo}</span>
                     </div>
                 </td>
-                <td class="px-6 py-2 md:py-4 text-center text-slate-600 font-semibold block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                     <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Qty</span> ${item.qty !== undefined && item.qty !== null ? item.qty : '-'}
+                <td class="px-6 py-2 md:py-4 text-center text-slate-600 dark:text-slate-300 font-semibold block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                     <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Qty</span> ${item.qty !== undefined && item.qty !== null ? item.qty : '-'}
                 </td>
-                 <td class="px-6 py-2 md:py-4 text-right block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Amount</span> ${amountDisplay}
+                 <td class="px-6 py-2 md:py-4 text-right block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Amount</span> ${amountDisplay}
                  </td>
-                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Missing</span> ${missingDisplay}
+                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Missing</span> ${missingDisplay}
                 </td>
-                <td class="px-6 py-2 md:py-4 text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Remark</span> ${item.remark || '<span class="text-slate-400 italic">No remark</span>'}
+                <td class="px-6 py-2 md:py-4 text-slate-600 dark:text-slate-300 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Remark</span> ${item.remark || '<span class="text-slate-400 dark:text-slate-500 italic">No remark</span>'}
                 </td>
-                <td class="px-6 py-2 md:py-4 text-slate-500 whitespace-nowrap text-xs block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Checked At</span>
+                <td class="px-6 py-2 md:py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Checked At</span>
                     <div>
                         ${new Date(item.checkedAt).toLocaleDateString()} 
-                        <span class="text-slate-400 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span class="text-slate-400 dark:text-slate-500 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                 </td>
-                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Status</span>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Status</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-400">
                         Checked
                     </span>
                 </td>
@@ -799,59 +799,59 @@ function renderArchivedDetails(shop, allData, batchLabel) {
     let html = `
         <div class="mb-4">
             <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-2">
-                <button onclick="closeArchiveBatch()" class="flex items-center text-indigo-600 hover:text-indigo-800 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors">
+                <button onclick="closeArchiveBatch()" class="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors">
                     <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                     Back to Archives
                 </button>
-                <h3 class="text-xl font-bold text-slate-800">${batchLabel}</h3>
+                <h3 class="text-xl font-bold text-slate-800 dark:text-slate-200">${batchLabel}</h3>
                 <div class="w-full md:w-1/3">
                     <input type="text" 
                         id="archivedSearchInput" 
                         onkeyup="filterArchivedTable()" 
                         placeholder="Search in ${batchLabel}..." 
-                        class="w-full px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        class="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400"
                     >
                 </div>
             </div>
             <div class="flex gap-2 text-sm max-w-full overflow-x-auto pb-2 scrollbar-hide justify-end md:justify-end justify-start">
-                <button class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 whitespace-nowrap transition-colors" onclick="applyQuickFilter('', 'archived')">All</button>
-                <button class="px-3 py-1 border border-teal-200 bg-teal-50 text-teal-700 rounded-full hover:bg-teal-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[clean]', 'archived')">Clean</button>
-                <button class="px-3 py-1 border border-red-200 bg-red-50 text-red-700 rounded-full hover:bg-red-100 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[missing]', 'archived')">With Missing Pcs</button>
-                <select class="px-3 py-1 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 focus:outline-none max-w-xs transition-colors cursor-pointer" onchange="applyQuickFilter(this.value, 'archived')">
-                    <option value="">Filter by Existing Remark...</option>
-                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}">${r}</option>`).join('')}
+                <button class="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 whitespace-nowrap transition-colors" onclick="applyQuickFilter('', 'archived')">All</button>
+                <button class="px-3 py-1 border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 rounded-full hover:bg-teal-100 dark:hover:bg-teal-900/50 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[clean]', 'archived')">Clean</button>
+                <button class="px-3 py-1 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 whitespace-nowrap transition-colors" onclick="applyQuickFilter('[missing]', 'archived')">With Missing Pcs</button>
+                <select class="px-3 py-1 border border-indigo-200 dark:border-indigo-850 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/50 focus:outline-none max-w-xs transition-colors cursor-pointer" onchange="applyQuickFilter(this.value, 'archived')">
+                    <option value="" class="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">Filter by Existing Remark...</option>
+                    ${uniqueRemarks.map(r => `<option value="${r.replace(/"/g, '&quot;')}" class="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">${r}</option>`).join('')}
                 </select>
             </div>
         </div>
     `;
 
     html += `
-        <div class="overflow-hidden rounded-xl border border-slate-200 shadow-sm bg-slate-50">
+        <div class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm bg-slate-50 dark:bg-slate-900/50">
             <div class="">
-                <table class="min-w-full divide-y divide-slate-200 block md:table" id="archivedTable">
-                    <thead class="bg-indigo-50 hidden md:table-header-group">
+                <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700 block md:table" id="archivedTable">
+                    <thead class="bg-indigo-50 dark:bg-indigo-950/30 hidden md:table-header-group">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-indigo-800 uppercase w-24">Bill No</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-indigo-500 uppercase w-20">Qty</th>
-                            <th class="px-6 py-3 text-right text-xs font-bold text-indigo-500 uppercase w-32">Amount</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold text-red-500 uppercase w-24">Missing</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-indigo-500 uppercase w-full">Remark</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold text-indigo-500 uppercase whitespace-nowrap">Checked At</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-indigo-800 dark:text-indigo-300 uppercase w-24">Bill No</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase w-20">Qty</th>
+                            <th class="px-6 py-3 text-right text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase w-32">Amount</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-red-500 dark:text-red-400 uppercase w-24">Missing</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase w-full">Remark</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase whitespace-nowrap">Checked At</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-sm bg-white block md:table-row-group">
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700 text-sm bg-white dark:bg-slate-800 block md:table-row-group">
     `;
 
     filteredData.forEach(item => {
         const missingDisplay = item.missingPcs > 0
-            ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800">${item.missingPcs} Missing</span>`
-            : '<span class="text-slate-400">-</span>';
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 dark:bg-red-950/30 text-red-800 dark:text-red-400">${item.missingPcs} Missing</span>`
+            : '<span class="text-slate-400 dark:text-slate-500">-</span>';
 
         const amountDisplay = (item.amount !== undefined && item.amount !== null)
-            ? `<span class="font-bold text-slate-700">${formatCurrency(item.amount)}</span>`
-            : '<span class="text-slate-400 italic">-</span>';
+            ? `<span class="font-bold text-slate-700 dark:text-slate-300">${formatCurrency(item.amount)}</span>`
+            : '<span class="text-slate-400 dark:text-slate-500 italic">-</span>';
 
         let tags = "";
         if (!item.remark && (!item.missingPcs || item.missingPcs === 0)) {
@@ -865,30 +865,30 @@ function renderArchivedDetails(shop, allData, batchLabel) {
         const searchTerms = `${item.billNo} ${item.remark || ''} ${tags}`.toLowerCase();
 
         html += `
-            <tr class="hover:bg-slate-50 archived-row block md:table-row border-b-4 border-slate-100 md:border-none mb-4 md:mb-0 bg-white relative" data-search="${searchTerms}" data-amount="${item.amount || 0}">
-                <td class="px-6 py-4 font-mono font-bold text-slate-700 block md:table-cell border-b border-slate-50 md:border-none bg-slate-50 md:bg-transparent">
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 archived-row block md:table-row border-b-4 border-slate-100 dark:border-slate-800 md:border-none mb-4 md:mb-0 bg-white dark:bg-slate-800 relative" data-search="${searchTerms}" data-amount="${item.amount || 0}">
+                <td class="px-6 py-4 font-mono font-bold text-slate-700 dark:text-slate-200 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none bg-slate-50 dark:bg-slate-800 md:bg-transparent">
                     <div class="flex justify-between items-center md:block">
-                        <span class="md:hidden text-[10px] text-slate-400 uppercase font-bold tracking-tight">Bill No:</span>
+                        <span class="md:hidden text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-tight">Bill No:</span>
                         <span>${item.billNo}</span>
                     </div>
                 </td>
-                <td class="px-6 py-2 md:py-4 text-center text-slate-600 font-semibold block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Qty</span> ${item.qty !== undefined && item.qty !== null ? item.qty : '-'}
+                <td class="px-6 py-2 md:py-4 text-center text-slate-600 dark:text-slate-300 font-semibold block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Qty</span> ${item.qty !== undefined && item.qty !== null ? item.qty : '-'}
                 </td>
-                <td class="px-6 py-2 md:py-4 text-right block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Amount</span> ${amountDisplay}
+                <td class="px-6 py-2 md:py-4 text-right block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Amount</span> ${amountDisplay}
                 </td>
-                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Missing</span> ${missingDisplay}
+                <td class="px-6 py-2 md:py-4 text-center block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Missing</span> ${missingDisplay}
                 </td>
-                <td class="px-6 py-2 md:py-4 text-slate-600 block md:table-cell border-b border-slate-50 md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Remark</span> ${item.remark || '<span class="text-slate-400 italic">No remark</span>'}
+                <td class="px-6 py-2 md:py-4 text-slate-600 dark:text-slate-300 block md:table-cell border-b border-slate-50 dark:border-slate-700 md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Remark</span> ${item.remark || '<span class="text-slate-400 dark:text-slate-500 italic">No remark</span>'}
                 </td>
-                <td class="px-6 py-2 md:py-4 text-slate-500 whitespace-nowrap text-xs block md:table-cell md:border-none flex justify-between items-center md:block">
-                    <span class="md:hidden font-bold text-slate-500 uppercase text-xs">Checked At</span>
+                <td class="px-6 py-2 md:py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap text-xs block md:table-cell md:border-none flex justify-between items-center md:block">
+                    <span class="md:hidden font-bold text-slate-500 dark:text-slate-400 uppercase text-xs">Checked At</span>
                     <div>
                         ${new Date(item.checkedAt).toLocaleDateString()} 
-                        <span class="text-slate-400 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span class="text-slate-400 dark:text-slate-500 ml-1">${new Date(item.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                 </td>
             </tr>
@@ -1092,30 +1092,30 @@ async function editStockAuditItem(shop, id, currentRemark, currentMissing, curre
     }
 
     modal.innerHTML = `
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden p-6 animate-fade-in-up">
-            <h3 class="text-xl font-bold text-indigo-900 mb-4">Edit Checked Stock Item</h3>
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden p-6 animate-fade-in-up border dark:border-slate-700">
+            <h3 class="text-xl font-bold text-indigo-900 dark:text-indigo-400 mb-4">Edit Checked Stock Item</h3>
             <div class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Quantity</label>
-                        <input type="number" id="editQty_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value="${currentQty}">
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Quantity</label>
+                        <input type="number" id="editQty_${id}" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400" value="${currentQty}">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">Amount</label>
-                        <input type="number" step="0.01" id="editAmount_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value="${currentAmount}">
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Amount</label>
+                        <input type="number" step="0.01" id="editAmount_${id}" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400" value="${currentAmount}">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">Missing Pieces</label>
-                    <input type="number" id="editMissing_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value="${currentMissing}">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Missing Pieces</label>
+                    <input type="number" id="editMissing_${id}" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400" value="${currentMissing}">
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">Remark</label>
-                    <textarea id="editRemark_${id}" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" rows="3">${currentRemark}</textarea>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-1">Remark</label>
+                    <textarea id="editRemark_${id}" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white dark:placeholder-slate-400" rows="3">${currentRemark}</textarea>
                 </div>
             </div>
             <div class="mt-6 flex justify-end space-x-3">
-                <button id="cancelEditBtn_${id}" class="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                <button id="cancelEditBtn_${id}" class="px-4 py-2 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancel</button>
                 <button id="saveEditBtn_${id}" class="px-4 py-2 bg-indigo-600 text-white font-medium hover:bg-indigo-700 rounded-lg shadow-sm transition-colors">Save Changes</button>
             </div>
         </div>
