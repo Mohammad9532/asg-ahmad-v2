@@ -21,7 +21,7 @@ const createEntryRoute = (Model, type) => async (req, res) => {
         }
 
         let sanitisedObject = {};
-        const { billNo, amount, date, amountType, dept, cat, name, noOfUpdates, ...rest } = entryData;
+        const { billNo, amount, date, amountType, dept, cat, name, noOfUpdates, targetId, expenseType, ...rest } = entryData;
 
         if (type === 'expense') {
             sanitisedObject = {
@@ -30,6 +30,8 @@ const createEntryRoute = (Model, type) => async (req, res) => {
                 dept: dept ? String(dept).toLowerCase() : undefined,
                 cat: cat ? String(cat).toLowerCase() : undefined,
                 name: name ? String(name).toLowerCase() : undefined,
+                targetId: targetId ? String(targetId).trim() : undefined,
+                expenseType: expenseType ? String(expenseType).toLowerCase() : undefined,
                 noOfUpdates: noOfUpdates !== undefined ? Number(noOfUpdates) : 0,
                 ...rest
             };
@@ -103,7 +105,7 @@ const updateEntryRoute = (Model, type) => async (req, res) => {
         }
 
         let sanitisedObject = {};
-        const { billNo, amount, date, amountType, dept, cat, name, ...rest } = entryData;
+        const { billNo, amount, date, amountType, dept, cat, name, targetId, expenseType, ...rest } = entryData;
 
         if (type === 'expense') {
             sanitisedObject = {
@@ -112,6 +114,8 @@ const updateEntryRoute = (Model, type) => async (req, res) => {
                 dept: dept ? String(dept).toLowerCase() : undefined,
                 cat: cat ? String(cat).toLowerCase() : undefined,
                 name: name ? String(name).toLowerCase() : undefined,
+                targetId: targetId ? String(targetId).trim() : undefined,
+                expenseType: expenseType ? String(expenseType).toLowerCase() : undefined,
                 ...rest
             };
         } else if (type === 'bookings') {

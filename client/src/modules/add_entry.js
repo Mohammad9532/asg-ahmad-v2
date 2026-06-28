@@ -2,6 +2,7 @@ import { SHOP_PREFIXES, BASE_URL } from './config.js';
 import { formatCurrency } from './utils.js';
 import { createEntry, fetchAllData } from './api.js';
 import { state } from './state.js';
+import { getMasterDataCache, fetchMasterData } from './master_data.js';
 
 // Global state for Add Entry
 let currentEntryType = 'booking';
@@ -528,11 +529,29 @@ export function switchEntryType(type) {
         `;
     } else if (type === 'expense') {
         container.innerHTML = `
+            <!-- Expense Type Toggle -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Expense Type</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="expenseType" value="employee" checked class="form-radio text-indigo-600 focus:ring-indigo-500 h-4 w-4 dark:bg-slate-700 dark:border-slate-600" onchange="window.refreshExpenseMasterDropdown()">
+                        <span class="ml-2 text-slate-700 dark:text-slate-300">Employee Expense</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="expenseType" value="general" class="form-radio text-indigo-600 focus:ring-indigo-500 h-4 w-4 dark:bg-slate-700 dark:border-slate-600" onchange="window.refreshExpenseMasterDropdown()">
+                        <span class="ml-2 text-slate-700 dark:text-slate-300">General Expense</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
                  <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Name <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" list="employeeSuggestions" oninput="handleNameInput(this)" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" id="expenseNameInput">
-                    <datalist id="employeeSuggestions"></datalist>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Payee Name <span class="text-red-500">*</span></label>
+                    <select name="targetId" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" id="expenseTargetSelect" onchange="window.handleExpenseTargetChange(this)">
+                        <option value="">Select from Master List...</option>
+                        <!-- Populated by JS -->
+                    </select>
+                    <input type="hidden" name="name" id="expenseNameHidden">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Amount <span class="text-red-500">*</span></label>
@@ -540,36 +559,32 @@ export function switchEntryType(type) {
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4 mt-4">
                  <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Date <span class="text-red-500">*</span></label>
                     <input type="date" name="date" value="${today}" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Department</label>
-                    <div class="relative">
-                        <select name="dept" onchange="updateExpenseCategories(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            ${Object.entries(EXPENSE_MAPPING).map(([label, data]) => `<option value="${data.value}">${label}</option>`).join('')}
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-700 dark:text-slate-300">
-                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                        </div>
-                    </div>
+                    <input type="text" name="dept" readonly required class="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-600 cursor-not-allowed dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400" id="expenseDeptReadonly">
                 </div>
             </div>
 
-            <div>
+            <div class="mt-4">
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category <span class="text-red-500">*</span></label>
-                <select name="cat" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                    <!-- Populated dynamically -->
-                </select>
+                <input type="text" name="cat" readonly required class="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-slate-600 cursor-not-allowed dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400" id="expenseCatReadonly">
             </div>
             
-            <div>
+            <div class="mt-4">
                  <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Message</label>
                  <textarea name="message" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white"></textarea>
             </div>
         `;
+        
+        // Fetch and populate the master list data
+        fetchMasterData().then(() => {
+            window.refreshExpenseMasterDropdown();
+        });
         const deptSelect = container.querySelector('[name="dept"]');
         if (deptSelect) updateExpenseCategories(deptSelect);
     }
@@ -594,6 +609,53 @@ export function switchEntryType(type) {
         }
     }
 }
+
+export function refreshExpenseMasterDropdown() {
+    const form = document.getElementById('addEntryForm');
+    if (!form || currentEntryType !== 'expense') return;
+    
+    const typeRadio = form.querySelector('input[name="expenseType"]:checked');
+    if (!typeRadio) return;
+    const selectedType = typeRadio.value;
+    
+    const selectEl = document.getElementById('expenseTargetSelect');
+    if (!selectEl) return;
+    
+    const masterData = getMasterDataCache();
+    const filtered = masterData.filter(item => item.isActive && item.type === selectedType);
+    
+    selectEl.innerHTML = '<option value="">Select from Master List...</option>' + 
+        filtered.map(item => `<option value="${item.targetId}" data-name="${item.name}" data-dept="${item.department}" data-cat="${item.category}">${item.targetId} - ${item.name}</option>`).join('');
+        
+    // Reset readonly fields
+    const nameHidden = document.getElementById('expenseNameHidden');
+    const deptReadonly = document.getElementById('expenseDeptReadonly');
+    const catReadonly = document.getElementById('expenseCatReadonly');
+    if (nameHidden) nameHidden.value = '';
+    if (deptReadonly) deptReadonly.value = '';
+    if (catReadonly) catReadonly.value = '';
+}
+
+export function handleExpenseTargetChange(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const nameHidden = document.getElementById('expenseNameHidden');
+    const deptReadonly = document.getElementById('expenseDeptReadonly');
+    const catReadonly = document.getElementById('expenseCatReadonly');
+
+    if (!selectedOption || !selectedOption.value) {
+        if (nameHidden) nameHidden.value = '';
+        if (deptReadonly) deptReadonly.value = '';
+        if (catReadonly) catReadonly.value = '';
+        return;
+    }
+    
+    if (nameHidden) nameHidden.value = selectedOption.getAttribute('data-name');
+    if (deptReadonly) deptReadonly.value = selectedOption.getAttribute('data-dept');
+    if (catReadonly) catReadonly.value = selectedOption.getAttribute('data-cat');
+}
+
+window.refreshExpenseMasterDropdown = refreshExpenseMasterDropdown;
+window.handleExpenseTargetChange = handleExpenseTargetChange;
 
 export function updateExpenseCategories(deptSelect) {
     const deptValue = deptSelect.value;
@@ -792,10 +854,7 @@ export async function handleAddEntrySubmit(event) {
 
         await createEntry(shop, apiType, payload);
 
-        // Refresh employee list if it's a new expense
-        if (currentEntryType === 'expense') {
-            fetchEmployees(shop);
-        }
+        // No need to refresh master list here as it doesn't change on expense entry
 
         // Success Feedback
         showToast('Entry Added Successfully!');

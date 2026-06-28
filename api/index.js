@@ -15,6 +15,7 @@ const analyticsRoutes = require('./_lib/routes/analyticsRoutes');
 const shopRoutes = require('./_lib/routes/shopRoutes');
 const aiRoutes = require('./_lib/routes/aiRoutes');
 const globalRoutes = require('./_lib/routes/globalRoutes');
+const masterRoutes = require('./_lib/routes/masterRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,6 +84,7 @@ mountingPrefixes.forEach(prefix => {
     app.use(prefix, analyticsRoutes);
     app.use(prefix, aiRoutes);
     app.use(prefix, globalRoutes);
+    app.use(prefix, masterRoutes);
     app.use(prefix, shopRoutes);
 
     // Auto-detect URI name
@@ -174,4 +176,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = app;
+module.exports = app; // trigger restart

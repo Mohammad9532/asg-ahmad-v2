@@ -26,6 +26,8 @@ const ExpenseSchema = new mongoose.Schema({
     dept: String,
     cat: String,
     name: String,
+    targetId: String,
+    expenseType: { type: String, enum: ['employee', 'general'] },
     noOfUpdates: { type: Number, default: 0 }
 }, { timestamps: true, strict: false });
 

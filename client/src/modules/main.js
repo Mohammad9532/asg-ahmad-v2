@@ -31,6 +31,7 @@ import './audit.js';
 import './aiChat.js';
 import { openEditModal, closeEditModal, handleEditSubmit } from './edit_entry.js';
 import { renderContent } from './render.js';
+import './master_data.js';
 
 // Attach global functions used in HTML event handlers
 window.handleSort = handleSort;
