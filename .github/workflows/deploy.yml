@@ -1,0 +1,29 @@
+name: Deploy ASG ERP
+
+on:
+  push:
+    branches:
+      - laravel-development
+
+concurrency:
+  group: production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Oracle VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute deployment
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -e
+            cd /var/www/asg-ahmad-v2
+            ./deploy.sh

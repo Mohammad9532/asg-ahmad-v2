@@ -1,0 +1,1 @@
+import{n as e,t}from"./jsx-runtime-n5LQ9ujS.js";e();var n=t();function r({isActive:e}){return(0,n.jsx)(`span`,{className:`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${e?`bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400`:`bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400`}`,children:e?`Active`:`Inactive`})}export{r as t};
