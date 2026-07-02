@@ -13,18 +13,9 @@ return new class extends Migration
 {
     Schema::create('departments', function (Blueprint $table) {
         $table->id();
-
-        $table->foreignId('shop_id')
-              ->constrained()
-              ->cascadeOnDelete();
-
-        $table->string('name', 100);
-
+        $table->string('name', 100)->unique();
         $table->boolean('is_active')->default(true);
-
         $table->timestamps();
-
-        $table->unique(['shop_id', 'name']);
     });
 }
 

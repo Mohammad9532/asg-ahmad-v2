@@ -27,6 +27,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '~': resolve(__dirname, 'client/src'), // Alias for cleaner imports
+            '@': resolve(__dirname, 'client/src'),
         },
     },
 });

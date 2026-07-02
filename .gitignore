@@ -1,8 +1,31 @@
-.env
-node_modules
-dist
-.gemini
-.agent
-brain/
-*.log
+# Laravel
+laravel/vendor/
+laravel/node_modules/
+laravel/.env
+laravel/storage/logs/*
+laravel/bootstrap/cache/*
+
+# React
+client/node_modules/
+client/dist/
+client/.env
+
+# Root
+node_modules/
+vendor/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
 .DS_Store
+Thumbs.db
+
+.env
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+client_new/
