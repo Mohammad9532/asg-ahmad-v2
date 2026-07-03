@@ -338,7 +338,12 @@ export function BookingModal({ isOpen, onClose, editId, onSuccess }: BookingModa
               <div className="w-1/3">
                 <Select 
                   {...register('country_code')} 
-                  options={[{value: '+971', label: 'UAE (+971)'}, {value: '+966', label: 'KSA (+966)'}, {value: '+91', label: 'IND (+91)'}]}
+                  options={[
+                    {value: '+971', label: 'UAE (+971)'}, 
+                    {value: '+968', label: 'OMN (+968)'},
+                    {value: '+966', label: 'KSA (+966)'}, 
+                    {value: '+91', label: 'IND (+91)'}
+                  ]}
                 />
               </div>
               <div className="w-2/3">

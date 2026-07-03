@@ -203,7 +203,15 @@ export function BookingForm({ initialData = {} as any, defaultBillNo = '' }) {
         <div className="flex gap-2">
           <div className="w-1/3">
             <label className="text-sm font-medium mb-1 block">Code</label>
-            <Input {...register('country_code')} />
+            <Select 
+              {...register('country_code')} 
+              options={[
+                {value: '+971', label: 'UAE (+971)'}, 
+                {value: '+968', label: 'OMN (+968)'},
+                {value: '+966', label: 'KSA (+966)'}, 
+                {value: '+91', label: 'IND (+91)'}
+              ]}
+            />
           </div>
           <div className="w-2/3">
             <label className="text-sm font-medium mb-1 block">Mobile</label>
