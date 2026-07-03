@@ -6,6 +6,7 @@ interface User {
   email: string;
   role: { name: string };
   shop_id: number | null;
+  shop?: { id: number; name: string } | null;
 }
 
 interface AuthState {

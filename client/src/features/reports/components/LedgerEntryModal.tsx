@@ -101,7 +101,7 @@ export function LedgerEntryModal({ isOpen, onClose }: LedgerEntryModalProps) {
     } maxWidth="max-w-md">
       <div className="bg-indigo-50 text-indigo-800 p-4 rounded-xl text-sm mb-6 leading-relaxed border border-indigo-100">
         {/* @ts-ignore */}
-        Set the opening cash balance for <span className="font-bold">{user?.shop?.name || 'Naseem'}</span> as of a specific starting date. All subsequent daily balances will calculate forward from this amount.
+        Set the opening cash balance for <span className="font-bold">{user?.shop?.name || 'Al Resala Tailoring'}</span> as of a specific starting date. All subsequent daily balances will calculate forward from this amount.
       </div>
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

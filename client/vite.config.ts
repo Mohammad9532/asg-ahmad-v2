@@ -14,4 +14,17 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    host: 'localhost',
+    port: 5173,
+    hmr: {
+      host: 'localhost',
+      protocol: 'ws',
+    },
+    watch: {
+      usePolling: true,   // Needed on some Windows setups
+      interval: 300,
+    }
+  }
 })
+

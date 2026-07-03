@@ -35,7 +35,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
       <div className="w-full max-w-md p-8 bg-card rounded-lg border shadow-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-foreground">ASG ERP V2</h1>
+          <h1 className="text-2xl font-bold text-foreground">ERP V1</h1>
           <p className="text-sm text-muted-foreground mt-2">Sign in to your account</p>
         </div>
         

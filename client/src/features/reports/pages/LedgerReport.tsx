@@ -89,7 +89,7 @@ export default function LedgerReport() {
           <div>
             <h1 className="text-xl font-bold text-slate-800 tracking-tight">
               {/* @ts-ignore - shop might exist dynamically or we fallback */}
-              {user?.shop?.name || 'Naseem'} Daily Ledger
+              {user?.shop?.name || 'Al Resala Tailoring'} Daily Ledger
             </h1>
             <div className="flex items-center gap-2 text-sm font-medium text-slate-500 mt-0.5 cursor-pointer hover:text-primary" onClick={handleToday}>
               {displayDate} <span className="text-xs">📅</span>
