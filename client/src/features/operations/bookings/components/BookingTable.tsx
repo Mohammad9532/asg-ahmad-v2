@@ -100,19 +100,52 @@ export function BookingTable({ isCompact = false, onEdit, search = '', status = 
     return <div className="h-64 bg-card border rounded-lg animate-pulse"></div>;
   }
 
+  const rows = data?.data || [];
+
   return (
     <div className="rounded-md border bg-card overflow-hidden">
-      <div className="overflow-auto max-h-[600px]">
+
+      {/* ── Mobile Card View (< md) ── */}
+      <div className="block md:hidden divide-y divide-border">
+        {rows.length ? rows.map((booking: any) => (
+          <div key={booking.id} className="p-3 hover:bg-muted/40 transition-colors">
+            <div className="flex justify-between items-start gap-2 mb-1.5">
+              <div>
+                <span className="font-mono font-bold text-sm text-foreground">{booking.bill_no}</span>
+                <span className="ml-2 text-xs text-muted-foreground">{booking.booking_date}</span>
+              </div>
+              <BookingStatusBadge status={booking.status} />
+            </div>
+            <div className="text-sm font-medium text-foreground mb-0.5">{booking.customer_name}</div>
+            <div className="text-xs text-muted-foreground mb-2">{booking.mobile} · {booking.pcs} pcs</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-bold text-foreground">AED {Number(booking.booking_amount || 0).toFixed(2)}</span>
+                {booking.advance_amount > 0 && (
+                  <span className="ml-2 text-xs text-muted-foreground">Adv: {Number(booking.advance_amount).toFixed(2)}</span>
+                )}
+              </div>
+              {onEdit && (
+                <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={() => onEdit(booking.id)}>
+                  Edit
+                </Button>
+              )}
+            </div>
+          </div>
+        )) : (
+          <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">No results.</div>
+        )}
+      </div>
+
+      {/* ── Desktop Table View (md+) ── */}
+      <div className="hidden md:block overflow-auto max-h-[600px]">
         <table className="w-full text-sm text-left">
           <thead className="sticky top-0 bg-muted text-muted-foreground uppercase text-xs">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th key={header.id} className="px-4 py-3 font-medium whitespace-nowrap">
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
+                    {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
               </tr>
@@ -124,27 +157,22 @@ export function BookingTable({ isCompact = false, onEdit, search = '', status = 
                 <tr key={row.id} className="hover:bg-muted/50 transition-colors">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3 whitespace-nowrap">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} className="h-24 text-center">
-                  No results.
-                </td>
+                <td colSpan={columns.length} className="h-24 text-center">No results.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      
+
       {!isCompact && (
-        <div className="flex items-center justify-between px-4 py-3 border-t">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 border-t gap-2">
           <div className="text-sm text-muted-foreground">
             Showing {data?.from || 0} to {data?.to || 0} of {data?.total || 0} entries
           </div>

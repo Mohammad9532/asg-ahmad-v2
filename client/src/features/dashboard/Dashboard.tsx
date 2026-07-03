@@ -33,12 +33,12 @@ export default function Dashboard() {
     <div className="space-y-8 max-w-[1600px] mx-auto pb-10 font-sans">
       
       {/* Welcome Banner */}
-      <div className="bg-indigo-600 rounded-3xl p-8 sm:p-10 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
+      <div className="bg-indigo-600 rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-400 opacity-20 rounded-full blur-2xl"></div>
         
         <div className="relative z-10">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-1 sm:mb-2">
             Welcome back, {user?.name?.split(' ')[0] || 'User'}! 👋
           </h1>
           <p className="text-indigo-100 text-base sm:text-lg max-w-xl">
@@ -81,7 +81,7 @@ export default function Dashboard() {
       <QuickActions />
 
       {/* KPI Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-6">
         <StatCard 
           title="Total Collections" 
           value={isLoading ? 0 : `AED ${Number(summary?.today_payments || 0).toLocaleString('en-AE', { minimumFractionDigits: 2 })}`} 

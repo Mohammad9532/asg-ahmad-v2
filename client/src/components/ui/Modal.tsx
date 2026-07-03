@@ -36,26 +36,28 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-md' 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       ></div>
       <div 
-        className={`relative bg-background border shadow-2xl rounded-xl w-full mx-4 overflow-hidden transform transition-all ${maxWidth}`}
+        className={`relative bg-background border shadow-2xl rounded-t-2xl sm:rounded-xl w-full sm:mx-4 flex flex-col transform transition-all max-h-[92dvh] sm:max-h-[90dvh] ${maxWidth}`}
         role="dialog" 
         aria-modal="true"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/20">
-          <h3 className="text-lg font-bold tracking-wider">{title}</h3>
+        {/* Header — always visible */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b bg-muted/20 flex-shrink-0">
+          <h3 className="text-base sm:text-lg font-bold tracking-wider">{title}</h3>
           <button 
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+            className="text-muted-foreground hover:text-foreground transition-colors focus:outline-none p-1"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
-        <div className="p-6">
+        {/* Scrollable body */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           {children}
         </div>
       </div>

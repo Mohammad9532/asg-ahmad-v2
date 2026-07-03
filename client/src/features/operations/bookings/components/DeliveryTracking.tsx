@@ -129,9 +129,9 @@ export function DeliveryTracking() {
   return (
     <div className="space-y-4">
       {isGlobalUser && (
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-semibold">Filter by Shop:</label>
-          <div className="w-64">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <label className="text-sm font-semibold whitespace-nowrap">Filter by Shop:</label>
+          <div className="w-full sm:w-64">
             <Select 
               value={shopId} 
               onChange={(e) => setShopId(e.target.value)}
@@ -145,43 +145,88 @@ export function DeliveryTracking() {
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading deliveries...</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted text-muted-foreground">
-                {table.getHeaderGroups().map(headerGroup => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map(header => (
-                      <th key={header.id} className="px-4 py-3 font-medium">
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y">
-                {table.getRowModel().rows.map(row => (
-                  <tr key={row.id} className="hover:bg-muted/50">
-                    {row.getVisibleCells().map(cell => (
-                      <td key={cell.id} className="px-4 py-3">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          <>
+            {/* ── Mobile Card View (< md) ── */}
+            <div className="block md:hidden divide-y">
+              {data?.data?.length ? data.data.map((booking: any) => {
+                const val = booking.delivery_date;
+                const date = val ? new Date(val) : null;
+                const isPast = date ? date < new Date(new Date().setHours(0,0,0,0)) : false;
+                const isToday = val === new Date().toISOString().split('T')[0];
+
+                return (
+                  <div key={booking.id} className="p-3 hover:bg-muted/40 transition-colors">
+                    <div className="flex justify-between items-start gap-2 mb-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {date && (
+                          <span className={`text-sm font-bold ${isPast ? 'text-destructive' : isToday ? 'text-orange-500' : 'text-foreground'}`}>
+                            {format(date, 'MMM dd, yyyy')}
+                          </span>
+                        )}
+                        {isPast && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">OVERDUE</Badge>}
+                        {isToday && <Badge className="bg-orange-500 hover:bg-orange-600 text-[10px] px-1.5 py-0">TODAY</Badge>}
+                      </div>
+                      {booking.status === 0 && <Badge variant="secondary">STOCK</Badge>}
+                      {booking.status === 1 && <Badge variant="outline" className="text-yellow-600 border-yellow-600">PARTIAL</Badge>}
+                      {booking.status === 2 && <Badge className="bg-green-600 hover:bg-green-700 text-white">PAID</Badge>}
+                    </div>
+                    <div className="text-sm font-mono font-bold text-foreground mb-0.5">{booking.bill_no}</div>
+                    <div className="text-sm font-medium text-foreground">{booking.customer_name}</div>
+                    <div className="text-xs text-muted-foreground mb-2">
+                      {booking.country_code} {booking.mobile} · {booking.pcs} pcs
+                      {isGlobalUser && booking.shop?.name && ` · ${booking.shop.name}`}
+                    </div>
+                    <Link to={`/bookings/${booking.id}`}>
+                      <Button variant="outline" size="sm" className="h-8 text-xs">
+                        <ArrowRight className="h-3 w-3 mr-1" /> View
+                      </Button>
+                    </Link>
+                  </div>
+                );
+              }) : (
+                <div className="p-8 text-center text-muted-foreground text-sm">No pending deliveries found.</div>
+              )}
+            </div>
+
+            {/* ── Desktop Table View (md+) ── */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-muted text-muted-foreground">
+                  {table.getHeaderGroups().map(headerGroup => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map(header => (
+                        <th key={header.id} className="px-4 py-3 font-medium">
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody className="divide-y">
+                  {table.getRowModel().rows.map(row => (
+                    <tr key={row.id} className="hover:bg-muted/50">
+                      {row.getVisibleCells().map(cell => (
+                        <td key={cell.id} className="px-4 py-3">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  {data?.data?.length === 0 && (
+                    <tr>
+                      <td colSpan={columns.length} className="px-4 py-8 text-center text-muted-foreground">
+                        No pending deliveries found.
                       </td>
-                    ))}
-                  </tr>
-                ))}
-                {data?.data?.length === 0 && (
-                  <tr>
-                    <td colSpan={columns.length} className="px-4 py-8 text-center text-muted-foreground">
-                      No pending deliveries found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
         
         {data?.meta && data.meta.total > 0 && (
-          <div className="p-4 border-t flex justify-between items-center">
+          <div className="p-4 border-t flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <span className="text-sm text-muted-foreground">
               Showing {data.meta.from} to {data.meta.to} of {data.meta.total} pending deliveries
             </span>

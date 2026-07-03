@@ -100,19 +100,54 @@ export function PaymentTable({ bookingId, isCompact = false, onEdit, search = ''
     return <div className="h-48 bg-card border rounded-lg animate-pulse"></div>;
   }
 
+  const rows = data?.data || [];
+
   return (
     <div className="rounded-md border bg-card overflow-hidden">
-      <div className="overflow-auto max-h-[400px]">
+
+      {/* ── Mobile Card View (< md) ── */}
+      <div className="block md:hidden divide-y divide-border">
+        {rows.length ? rows.map((payment: any) => (
+          <div key={payment.id} className="p-3 hover:bg-muted/40 transition-colors">
+            <div className="flex justify-between items-start gap-2 mb-1.5">
+              <div>
+                {!bookingId && (
+                  <span className="font-mono font-bold text-sm text-foreground">{payment.booking?.bill_no || '-'}</span>
+                )}
+                <span className={`text-xs text-muted-foreground ${!bookingId ? 'ml-2' : ''}`}>{payment.payment_date}</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                {payment.payment_method?.name || 'Cash'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold text-green-600">AED {Number(payment.amount || 0).toFixed(2)}</div>
+                {payment.remarks && (
+                  <div className="text-xs text-muted-foreground mt-0.5 truncate max-w-[180px]">{payment.remarks}</div>
+                )}
+              </div>
+              {onEdit && (
+                <Button variant="ghost" size="sm" className="h-8 px-3 text-xs" onClick={() => onEdit(payment.id)}>
+                  Edit
+                </Button>
+              )}
+            </div>
+          </div>
+        )) : (
+          <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">No payments recorded.</div>
+        )}
+      </div>
+
+      {/* ── Desktop Table View (md+) ── */}
+      <div className="hidden md:block overflow-auto max-h-[400px]">
         <table className="w-full text-sm text-left">
           <thead className="sticky top-0 bg-muted text-muted-foreground uppercase text-xs">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th key={header.id} className="px-4 py-3 font-medium whitespace-nowrap">
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
+                    {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
               </tr>
@@ -124,10 +159,7 @@ export function PaymentTable({ bookingId, isCompact = false, onEdit, search = ''
                 <tr key={row.id} className="hover:bg-muted/50 transition-colors">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3 whitespace-nowrap">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
