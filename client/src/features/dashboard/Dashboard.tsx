@@ -27,6 +27,8 @@ export default function Dashboard() {
   
   const [activePreset, setActivePreset] = useState(DATE_PRESETS[2]); // Default 'This Month'
 
+  const cardPrefix = activePreset.label === 'Today' ? "Today's" : activePreset.label;
+
   const { data: summary, isLoading } = useQuery({
     queryKey: ['dashboard', 'summary', activePreset.start(), activePreset.end()],
     queryFn: async () => {
@@ -52,14 +54,14 @@ export default function Dashboard() {
       {/* KPI Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPICard 
-          title="Today's Booking"
+          title={`${cardPrefix} Booking`}
           value={`AED ${(summary?.today_booking_amount || 0).toLocaleString()}`}
           icon={<Briefcase />}
           colorTheme="primary"
           isLoading={isLoading}
         />
         <KPICard 
-          title="Today's Collection"
+          title={`${cardPrefix} Collection`}
           value={`AED ${(summary?.today_payments || 0).toLocaleString()}`}
           icon={<TrendingUp />}
           colorTheme="success"
@@ -87,7 +89,7 @@ export default function Dashboard() {
           isLoading={isLoading}
         />
         <KPICard 
-          title="Today's Expense"
+          title={`${cardPrefix} Expense`}
           value={`AED ${(summary?.today_expenses || 0).toLocaleString()}`}
           icon={<Receipt />}
           colorTheme="danger"
